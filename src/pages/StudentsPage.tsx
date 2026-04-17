@@ -1,0 +1,302 @@
+import React, { useState, useEffect } from 'react';
+import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle } from 'lucide-react';
+import StatCard from '../components/StatCard';
+import StudentProfile from '../components/StudentProfile';
+import { listenToCollection, saveUser } from '../services/dbService';
+
+export default function StudentsPage() {
+  const [students, setStudents] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [courseFilter, setCourseFilter] = useState('All Courses');
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Add Student Form State
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRollNo, setNewRollNo] = useState('');
+  const [newCourse, setNewCourse] = useState('MCA');
+  const [newPhone, setNewPhone] = useState('');
+
+  useEffect(() => {
+    const unsubscribe = listenToCollection('users', (data) => {
+      const studentUsers = data.filter(u => u.role === 'student');
+      setStudents(studentUsers);
+      if (studentUsers.length > 0 && !selectedStudent) {
+        setSelectedStudent(studentUsers[0]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          student.rollNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          student.course?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCourse = courseFilter === 'All Courses' || student.course === courseFilter;
+    return matchesSearch && matchesCourse;
+  });
+
+  const activeStudents = students.filter(s => s.status === 'Active' || !s.status).length;
+  const droppedStudents = students.filter(s => s.status === 'Dropped').length;
+  const newEnrollments = students.filter(s => {
+    if (!s.createdAt) return false;
+    const createdDate = new Date(s.createdAt);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return createdDate >= thirtyDaysAgo;
+  }).length;
+
+  const handleAddStudent = async () => {
+    if (!newName || !newEmail || !newRollNo) return;
+    
+    const newUser = {
+      uid: `student_${Date.now()}`,
+      name: newName,
+      email: newEmail,
+      rollNo: newRollNo,
+      course: newCourse,
+      phone: newPhone,
+      role: 'student',
+      status: 'Active',
+      attendance: '100%',
+      createdAt: new Date().toISOString()
+    };
+
+    await saveUser(newUser);
+    setShowAddModal(false);
+    setNewName('');
+    setNewEmail('');
+    setNewRollNo('');
+    setNewCourse('MCA');
+    setNewPhone('');
+  };
+
+  const uniqueCourses = ['All Courses', ...Array.from(new Set(students.map(s => s.course).filter(Boolean)))];
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 sm:p-8 relative">
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Students Directory</h2>
+            <p className="text-sm text-gray-500">Manage and view all student profiles</p>
+          </div>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="w-full sm:w-auto bg-blue-600 text-white text-xs py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Student
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <StatCard 
+          title="Total Students" value={students.length.toString()} total="" percentage="100%" trend="+12" trendUp={true} 
+          icon={<Users className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500" 
+        />
+        <StatCard 
+          title="New Enrollments (30d)" value={newEnrollments.toString()} total="" percentage={`${students.length > 0 ? Math.round((newEnrollments/students.length)*100) : 0}%`} trend="+5%" trendUp={true} 
+          icon={<UserPlus className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500" 
+        />
+        <StatCard 
+          title="Active Students" value={activeStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((activeStudents/students.length)*100) : 0}%`} trend="-2%" trendUp={false} 
+          icon={<UserCheck className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400" 
+        />
+        <StatCard 
+          title="Dropped Out" value={droppedStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((droppedStudents/students.length)*100) : 0}%`} trend="-1%" trendUp={false} 
+          icon={<UserMinus className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400" 
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
+        <div className="col-span-1 lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-bold text-gray-800">Student List</h3>
+              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                {filteredStudents.length} Total
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <select 
+                value={courseFilter}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-600"
+              >
+                {uniqueCourses.map(course => (
+                  <option key={course} value={course}>{course}</option>
+                ))}
+              </select>
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <input 
+                  type="text" 
+                  placeholder="Search students..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Student Name</th>
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Roll No</th>
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Course</th>
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Attendance</th>
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredStudents.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-500 text-sm">No students found.</td>
+                  </tr>
+                )}
+                {filteredStudents.map((student) => (
+                  <tr 
+                    key={student.uid || student.id} 
+                    onClick={() => setSelectedStudent(student)}
+                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedStudent?.uid === student.uid ? 'bg-blue-50/50' : ''}`}
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                          {student.name?.charAt(0) || 'S'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">{student.name}</p>
+                          <p className="text-xs text-gray-500">{student.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600 font-medium">{student.rollNo}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">{student.course}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${parseInt(student.attendance || '0') > 80 ? 'bg-green-500' : parseInt(student.attendance || '0') > 60 ? 'bg-orange-500' : 'bg-red-500'}`}
+                            style={{ width: student.attendance || '0%' }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-gray-700">{student.attendance || '0%'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        (!student.status || student.status === 'Active') ? 'bg-green-100 text-green-700' :
+                        student.status === 'Warning' ? 'bg-orange-100 text-orange-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {student.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(`${student.name} - ${student.rollNo}`);
+                        }}
+                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                        title="Copy Student Info"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <StudentProfile student={selectedStudent} />
+      </div>
+
+      {/* Add Student Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Add New Student</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="e.g. john@example.com"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Roll Number</label>
+                  <input 
+                    type="text" 
+                    value={newRollNo}
+                    onChange={(e) => setNewRollNo(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="e.g. 2505304049"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Course</label>
+                  <input 
+                    type="text" 
+                    value={newCourse}
+                    onChange={(e) => setNewCourse(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="e.g. MCA"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+                <input 
+                  type="text" 
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  placeholder="e.g. +91 9876543210"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+              <button 
+                onClick={handleAddStudent} 
+                disabled={!newName || !newEmail || !newRollNo}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 disabled:opacity-50"
+              >
+                Save Student
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

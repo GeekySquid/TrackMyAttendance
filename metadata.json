@@ -1,0 +1,8 @@
+{
+  "name": "TrackMyAttendance",
+  "description": "",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

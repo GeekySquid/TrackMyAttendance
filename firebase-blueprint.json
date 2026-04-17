@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the system (Admin or Student)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "student"] },
+        "course": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Warning", "Dropped"] },
+        "attendance": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "roleId": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "An attendance record for a student",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late"] },
+        "location": { "type": "string" }
+      },
+      "required": ["userId", "date", "checkInTime", "status"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "A leave request submitted by a student",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "fromDate": { "type": "string" },
+        "toDate": { "type": "string" },
+        "type": { "type": "string", "enum": ["Sick Leave", "Casual Leave", "Emergency"] },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "appliedOn": { "type": "string" }
+      },
+      "required": ["userId", "userName", "fromDate", "toDate", "type", "reason", "status", "appliedOn"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "A role definition for RBAC",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name", "modules"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles"
+    },
+    "/attendance/{docId}": {
+      "schema": { "$ref": "#/entities/Attendance" },
+      "description": "Stores attendance records"
+    },
+    "/leaveRequests/{docId}": {
+      "schema": { "$ref": "#/entities/LeaveRequest" },
+      "description": "Stores leave requests"
+    },
+    "/roles/{roleId}": {
+      "schema": { "$ref": "#/entities/Role" },
+      "description": "Stores role definitions"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F8FAFC;
+  }
+  
+  button, 
+  [role="button"],
+  a,
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  .cursor-pointer {
+    @apply cursor-pointer transition-transform active:scale-95;
+  }
+}
+
+@layer components {
+  .sidebar-active {
+    background-color: #E0F2FE;
+    color: #0284C7;
+    border-radius: 0.5rem;
+  }
+  .status-late {
+    background-color: #FEF3C7;
+    color: #D97706;
+  }
+  .status-present {
+    background-color: #DCFCE7;
+    color: #16A34A;
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar for better UI match */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+}
