@@ -75,15 +75,24 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
 
   const geofenceCheck = async (): Promise<{ passed: boolean; isLate: boolean; schedule?: any }> => {
     const schedules = await getGeofenceSchedules();
-    
-    // Determine active windows
+
+    // ── Step 1: determine which windows are active right now ──────────────
     const activeSchedules = schedules.filter((s: any) => {
-      // Manual Admin Override
-      if (s.isActive) return true;
-      
-      // Automatic Activation checking
+      // Manual admin override: schedule must still have valid coordinates
+      if (s.isActive) {
+        const lat = parseFloat(s.lat);
+        const lng = parseFloat(s.lng);
+        const radius = parseFloat(s.radius);
+        // Reject if coordinates are 0,0 (unconfigured) or NaN
+        const hasValidCoords =
+          !isNaN(lat) && !isNaN(lng) && !isNaN(radius) &&
+          radius > 0 && (Math.abs(lat) > 0.001 || Math.abs(lng) > 0.001);
+        return hasValidCoords;
+      }
+
+      // Auto-activate: check day + time window
       if (s.autoActivate && s.time && s.days) {
-        const currentDay = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
+        const currentDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
         if (!s.days.includes(currentDay)) return false;
 
         const [hour, min] = s.time.split(':').map(Number);
@@ -92,18 +101,35 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
         const now = new Date();
         const scheduleTime = new Date();
         scheduleTime.setHours(hour, min, 0, 0);
-
         const diffMs = now.getTime() - scheduleTime.getTime();
-        // Allow check-in from 30 mins before class start time, up to 2 hours after.
+
+        // 30 min before → 2 hours after class start
         if (diffMs >= -1800000 && diffMs <= 7200000) {
-          return true;
+          // Also validate coordinates
+          const lat = parseFloat(s.lat);
+          const lng = parseFloat(s.lng);
+          const radius = parseFloat(s.radius);
+          return (
+            !isNaN(lat) && !isNaN(lng) && !isNaN(radius) &&
+            radius > 0 && (Math.abs(lat) > 0.001 || Math.abs(lng) > 0.001)
+          );
         }
       }
       return false;
     });
 
     if (activeSchedules.length === 0) {
-      toast.error('Window is not activated. Attendance is currently closed!', { duration: 4000, icon: '🔒', id: 'window-closed' });
+      toast.error('Attendance window is closed or not configured correctly.', {
+        duration: 5000,
+        icon: '🔒',
+        id: 'window-closed',
+      });
+      return { passed: false, isLate: false };
+    }
+
+    // ── Step 2: strict GPS location verification ──────────────────────────
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser.', { id: 'geo-error' });
       return { passed: false, isLate: false };
     }
 

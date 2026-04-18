@@ -28,6 +28,9 @@ const MOCK_MENTORS = [
 
 export function mapProfile(row: any) {
   if (!row) return null;
+  // NOTE: blood_group, profile_completed, mentor_id do NOT exist in the DB schema.
+  // onboarded is derived from whether the student has completed their profile (has a phone number set).
+  const isOnboarded = row.role === 'admin' || !!(row.phone) || !!(row.roll_no);
   return {
     id: row.id,
     uid: row.id,                        // legacy compat — frontend uses both uid and id
@@ -39,13 +42,13 @@ export function mapProfile(row: any) {
     course: row.course || '',
     phone: row.phone || '',
     gender: row.gender || '',
-    bloodGroup: row.blood_group || '',
+    bloodGroup: '',                     // column does not exist in DB schema
     status: row.status || 'Active',
     attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '100%',
     attendance_pct: row.attendance_pct ?? 100,
     roleId: row.role_id || null,
-    mentorId: row.mentor_id || null,
-    onboarded: row.profile_completed || false,
+    mentorId: null,                     // column does not exist in DB schema
+    onboarded: isOnboarded,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -209,53 +212,33 @@ export const getUserById = async (id: string): Promise<any | null> => {
 
 export const saveUser = async (user: any): Promise<boolean> => {
   try {
-    console.log('[dbService] saveUser starting for:', user.id || user.uid);
-    const params = {
-      p_id: user.uid || user.id,
-      p_name: user.name || null,
-      p_email: user.email || null,
-      p_photo_url: user.photoURL || null,
-      p_role: user.role || 'student',
-      p_roll_no: user.rollNo || null,
-      p_course: user.course || null,
-      p_phone: user.phone || null,
-      p_gender: user.gender || null,
-      p_blood_group: user.bloodGroup || null,
-      p_onboarded: user.onboarded === true ? true : (user.profile_completed === true ? true : false),
-      p_mentor_id: user.mentorId || null
-    };
-
-    if (!params.p_id) {
+    const userId = user.uid || user.id;
+    if (!userId) {
       console.error('[dbService] saveUser: no uid/id provided');
       return false;
     }
+    console.log('[dbService] saveUser starting for:', userId);
 
-    const { error } = await supabase.rpc('save_user_v2', params);
-    
+    // Build upsert row using ONLY columns that exist in the schema.
+    // Columns NOT in schema: blood_group, profile_completed, mentor_id.
+    const row: Record<string, any> = {
+      id: userId,
+      name: user.name || '',
+      email: user.email || '',
+      updated_at: new Date().toISOString(),
+    };
+    if (user.photoURL) row.photo_url = user.photoURL;
+    if (user.role)    row.role      = user.role;
+    if (user.rollNo)  row.roll_no   = user.rollNo;
+    if (user.course)  row.course    = user.course;
+    if (user.phone)   row.phone     = user.phone;
+    if (user.gender)  row.gender    = user.gender;
+    if (user.status)  row.status    = user.status;
+
+    const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
-      console.warn('[dbService] saveUser RPC error, trying direct upsert:', error.message);
-      // Fallback to standard upsert if RPC fails
-      const row: Record<string, any> = {
-        id: params.p_id,
-        name: params.p_name || '',
-        email: params.p_email || '',
-        updated_at: new Date().toISOString()
-      };
-      if (params.p_photo_url) row.photo_url = params.p_photo_url;
-      if (params.p_role) row.role = params.p_role;
-      if (params.p_roll_no) row.roll_no = params.p_roll_no;
-      if (params.p_course) row.course = params.p_course;
-      if (params.p_phone) row.phone = params.p_phone;
-      if (params.p_gender) row.gender = params.p_gender;
-      if (params.p_blood_group) row.blood_group = params.p_blood_group;
-      row.profile_completed = params.p_onboarded;
-      if (params.p_mentor_id) row.mentor_id = params.p_mentor_id;
-
-      const { error: upsertError } = await supabase.from('profiles').upsert(row);
-      if (upsertError) {
-        console.error('[dbService] saveUser final error:', upsertError.message);
-        return false;
-      }
+      console.error('[dbService] saveUser upsert error:', error.message);
+      return false;
     }
     console.log('[dbService] saveUser success');
     return true;
@@ -282,18 +265,17 @@ export const updateUserProfile = async (
     name: string;
     phone: string;
     gender: string;
-    bloodGroup: string;
     photoURL: string;
     status: string;
   }>
 ): Promise<void> => {
   const row: Record<string, any> = {};
-  if (updates.name !== undefined) row.name = updates.name;
-  if (updates.phone !== undefined) row.phone = updates.phone;
-  if (updates.gender !== undefined) row.gender = updates.gender;
-  if (updates.bloodGroup !== undefined) row.blood_group = updates.bloodGroup;
+  if (updates.name !== undefined)     row.name      = updates.name;
+  if (updates.phone !== undefined)    row.phone     = updates.phone;
+  if (updates.gender !== undefined)   row.gender    = updates.gender;
   if (updates.photoURL !== undefined) row.photo_url = updates.photoURL;
-  if (updates.status !== undefined) row.status = updates.status;
+  if (updates.status !== undefined)   row.status    = updates.status;
+  // NOTE: blood_group column does not exist in the profiles schema
 
   const { error } = await supabase
     .from('profiles')
@@ -779,8 +761,8 @@ export const listenToCollection = (
 
   fetchAndCallback();
 
-  // Set up realtime channel
-  const channelName = `listen-${table}-${userId || 'all'}`;
+  // Set up realtime channel with unique name to avoid conflicts
+  const channelName = `listen-${table}-${userId || 'all'}-${Math.random().toString(36).substring(2, 9)}`;
   const channel = supabase
     .channel(channelName)
     .on(

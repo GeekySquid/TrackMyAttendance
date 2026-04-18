@@ -54,7 +54,7 @@ function AppContent() {
 
         if (!existing) {
           console.log('[App] New user detected, creating profile...');
-          // First sign-in: create profile row
+          // First sign-in: create profile row using only valid DB columns
           await saveUser({
             id: clerkId,
             uid: clerkId,
@@ -62,19 +62,23 @@ function AppContent() {
             email: user.primaryEmailAddress?.emailAddress || '',
             photoURL: user.imageUrl || '',
             role: 'student',
-            onboarded: false
           });
           existing = await getUserById(clerkId);
         }
 
         if (existing) {
           setProfile(existing);
-          const isDone = existing.onboarded || existing.role === 'admin' || !!existing.phone;
-          console.log('[App] Onboarding status resolved:', isDone);
-          if (isDone) {
+          // onboarded is already correctly set inside mapProfile
+          // (true if admin, or if student has phone/rollNo)
+          if (existing.onboarded) {
             setOnboarded(true);
             localStorage.setItem('tm_onboarded', 'true');
           }
+        } else {
+          // DB unreachable or RLS blocking — sign out gracefully to prevent loop
+          console.error('[App] Profile creation failed. Signing out to prevent loop.');
+          await signOut();
+          localStorage.removeItem('tm_onboarded');
         }
       } catch (err) {
         console.error('[App] syncProfile error:', err);
@@ -153,8 +157,8 @@ function AppContent() {
   // ─── Auth gates ───────────────────────────────────────────────────────────
   if (!profile) return <LoginPage onLogin={handleDemoLogin} />;
   
-  // Final combined check for onboarding status - extremely defensive
-  const isUserOnboarded = onboarded || profile.onboarded || profile.role === 'admin' || !!profile.phone;
+  // onboarded is already correctly computed inside mapProfile via phone/roll_no/role check
+  const isUserOnboarded = profile.onboarded;
 
   if (profile.role === 'student' && !isUserOnboarded) {
     return <OnboardingPage user={profile} onComplete={handleOnboardingComplete} />;

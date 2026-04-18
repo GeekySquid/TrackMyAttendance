@@ -6,6 +6,8 @@ import StudentLeaveBalance from '../components/StudentLeaveBalance';
 import StudentRecentActivity from '../components/StudentRecentActivity';
 
 export default function StudentDashboard({ user }: { user?: any }) {
+  const userId = user?.uid || user?.id;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <div className="mb-6">
@@ -19,17 +21,18 @@ export default function StudentDashboard({ user }: { user?: any }) {
           <StudentCheckInWidget user={user} />
         </div>
         <div className="col-span-1 lg:col-span-2">
-          <StudentStatsGrid />
+          <StudentStatsGrid userId={userId} />
         </div>
       </div>
 
       {/* Middle Row: Analytics & Leave Balance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
         <div className="col-span-1 lg:col-span-2">
-          <AnalyticsChart />
+          {/* AnalyticsChart in student mode shows only this user's data */}
+          <AnalyticsChart userId={userId} />
         </div>
         <div className="col-span-1">
-          <StudentLeaveBalance />
+          <StudentLeaveBalance userId={userId} />
         </div>
       </div>
 
