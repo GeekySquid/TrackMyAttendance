@@ -20,7 +20,7 @@ import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import AccessControlPage from './pages/AccessControlPage';
 import SSOCallbackPage from './pages/SSOCallbackPage';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { saveUser, getUserById } from './services/dbService';
 
 function AppContent() {
@@ -29,7 +29,7 @@ function AppContent() {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<any>(null);
-  const [onboarded, setOnboarded] = useState(false);
+  const [onboarded, setOnboarded] = useState(() => localStorage.getItem('tm_onboarded') === 'true');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -48,9 +48,12 @@ function AppContent() {
       setProfileLoading(true);
       try {
         const clerkId = user.id;
+        console.log('[App] Syncing Clerk ID:', clerkId);
         let existing = await getUserById(clerkId);
+        console.log('[App] Existing Profile:', existing);
 
         if (!existing) {
+          console.log('[App] New user detected, creating profile...');
           // First sign-in: create profile row
           await saveUser({
             id: clerkId,
@@ -59,13 +62,19 @@ function AppContent() {
             email: user.primaryEmailAddress?.emailAddress || '',
             photoURL: user.imageUrl || '',
             role: 'student',
+            onboarded: false
           });
           existing = await getUserById(clerkId);
         }
 
         if (existing) {
           setProfile(existing);
-          setOnboarded(existing.role === 'admin' || !!existing.phone);
+          const isDone = existing.onboarded || existing.role === 'admin' || !!existing.phone;
+          console.log('[App] Onboarding status resolved:', isDone);
+          if (isDone) {
+            setOnboarded(true);
+            localStorage.setItem('tm_onboarded', 'true');
+          }
         }
       } catch (err) {
         console.error('[App] syncProfile error:', err);
@@ -79,17 +88,37 @@ function AppContent() {
 
   // ─── Demo login (bypasses Clerk, uses mock profile) ──────────────────────
   const handleDemoLogin = (role: 'admin' | 'student', userData?: any) => {
-    setProfile({ ...userData, role });
-    setOnboarded(role === 'admin' || !!userData?.phone);
+    const isDone = role === 'admin' || userData?.onboarded || !!userData?.phone;
+    setProfile({ ...userData, role, onboarded: isDone });
+    setOnboarded(isDone);
+    localStorage.setItem('tm_onboarded', String(isDone));
     setProfileLoading(false);
   };
 
   // ─── Onboarding complete ──────────────────────────────────────────────────
   const handleOnboardingComplete = async (onboardingData: any) => {
-    const updatedData = { ...profile, ...onboardingData };
-    setProfile(updatedData);
-    setOnboarded(true);
-    await saveUser(updatedData);
+    try {
+      const updatedData = { 
+        ...profile, 
+        ...onboardingData, 
+        onboarded: true,
+        profile_completed: true // Ensure both keys are set for safety
+      };
+
+      const success = await saveUser(updatedData);
+      
+      if (success) {
+        setProfile(updatedData);
+        setOnboarded(true);
+        localStorage.setItem('tm_onboarded', 'true');
+        toast.success('Profile created successfully!');
+      } else {
+        toast.error('Failed to save profile. Please try again.');
+      }
+    } catch (err) {
+      console.error('[App] handleOnboardingComplete error:', err);
+      toast.error('An unexpected error occurred.');
+    }
   };
 
   // ─── Logout ───────────────────────────────────────────────────────────────
@@ -98,12 +127,14 @@ function AppContent() {
     if (!isSignedIn) {
       setProfile(null);
       setOnboarded(false);
+      localStorage.removeItem('tm_onboarded');
       navigate('/');
       return;
     }
     await signOut();
     setProfile(null);
     setOnboarded(false);
+    localStorage.removeItem('tm_onboarded');
     navigate('/');
   };
 
@@ -121,7 +152,11 @@ function AppContent() {
 
   // ─── Auth gates ───────────────────────────────────────────────────────────
   if (!profile) return <LoginPage onLogin={handleDemoLogin} />;
-  if (profile.role === 'student' && !onboarded) {
+  
+  // Final combined check for onboarding status - extremely defensive
+  const isUserOnboarded = onboarded || profile.onboarded || profile.role === 'admin' || !!profile.phone;
+
+  if (profile.role === 'student' && !isUserOnboarded) {
     return <OnboardingPage user={profile} onComplete={handleOnboardingComplete} />;
   }
 
@@ -172,7 +207,7 @@ function AppContent() {
               <Route path="/leave-requests" element={<LeaveRequestsPage role="student" user={profile} />} />
               <Route path="/track-my-attendance" element={<TrackMyAttendancePage userId={profile?.id} />} />
               <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
-              <Route path="/settings" element={<SettingsPage role="student" user={profile} />} />
+              <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
               <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>

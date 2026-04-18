@@ -1,20 +1,52 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
+import { listenToCollection } from '../services/dbService';
 
-export default function StudentRecentActivity() {
-  const allLogs = [
-    { date: 'Today, Oct 14', in: '08:25 AM', out: '04:00 PM', status: 'Present', location: 'Main Campus' },
-    { date: 'Yesterday, Oct 13', in: '08:30 AM', out: '03:45 PM', status: 'Present', location: 'Main Campus' },
-    { date: 'Mon, Oct 12', in: '08:45 AM', out: '03:30 PM', status: 'Late', location: 'Main Campus' },
-    { date: 'Fri, Oct 09', in: '--', out: '--', status: 'Absent', location: '--' },
-    { date: 'Thu, Oct 08', in: '08:20 AM', out: '03:30 PM', status: 'Present', location: 'North Wing' },
-    { date: 'Wed, Oct 07', in: '08:15 AM', out: '04:15 PM', status: 'Present', location: 'Science Block' },
-    { date: 'Tue, Oct 06', in: '09:05 AM', out: '03:30 PM', status: 'Late', location: 'Main Campus' },
-  ];
+export default function StudentRecentActivity({ user }: { user?: any }) {
+  const [allLogs, setAllLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    
+    setIsLoading(true);
+    const unsubscribe = listenToCollection('attendance', (data) => {
+      // Filter for this user and format for the table
+      const studentLogs = data
+        .filter(r => r.userId === uid)
+        .sort((a, b) => {
+          // Sort by date DESC, then by checkInTime DESC
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          if (dateA !== dateB) return dateB - dateA;
+          
+          const timeA = a.checkInTime ? new Date(a.checkInTime).getTime() : 0;
+          const timeB = b.checkInTime ? new Date(b.checkInTime).getTime() : 0;
+          return timeB - timeA;
+        })
+        .map(r => ({
+          id: r.id,
+          date: new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
+          in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+          out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+          rawInTime: r.checkInTime,
+          status: r.status,
+          location: r.location || 'Campus',
+          lateReason: r.lateReason,
+          lateReasonStatus: r.lateReasonStatus,
+          image: r.lateReasonImage
+        }));
+      setAllLogs(studentLogs);
+      setIsLoading(false);
+    }, uid);
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,57 +224,106 @@ export default function StudentRecentActivity() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredLogs.length > 0 ? (
-                  filteredLogs.map((log, i) => (
-                    <tr key={i} className="hover:bg-blue-50/40 transition-colors group">
-                      <td className="py-3 px-5 text-sm font-bold text-gray-800 whitespace-nowrap">{log.date}</td>
-                      <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
-                        {log.in !== '--' ? (
-                          <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
-                            <Clock className="w-3.5 h-3.5 text-blue-500" /> 
-                            <span className="font-semibold">{log.in}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 font-medium ml-2">--</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
-                        {log.out !== '--' ? (
-                          <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
-                            <Clock className="w-3.5 h-3.5 text-purple-500" /> 
-                            <span className="font-semibold">{log.out}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 font-medium ml-2">--</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
-                        {log.location !== '--' ? (
+                 {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-sm font-medium text-gray-500">Syncing your activity...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredLogs.length > 0 ? (
+                  filteredLogs.map((log, i) => {
+                    // Check if record is "new" (added in last 30 seconds)
+                    const isNew = log.in !== '--' && (Date.now() - new Date(log.rawInTime || 0).getTime() < 30000);
+                    
+                    return (
+                      <tr 
+                        key={log.id} 
+                        className={`transition-colors group ${isNew ? 'bg-blue-50/60' : 'hover:bg-blue-50/40'}`}
+                      >
+                        <td className="py-3 px-5 text-sm font-bold text-gray-800 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
-                              <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                            </div>
-                            <span className="font-medium text-gray-700">{log.location}</span>
+                            {log.date}
+                            {isNew && (
+                              <span className="bg-blue-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full animate-pulse shadow-sm shadow-blue-200">Just Now</span>
+                            )}
                           </div>
-                        ) : (
-                          <span className="text-gray-400 ml-3">--</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-5 text-right whitespace-nowrap">
-                        <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center ${
-                          log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200 shadow-sm shadow-green-100' :
-                          log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-sm shadow-orange-100' :
-                          'bg-red-50 text-red-700 border-red-200 shadow-sm shadow-red-100'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                            log.status === 'Present' ? 'bg-green-500' :
-                            log.status === 'Late' ? 'bg-orange-500' : 'bg-red-500'
-                          }`} />
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          {log.in !== '--' ? (
+                            <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
+                              <Clock className="w-3.5 h-3.5 text-blue-500" /> 
+                              <span className="font-semibold">{log.in}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 font-medium ml-2">--</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          {log.out !== '--' ? (
+                            <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
+                              <Clock className="w-3.5 h-3.5 text-purple-500" /> 
+                              <span className="font-semibold">{log.out}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 font-medium ml-2">--</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          {log.location !== '--' ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                              </div>
+                              <span className="font-medium text-gray-700">{log.location}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 ml-3">--</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-5 text-right whitespace-nowrap relative">
+                          <div className="flex justify-end items-center group/status">
+                            <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center cursor-help transition-all duration-300 hover:scale-105 ${
+                              log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200 shadow-sm shadow-green-100' :
+                              log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-sm shadow-orange-100 ring-2 ring-transparent hover:ring-orange-200' :
+                              'bg-red-50 text-red-700 border-red-200 shadow-sm shadow-red-100'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
+                                log.status === 'Present' ? 'bg-green-500' :
+                                log.status === 'Late' ? 'bg-orange-500' : 'bg-red-500'
+                              }`} />
+                              {log.status}
+                            </span>
+
+                            {log.status === 'Late' && log.lateReason && (
+                              <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 w-64 p-4 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 opacity-0 group-hover/status:opacity-100 pointer-events-none transition-all duration-500 transform translate-x-2 group-hover/status:translate-x-0 scale-95 group-hover/status:scale-100 backdrop-blur-sm">
+                                <div className="flex items-center gap-2 mb-2 border-b border-gray-50 pb-2">
+                                  <Info className="w-4 h-4 text-orange-500" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Late Reason Submission</span>
+                                </div>
+                                <p className="text-xs text-gray-700 font-medium leading-relaxed italic">"{log.lateReason}"</p>
+                                {log.image && (
+                                  <img src={log.image} alt="Late Proof" className="mt-3 rounded-lg w-full h-24 object-cover border border-gray-100 shadow-inner" />
+                                )}
+                                <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+                                  <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${
+                                    log.lateReasonStatus === 'Approved' ? 'bg-green-100 text-green-700' :
+                                    log.lateReasonStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-orange-100 text-orange-700 animate-pulse'
+                                  }`}>
+                                    {log.lateReasonStatus || 'Pending Review'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={5} className="py-16 text-center">

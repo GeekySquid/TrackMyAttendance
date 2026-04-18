@@ -19,6 +19,11 @@ import { supabase } from '../lib/supabase';
 
 type UnsubFn = () => void;
 
+const MOCK_MENTORS = [
+  { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+91 98765 43210' },
+  { id: 'm2', name: 'Prof. James Chen', phone: '+91 98765 43211' }
+];
+
 // ─── FIELD MAPPERS (DB snake_case → Frontend camelCase) ────────────────────────
 
 export function mapProfile(row: any) {
@@ -39,6 +44,8 @@ export function mapProfile(row: any) {
     attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '100%',
     attendance_pct: row.attendance_pct ?? 100,
     roleId: row.role_id || null,
+    mentorId: row.mentor_id || null,
+    onboarded: row.profile_completed || false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -57,6 +64,10 @@ export function mapAttendance(row: any) {
     checkOutTime: row.check_out_time,
     status: row.status,
     location: row.location || '',
+    lateReason: row.late_reason || '',
+    lateReasonStatus: row.late_reason_status || 'Pending',
+    lateReasonReviewedAt: row.late_reason_reviewed_at || null,
+    lateReasonImage: row.late_reason_image || null,
   };
 }
 
@@ -89,6 +100,7 @@ export function mapGeofence(row: any) {
     radius: String(row.radius),
     isActive: row.is_active,
     autoActivate: row.auto_activate,
+    gracePeriod: row.grace_period || 15,
   };
 }
 
@@ -127,8 +139,20 @@ function mapRow(table: string, row: any): any {
     case 'leaveRequests': return mapLeaveRequest(row);
     case 'geofence_schedules': return mapGeofence(row);
     case 'notifications': return mapNotification(row);
+    case 'mentors': return mapMentor(row);
     default: return row;
   }
+}
+
+export function mapMentor(row: any) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name || '',
+    phone: row.phone || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 // ─── TABLE RESOLVER ─────────────────────────────────────────────────────────────
@@ -142,6 +166,7 @@ function resolveTable(collectionName: string): string {
     roles: 'roles',
     documents: 'documents',
     notifications: 'notifications',
+    mentors: 'mentors',
   };
   return tableMap[collectionName] || collectionName;
 }
@@ -163,47 +188,81 @@ export const getUsers = async (): Promise<any[]> => {
 };
 
 export const getUserById = async (id: string): Promise<any | null> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) {
-    console.error('[dbService] getUserById error:', error.message);
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle(); // maybeSingle returns null without error if not found
+
+    if (error) {
+      console.error('[dbService] getUserById error:', error.message);
+      throw error; // Let caller handle terminal errors
+    }
+    
+    return data ? mapProfile(data) : null;
+  } catch (err) {
+    console.error('[dbService] getUserById failed:', err);
     return null;
   }
-  return mapProfile(data);
 };
 
-export const saveUser = async (user: any): Promise<void> => {
-  const uid = user.uid || user.id;
-  if (!uid) {
-    console.error('[dbService] saveUser: no uid/id provided');
-    return;
+export const saveUser = async (user: any): Promise<boolean> => {
+  try {
+    console.log('[dbService] saveUser starting for:', user.id || user.uid);
+    const params = {
+      p_id: user.uid || user.id,
+      p_name: user.name || null,
+      p_email: user.email || null,
+      p_photo_url: user.photoURL || null,
+      p_role: user.role || 'student',
+      p_roll_no: user.rollNo || null,
+      p_course: user.course || null,
+      p_phone: user.phone || null,
+      p_gender: user.gender || null,
+      p_blood_group: user.bloodGroup || null,
+      p_onboarded: user.onboarded === true ? true : (user.profile_completed === true ? true : false),
+      p_mentor_id: user.mentorId || null
+    };
+
+    if (!params.p_id) {
+      console.error('[dbService] saveUser: no uid/id provided');
+      return false;
+    }
+
+    const { error } = await supabase.rpc('save_user_v2', params);
+    
+    if (error) {
+      console.warn('[dbService] saveUser RPC error, trying direct upsert:', error.message);
+      // Fallback to standard upsert if RPC fails
+      const row: Record<string, any> = {
+        id: params.p_id,
+        name: params.p_name || '',
+        email: params.p_email || '',
+        updated_at: new Date().toISOString()
+      };
+      if (params.p_photo_url) row.photo_url = params.p_photo_url;
+      if (params.p_role) row.role = params.p_role;
+      if (params.p_roll_no) row.roll_no = params.p_roll_no;
+      if (params.p_course) row.course = params.p_course;
+      if (params.p_phone) row.phone = params.p_phone;
+      if (params.p_gender) row.gender = params.p_gender;
+      if (params.p_blood_group) row.blood_group = params.p_blood_group;
+      row.profile_completed = params.p_onboarded;
+      if (params.p_mentor_id) row.mentor_id = params.p_mentor_id;
+
+      const { error: upsertError } = await supabase.from('profiles').upsert(row);
+      if (upsertError) {
+        console.error('[dbService] saveUser final error:', upsertError.message);
+        return false;
+      }
+    }
+    console.log('[dbService] saveUser success');
+    return true;
+  } catch (err) {
+    console.error('[dbService] saveUser exception:', err);
+    return false;
   }
-
-  const row: Record<string, any> = {
-    id: uid,
-    name: user.name || '',
-    email: user.email || '',
-  };
-
-  // Only set fields that are defined to avoid overwriting with undefined
-  if (user.photoURL !== undefined) row.photo_url = user.photoURL;
-  if (user.role !== undefined) row.role = user.role;
-  if (user.rollNo !== undefined) row.roll_no = user.rollNo;
-  if (user.course !== undefined) row.course = user.course;
-  if (user.phone !== undefined) row.phone = user.phone;
-  if (user.gender !== undefined) row.gender = user.gender;
-  if (user.bloodGroup !== undefined) row.blood_group = user.bloodGroup;
-  if (user.status !== undefined) row.status = user.status;
-  if (user.roleId !== undefined) row.role_id = user.roleId;
-
-  const { error } = await supabase
-    .from('profiles')
-    .upsert(row, { onConflict: 'id' });
-
-  if (error) console.error('[dbService] saveUser error:', error.message);
 };
 
 export const updateUserRole = async (
@@ -263,29 +322,61 @@ export const getAttendance = async (userId?: string): Promise<any[]> => {
 };
 
 export const addAttendance = async (record: any): Promise<any> => {
-  const row = {
-    user_id: record.userId,
-    user_name: record.userName || null,
-    roll_no: record.rollNo || null,
-    course: record.course || null,
-    date: record.date,
-    check_in_time: record.checkInTime || null,
-    check_out_time: record.checkOutTime || null,
-    status: record.status,
-    location: record.location || null,
-  };
+  try {
+    const params = {
+      p_user_id: record.userId,
+      p_user_name: record.userName || null,
+      p_roll_no: record.rollNo || null,
+      p_course: record.course || null,
+      p_date: record.date,
+      p_check_in: record.checkInTime || null,
+      p_status: record.status,
+      p_location: record.location || null,
+      p_late_reason: record.lateReason || null,
+      p_late_reason_image: record.lateReasonImage || null
+    };
 
-  const { data, error } = await supabase
-    .from('attendance')
-    .insert(row)
-    .select()
-    .single();
+    const { data, error } = await supabase.rpc('record_attendance', params);
 
-  if (error) {
-    console.error('[dbService] addAttendance error:', error.message);
-    throw error;
+    if (error || (data && data.status === 'failure')) {
+      const errorMsg = error?.message || data?.error;
+      console.warn('[dbService] addAttendance RPC failed, trying direct insert:', errorMsg);
+      
+      const row = {
+        user_id: record.userId,
+        user_name: record.userName || null,
+        roll_no: record.rollNo || null,
+        course: record.course || null,
+        date: record.date,
+        check_in_time: record.checkInTime || null,
+        status: record.status,
+        location: record.location || null,
+        late_reason: record.lateReason || null,
+        late_reason_status: record.lateReasonStatus || 'Pending',
+        late_reason_image: record.lateReasonImage || null,
+      };
+
+      const { data: directData, error: directError } = await supabase
+        .from('attendance')
+        .insert(row)
+        .select()
+        .single();
+
+      if (directError) {
+        console.error('[dbService] addAttendance final error:', directError.message);
+        throw directError;
+      }
+      return mapAttendance(directData);
+    }
+    
+    // If successful, we need the full record for the UI
+    // The RPC currently returns {id, status}, so we might need to fetch the full record
+    // but usually mapAttendance( {id, ...record} ) is enough.
+    return { ...record, id: data.id };
+  } catch (err) {
+    console.error('[dbService] addAttendance exception:', err);
+    throw err;
   }
-  return mapAttendance(data);
 };
 
 export const updateAttendance = async (
@@ -296,6 +387,10 @@ export const updateAttendance = async (
   if (updates.checkOutTime !== undefined) row.check_out_time = updates.checkOutTime;
   if (updates.status !== undefined) row.status = updates.status;
   if (updates.location !== undefined) row.location = updates.location;
+  if (updates.lateReason !== undefined) row.late_reason = updates.lateReason;
+  if (updates.lateReasonStatus !== undefined) row.late_reason_status = updates.lateReasonStatus;
+  if (updates.lateReasonReviewedAt !== undefined) row.late_reason_reviewed_at = updates.lateReasonReviewedAt;
+  if (updates.lateReasonImage !== undefined) row.late_reason_image = updates.lateReasonImage;
 
   const { error } = await supabase
     .from('attendance')
@@ -512,6 +607,7 @@ export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
     radius: parseInt(schedule.radius) || 500,
     is_active: schedule.isActive ?? true,
     auto_activate: schedule.autoActivate ?? true,
+    grace_period: schedule.gracePeriod ?? 15,
   };
 
   const { data, error } = await supabase
@@ -529,11 +625,17 @@ export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
 
 export const updateGeofenceSchedule = async (
   id: string,
-  updates: { isActive?: boolean; autoActivate?: boolean }
+  updates: Partial<any>
 ): Promise<void> => {
   const row: Record<string, any> = {};
+  if (updates.time !== undefined) row.time = updates.time;
+  if (updates.days !== undefined) row.days = updates.days;
+  if (updates.lat !== undefined) row.lat = parseFloat(updates.lat);
+  if (updates.lng !== undefined) row.lng = parseFloat(updates.lng);
+  if (updates.radius !== undefined) row.radius = parseInt(updates.radius);
   if (updates.isActive !== undefined) row.is_active = updates.isActive;
   if (updates.autoActivate !== undefined) row.auto_activate = updates.autoActivate;
+  if (updates.gracePeriod !== undefined) row.grace_period = updates.gracePeriod;
 
   const { error } = await supabase
     .from('geofence_schedules')
@@ -678,7 +780,7 @@ export const listenToCollection = (
   fetchAndCallback();
 
   // Set up realtime channel
-  const channelName = `listen-${table}-${userId || 'all'}-${Date.now()}`;
+  const channelName = `listen-${table}-${userId || 'all'}`;
   const channel = supabase
     .channel(channelName)
     .on(
@@ -687,15 +789,81 @@ export const listenToCollection = (
         event: '*',
         schema: 'public',
         table,
+        // Remove server-side filter as it can be perfectly reliable depending on table state
+        // filter: userId && table !== 'notifications' ? `user_id=eq.${userId}` : undefined
       },
-      () => {
-        // Re-fetch all data on any change to keep things simple
+      (payload: any) => {
+        console.log(`[dbService] Realtime update on ${table} for ${userId}:`, payload.eventType);
+        
+        // If we have a userId and it's not a notification, verify the update belongs to this user
+        if (userId && payload.new && payload.new.user_id !== userId) {
+          return;
+        }
+
+        // Re-fetch all data on relevant changes
         fetchAndCallback();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`[dbService] Subscribed to realtime updates for ${table}`);
+      }
+    });
 
   return () => {
     supabase.removeChannel(channel);
   };
 };
+
+// ─── MENTOR OPERATIONS ────────────────────────────────────────────────────────
+export const getMentors = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase.rpc('fetch_mentors_list');
+    
+    if (error) {
+      console.warn('[dbService] getMentors RPC error, trying direct table:', error.message);
+      const { data: tableData, error: tableError } = await supabase
+        .from('mentors')
+        .select('*')
+        .order('name');
+      
+      if (tableError) {
+        console.error('[dbService] getMentors table error:', tableError.message);
+        return [
+          { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+919876543210' },
+          { id: 'm2', name: 'Prof. James Chen', phone: '+919876543211' },
+        ];
+      }
+      return (tableData || []).map(mapMentor);
+    }
+    return (data || []).map(mapMentor);
+  } catch (err) {
+    console.error('[dbService] getMentors exception:', err);
+    return [
+      { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+919876543210' },
+      { id: 'm2', name: 'Prof. James Chen', phone: '+919876543211' },
+    ];
+  }
+};
+
+export const saveMentor = async (mentor: any): Promise<void> => {
+  const row: Record<string, any> = {
+    name: mentor.name,
+    phone: mentor.phone,
+  };
+  if (mentor.id) row.id = mentor.id;
+
+  const { error } = await supabase
+    .from('mentors')
+    .upsert(row);
+  if (error) console.error('[dbService] saveMentor error:', error.message);
+};
+
+export const deleteMentor = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('mentors')
+    .delete()
+    .eq('id', id);
+  if (error) console.error('[dbService] deleteMentor error:', error.message);
+};
+

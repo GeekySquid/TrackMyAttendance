@@ -3,6 +3,7 @@ import { Download, CheckSquare, Bell } from 'lucide-react';
 import AttendanceTable from '../components/AttendanceTable';
 import AnalyticsChart from '../components/AnalyticsChart';
 import StudentProfile from '../components/StudentProfile';
+import LateAppealsList from '../components/LateAppealsList';
 import { listenToCollection } from '../services/dbService';
 import toast from 'react-hot-toast';
 
@@ -132,6 +133,9 @@ export default function AttendancePage() {
               </button>
             </div>
           </div>
+        </div>
+        <div className="col-span-1 lg:col-span-1">
+          <LateAppealsList />
         </div>
       </div>
     </div>

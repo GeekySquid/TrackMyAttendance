@@ -8,20 +8,61 @@ import {
   Clock, 
   AlertTriangle, 
   Save,
-  Building,
-  UserCheck,
-  User,
   Database,
-  Loader2
+  Loader2,
+  Users,
+  User,
+  Building,
+  UserCheck
 } from 'lucide-react';
-import { saveUser, addAttendance, addLeaveRequest } from '../services/dbService';
+import { saveUser, addAttendance, addLeaveRequest, getMentors, saveMentor, deleteMentor } from '../services/dbService';
 import toast from 'react-hot-toast';
 
-export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' | 'student', user?: any }) {
+export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?: 'admin' | 'student', user?: any, onUpdate?: (u: any) => void }) {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.tab || (role === 'admin' ? 'general' : 'profile'));
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [newMentor, setNewMentor] = useState({ name: '', phone: '' });
+
+  const handleProfileSave = async (updatedData: any) => {
+    if (user?.id || user?.uid) {
+      const fullUpdate = { ...user, ...updatedData };
+      console.log('[SettingsPage] handleProfileSave for:', user.id || user.uid);
+      const success = await saveUser(fullUpdate);
+      if (success) {
+        if (onUpdate) onUpdate(fullUpdate);
+      } else {
+        toast.error('Failed to update field');
+      }
+    } else {
+      console.error('[SettingsPage] handleProfileSave: No user ID found');
+    }
+  };
+
+  useEffect(() => {
+    fetchMentors();
+  }, []);
+
+  const fetchMentors = async () => {
+    const data = await getMentors();
+    setMentors(data);
+  };
+
+  const handleAddMentor = async () => {
+    if (!newMentor.name || !newMentor.phone) return;
+    await saveMentor(newMentor);
+    setNewMentor({ name: '', phone: '' });
+    fetchMentors();
+    toast.success('Mentor added successfully');
+  };
+
+  const handleDeleteMentor = async (id: string) => {
+    await deleteMentor(id);
+    fetchMentors();
+    toast.success('Mentor removed');
+  };
 
   useEffect(() => {
     if (location.state?.tab) {
@@ -134,6 +175,7 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
     { id: 'attendance', label: 'Attendance Rules', icon: Clock },
     { id: 'alerts', label: 'Alerts & Follow-ups', icon: AlertTriangle },
     { id: 'awards', label: 'Awards & Recognition', icon: Award },
+    { id: 'mentors', label: 'Mentors Management', icon: Users },
     { id: 'security', label: 'System & Security', icon: Shield },
     { id: 'data', label: 'Data Management', icon: Database },
   ];
@@ -471,6 +513,69 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
               </div>
             )}
 
+            {activeTab === 'mentors' && role === 'admin' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-800">Mentors Management</h3>
+                  <p className="text-sm text-gray-500">Add and manage mentors who can approve late attendance reasons.</p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-6 mb-8">
+                  <h4 className="text-sm font-bold text-gray-700 mb-4 px-1">Add New Mentor</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Mentor Name" 
+                      value={newMentor.name}
+                      onChange={(e) => setNewMentor({...newMentor, name: e.target.value})}
+                      className="border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                    />
+                    <input 
+                      type="tel" 
+                      placeholder="Phone Number" 
+                      value={newMentor.phone}
+                      onChange={(e) => setNewMentor({...newMentor, phone: e.target.value})}
+                      className="border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                    />
+                    <button 
+                      onClick={handleAddMentor}
+                      className="bg-blue-600 text-white text-sm font-bold py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
+                    >
+                      Add Mentor
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {mentors.map((m) => (
+                    <div key={m.id} className="bg-white border border-gray-100 rounded-xl p-5 flex items-center justify-between shadow-sm hover:border-blue-200 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg border border-blue-100">
+                          {m.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800">{m.name}</h4>
+                          <p className="text-xs text-gray-500 font-medium">{m.phone}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteMentor(m.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {mentors.length === 0 && (
+                    <div className="col-span-full py-12 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                      <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 font-medium">No mentors added yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'profile' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="mb-6">
@@ -482,7 +587,8 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                     <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
                     <input 
                       type="text" 
-                      defaultValue={user?.name || ''} 
+                      value={user?.name || ''} 
+                      onChange={(e) => handleProfileSave({ name: e.target.value })}
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
                     />
                   </div>
@@ -490,7 +596,7 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                     <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
                     <input 
                       type="email" 
-                      defaultValue={user?.email || ''} 
+                      value={user?.email || ''} 
                       disabled
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
                     />
@@ -501,7 +607,7 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                         <label className="block text-sm font-bold text-gray-700 mb-2">Roll Number</label>
                         <input 
                           type="text" 
-                          defaultValue={user?.rollNo || ''} 
+                          value={user?.rollNo || ''} 
                           disabled
                           className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
                         />
@@ -510,7 +616,7 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                         <label className="block text-sm font-bold text-gray-700 mb-2">Course</label>
                         <input 
                           type="text" 
-                          defaultValue={user?.course || ''} 
+                          value={user?.course || ''} 
                           disabled
                           className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
                         />
@@ -521,17 +627,32 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                     <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
                     <input 
                       type="tel" 
-                      defaultValue={user?.phone || ''}
+                      value={user?.phone || ''}
+                      onChange={(e) => handleProfileSave({ phone: e.target.value })}
                       placeholder="+1 (555) 123-4567" 
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Assigned Mentor</label>
+                    <select 
+                      value={user?.mentorId || ''}
+                      onChange={(e) => handleProfileSave({ mentorId: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">No Mentor Assigned</option>
+                      {mentors.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
                   </div>
                   {user?.role === 'student' && (
                     <>
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Gender</label>
                         <select 
-                          defaultValue={user?.gender || ''}
+                          value={user?.gender || ''}
+                          onChange={(e) => handleProfileSave({ gender: e.target.value })}
                           className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         >
                           <option value="">Select</option>
@@ -543,9 +664,9 @@ export default function SettingsPage({ role = 'admin', user }: { role?: 'admin' 
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Blood Group</label>
                         <select 
-                          defaultValue={user?.bloodGroup || ''}
-                          disabled
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
+                          value={user?.bloodGroup || ''}
+                          onChange={(e) => handleProfileSave({ bloodGroup: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         >
                           <option value="">Select</option>
                           <option value="A+">A+</option>

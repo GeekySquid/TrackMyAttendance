@@ -36,7 +36,7 @@ export default function StudentDashboard({ user }: { user?: any }) {
       {/* Bottom Row: Recent Activity (Full Width) */}
       <div className="grid grid-cols-1 gap-4 sm:gap-8 mb-8">
         <div className="col-span-1">
-          <StudentRecentActivity />
+          <StudentRecentActivity user={user} />
         </div>
       </div>
     </div>

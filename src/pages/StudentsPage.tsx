@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import StudentProfile from '../components/StudentProfile';
-import { listenToCollection, saveUser } from '../services/dbService';
+import { listenToCollection, saveUser, getMentors } from '../services/dbService';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
@@ -17,6 +17,8 @@ export default function StudentsPage() {
   const [newRollNo, setNewRollNo] = useState('');
   const [newCourse, setNewCourse] = useState('MCA');
   const [newPhone, setNewPhone] = useState('');
+  const [newMentorId, setNewMentorId] = useState('');
+  const [mentors, setMentors] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('users', (data) => {
@@ -26,6 +28,13 @@ export default function StudentsPage() {
         setSelectedStudent(studentUsers[0]);
       }
     });
+
+    const fetchMentors = async () => {
+      const data = await getMentors();
+      setMentors(data);
+    };
+    fetchMentors();
+
     return () => unsubscribe();
   }, []);
 
@@ -60,6 +69,7 @@ export default function StudentsPage() {
       role: 'student',
       status: 'Active',
       attendance: '100%',
+      mentorId: newMentorId,
       createdAt: new Date().toISOString()
     };
 
@@ -230,6 +240,7 @@ export default function StudentsPage() {
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
+            
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
@@ -241,6 +252,7 @@ export default function StudentsPage() {
                   placeholder="e.g. John Doe"
                 />
               </div>
+              
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
                 <input 
@@ -251,6 +263,7 @@ export default function StudentsPage() {
                   placeholder="e.g. john@example.com"
                 />
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Roll Number</label>
@@ -273,6 +286,7 @@ export default function StudentsPage() {
                   />
                 </div>
               </div>
+              
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
                 <input 
@@ -283,9 +297,29 @@ export default function StudentsPage() {
                   placeholder="e.g. +91 9876543210"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Assign Mentor</label>
+                <select 
+                  value={newMentorId}
+                  onChange={(e) => setNewMentorId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">No Mentor Assigned</option>
+                  {mentors.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+              <button 
+                onClick={() => setShowAddModal(false)} 
+                className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
               <button 
                 onClick={handleAddStudent} 
                 disabled={!newName || !newEmail || !newRollNo}

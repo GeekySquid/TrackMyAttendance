@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, Download, Search } from 'lucide-react';
+import { Filter, Download, Search, Info } from 'lucide-react';
 import { listenToCollection } from '../services/dbService';
 import toast from 'react-hot-toast';
 
@@ -141,47 +141,88 @@ export default function AttendanceTable() {
                 <td colSpan={6} className="py-8 text-center text-gray-500 text-sm">No attendance records found.</td>
               </tr>
             )}
-            {filteredRecords.map((record, idx) => (
-              <tr key={record.id || idx} className="text-xs hover:bg-gray-50/50 transition-colors">
-                <td className="py-4 px-2">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                      {record.userName?.charAt(0) || 'U'}
+            {filteredRecords.map((record, idx) => {
+              const isNew = record.checkInTime && (Date.now() - new Date(record.checkInTime).getTime() < 30000);
+              
+              return (
+                <tr 
+                  key={record.id || idx} 
+                  className={`text-xs transition-all duration-500 ${isNew ? 'bg-blue-50/80 animate-in fade-in slide-in-from-left-2' : 'hover:bg-gray-50/50'}`}
+                >
+                  <td className="py-4 px-2">
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <div className={`w-8 h-8 rounded-full ${isNew ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'} flex items-center justify-center font-bold text-xs transition-colors shadow-sm`}>
+                          {record.userName?.charAt(0) || 'U'}
+                        </div>
+                        {isNew && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-ping"></span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-800">{record.userName}</p>
+                          {isNew && (
+                            <span className="bg-blue-600 text-white text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-tighter">Just Now</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400">{record.rollNo}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{record.userName}</p>
-                      <p className="text-[10px] text-gray-400">{record.rollNo}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 px-2 text-gray-600">{record.course}</td>
-                <td className="py-4 px-2 text-gray-600">{record.date}</td>
-                <td className="py-4 px-2 text-gray-600">
-                  {formatTime(record.checkInTime)}
-                </td>
-                <td className="py-4 px-2 text-gray-600">
-                  {formatTime(record.checkOutTime)}
-                </td>
-                <td className="py-4 px-2">
-                  {record.status === 'Late' ? (
-                    <span className="bg-orange-50 text-orange-600 px-2 py-1 rounded text-[10px] font-bold flex items-center w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mr-1.5"></span>
-                      Late
-                    </span>
-                  ) : record.status === 'Present' ? (
-                    <span className="bg-green-50 text-green-600 px-2 py-1 rounded text-[10px] font-bold flex items-center w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
-                      Present
-                    </span>
-                  ) : (
-                    <span className="bg-red-50 text-red-600 px-2 py-1 rounded text-[10px] font-bold flex items-center w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>
-                      Absent
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="py-4 px-2 text-gray-600">{record.course}</td>
+                  <td className="py-4 px-2 text-gray-600">{record.date}</td>
+                  <td className="py-4 px-2 text-gray-600 font-medium">
+                    {formatTime(record.checkInTime)}
+                  </td>
+                  <td className="py-4 px-2 text-gray-600 font-medium">
+                    {formatTime(record.checkOutTime)}
+                  </td>
+                  <td className="py-4 px-2">
+                    {record.status === 'Late' ? (
+                      <div className="group relative w-fit">
+                        <span className="bg-orange-50 text-orange-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center w-fit cursor-help shadow-sm border border-orange-100 ring-2 ring-transparent group-hover:ring-orange-200 transition-all">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2 animate-pulse"></span>
+                          Late
+                        </span>
+                        {record.lateReason && (
+                          <div className="absolute bottom-full left-0 mb-3 w-64 p-4 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-500 transform translate-y-2 group-hover:translate-y-0 backdrop-blur-sm">
+                            <div className="flex items-center gap-2 mb-2 border-b border-gray-50 pb-2">
+                              <Info className="w-3.5 h-3.5 text-orange-500" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Late Reason Submission</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed italic text-gray-700 font-medium">"{record.lateReason}"</p>
+                            {record.lateReasonImage && (
+                              <img src={record.lateReasonImage} alt="Proof" className="mt-3 rounded-xl w-full h-24 object-cover border border-gray-100 shadow-inner" />
+                            )}
+                            <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-center">
+                              <span className="text-[8px] font-bold text-gray-400 uppercase">Status</span>
+                              <span className={`text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${
+                                record.lateReasonStatus === 'Approved' ? 'bg-green-100 text-green-700' :
+                                record.lateReasonStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-orange-100 text-orange-700 animate-pulse'
+                              }`}>
+                                {record.lateReasonStatus || 'Pending Review'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : record.status === 'Present' ? (
+                      <span className="bg-green-50 text-green-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center w-fit shadow-sm border border-green-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span>
+                        Present
+                      </span>
+                    ) : (
+                      <span className="bg-red-50 text-red-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center w-fit shadow-sm border border-red-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-2"></span>
+                        Absent
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
