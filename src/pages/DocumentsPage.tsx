@@ -65,7 +65,7 @@ export default function DocumentsPage({ user }: { user?: any }) {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []) as File[];
     if (files.length === 0) return;
 
     setIsUploading(true);

@@ -74,7 +74,7 @@ export default function LoginPage({
 
           {/* Clerk Universal SignIn Widget (Handles Email/Password + Google OAuth natively + switch to Sign Up) */}
           <div className="w-full flex justify-center mb-4 clerk-container-override">
-             <SignIn routing="hash" />
+            <SignIn routing="hash" />
           </div>
 
           {/* Demo Divider */}

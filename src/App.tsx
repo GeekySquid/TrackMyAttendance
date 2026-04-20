@@ -103,15 +103,15 @@ function AppContent() {
   // ─── Onboarding complete ──────────────────────────────────────────────────
   const handleOnboardingComplete = async (onboardingData: any) => {
     try {
-      const updatedData = { 
-        ...profile, 
-        ...onboardingData, 
+      const updatedData = {
+        ...profile,
+        ...onboardingData,
         onboarded: true,
         profile_completed: true // Ensure both keys are set for safety
       };
 
       const success = await saveUser(updatedData);
-      
+
       if (success) {
         setProfile(updatedData);
         setOnboarded(true);
@@ -157,7 +157,7 @@ function AppContent() {
 
   // ─── Auth gates ───────────────────────────────────────────────────────────
   if (!profile) return <LoginPage onLogin={handleDemoLogin} />;
-  
+
   // onboarded is already correctly computed inside mapProfile via phone/roll_no/role check
   const isUserOnboarded = profile.onboarded;
 
