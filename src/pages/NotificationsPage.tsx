@@ -33,9 +33,11 @@ export default function NotificationsPage({ userId }: { userId?: string }) {
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates with a unique channel name
+    // to prevent ghost subscriptions on hot-reload or component remounts
+    const channelName = `notifications-page-${userId ?? 'all'}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel(channelName)
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'notifications' }, () => {
         fetchNotifications();
       })

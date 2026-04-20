@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserButton, useUser } from '@clerk/clerk-react';
+import { listenToCollection, markAllNotificationsRead } from '../services/dbService';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -43,11 +44,20 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
     link.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const notifications = [
-    { id: 1, title: 'New Leave Request', desc: 'Emma Wilson requested sick leave.', time: '5m ago', unread: true, type: 'alert' },
-    { id: 2, title: 'System Update', desc: 'Geofencing accuracy improved.', time: '2h ago', unread: true, type: 'info' },
-    { id: 3, title: 'Attendance Sync', desc: 'Weekly attendance report generation complete.', time: '1d ago', unread: false, type: 'success' },
-  ];
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = listenToCollection('notifications', (data) => {
+      setNotifications(data);
+    }, user?.uid || user?.id);
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleMarkAllAsRead = async () => {
+    await markAllNotificationsRead(user?.uid || user?.id);
+    toast.success('All notifications marked as read');
+  };
 
   const handleSearchNavigate = (path: string) => {
     navigate(path);
@@ -119,7 +129,9 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
             className={`p-2 rounded-full border transition-all ${showNotifications ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-100 hover:bg-gray-200 text-gray-500'}`}
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
+            {notifications.filter(n => n.unread).length > 0 && (
+              <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-white"></span>
+            )}
           </button>
 
           {showNotifications && (
@@ -128,7 +140,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
               <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50/50">
                   <h3 className="font-bold text-gray-800">Notifications</h3>
-                  <button className="text-xs font-bold text-blue-600 hover:text-blue-700">Mark all as read</button>
+                  <button onClick={handleMarkAllAsRead} className="text-xs font-bold text-blue-600 hover:text-blue-700">Mark all as read</button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.map((n) => (
@@ -142,7 +154,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                             <p className={`text-sm font-bold ${n.unread ? 'text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
                             <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{n.time}</span>
                           </div>
-                          <p className="text-xs text-gray-600 mt-0.5">{n.desc}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">{n.message || n.desc}</p>
                         </div>
                       </div>
                     </div>

@@ -19,6 +19,7 @@ import ReportsPage from './pages/ReportsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import AccessControlPage from './pages/AccessControlPage';
+import SupportPage from './pages/SupportPage';
 import SSOCallbackPage from './pages/SSOCallbackPage';
 import toast, { Toaster } from 'react-hot-toast';
 import { saveUser, getUserById } from './services/dbService';
@@ -203,6 +204,7 @@ function AppContent() {
               <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} />} />
               <Route path="/admin/geofencing" element={<GeofencingPage />} />
               <Route path="/admin/access-control" element={<AccessControlPage />} />
+              <Route path="/admin/support" element={<SupportPage role="admin" />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </>
           ) : (
@@ -213,6 +215,7 @@ function AppContent() {
               <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
               <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
               <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
+              <Route path="/support" element={<SupportPage role="student" />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}

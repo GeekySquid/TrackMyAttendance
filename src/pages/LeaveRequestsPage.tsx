@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2 } from 'lucide-react';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
 import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus } from '../services/dbService';
 import toast from 'react-hot-toast';
 
+function SkeletonLeaveRow({ cols }: { cols: number }) {
+  return (
+    <tr className="animate-pulse border-b border-gray-50">
+      {[...Array(cols)].map((_, i) => (
+        <td key={i} className="px-4 py-4">
+          <div className="h-3 bg-gray-100 rounded" style={{ width: `${50 + (i * 17) % 40}%` }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'admin' | 'student', user?: any }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -17,9 +31,9 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const [reason, setReason] = useState('');
 
   useEffect(() => {
+    setIsLoading(true);
     const unsubscribe = listenToCollection('leaveRequests', (data) => {
       try {
-        // Sort by appliedOn descending
         const sorted = (data || []).sort((a, b) => {
           const timeA = a.appliedOn ? new Date(a.appliedOn).getTime() : 0;
           const timeB = b.appliedOn ? new Date(b.appliedOn).getTime() : 0;
@@ -29,8 +43,10 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
       } catch (err) {
         console.error("Error processing leave requests:", err);
         setLeaveRequests([]);
+      } finally {
+        setIsLoading(false);
       }
-    }, role === 'student' ? user?.uid : undefined);
+    }, role === 'student' ? (user?.uid || user?.id) : undefined);
 
     return () => unsubscribe();
   }, [role, user]);
@@ -40,7 +56,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     
     try {
       await addLeaveRequest({
-        userId: user.uid,
+        userId: user.uid || user.id,
         userName: user.name,
         rollNo: user.rollNo,
         fromDate,
@@ -63,13 +79,19 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
-    if (!id) return;
+    if (!id || processingIds.has(id)) return;
+    // Optimistic update
+    setLeaveRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    setProcessingIds(prev => new Set(prev).add(id));
     try {
       await updateLeaveRequestStatus(id, status);
       toast.success(`Leave request ${status.toLowerCase()}`);
     } catch (err) {
       console.error("Failed to update status:", err);
       toast.error(`Failed to ${status.toLowerCase()} leave request.`);
+      // Realtime will restore correct state
+    } finally {
+      setProcessingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
   };
 
@@ -277,7 +299,10 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         <LeaveReports />
         <div className="col-span-1 lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col">
           <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-base font-bold text-gray-800">Leave History</h3>
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              Leave History
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+            </h3>
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -300,12 +325,18 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredRequests.length === 0 && (
+                {isLoading ? (
+                  <>
+                    <SkeletonLeaveRow cols={4} />
+                    <SkeletonLeaveRow cols={4} />
+                    <SkeletonLeaveRow cols={4} />
+                  </>
+                ) : filteredRequests.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-8 px-4 text-center text-gray-500 text-sm">No leave requests found.</td>
                   </tr>
-                )}
-                {filteredRequests.map((req, i) => (
+                ) : (
+                  filteredRequests.map((req, i) => (
                   <tr key={req.id || i} className="hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-4">
                       <div>
@@ -321,15 +352,18 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                     <td className="py-3 px-4 text-right">
                       {req.status === 'Pending' ? (
                         <div className="flex justify-end gap-2">
-                          <button 
+                          <button
                             onClick={() => handleUpdateStatus(req.id, 'Approved')}
-                            className="px-2 py-1 bg-green-50 text-green-600 hover:bg-green-100 rounded text-xs font-bold transition-colors"
+                            disabled={processingIds.has(req.id)}
+                            className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 hover:bg-green-100 rounded text-xs font-bold transition-colors disabled:opacity-50"
                           >
+                            {processingIds.has(req.id) && <Loader2 className="w-3 h-3 animate-spin" />}
                             Approve
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleUpdateStatus(req.id, 'Rejected')}
-                            className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-bold transition-colors"
+                            disabled={processingIds.has(req.id)}
+                            className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-bold transition-colors disabled:opacity-50"
                           >
                             Reject
                           </button>
@@ -345,7 +379,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                       )}
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>

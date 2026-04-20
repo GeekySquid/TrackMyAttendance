@@ -19,6 +19,7 @@ interface GeofenceSchedule {
   isActive: boolean;
   autoActivate: boolean;
   gracePeriod: number;
+  locationName: string;
 }
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -35,7 +36,10 @@ export default function GeofencingPage() {
   // Load from Supabase on mount
   useEffect(() => {
     getGeofenceSchedules()
-      .then(setSchedules)
+      .then((data) => {
+        // Filter out the manual-override sentinel row (radius === -999)
+        setSchedules(data.filter((s: GeofenceSchedule) => parseFloat(s.radius) !== -999));
+      })
       .catch((e) => console.error('[GeofencingPage] load error:', e))
       .finally(() => setIsLoadingSchedules(false));
   }, []);
@@ -49,6 +53,7 @@ export default function GeofencingPage() {
   const [newAutoActivate, setNewAutoActivate] = useState(true);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('Main Campus');
 
   const handleTrackLocation = () => {
     if (!navigator.geolocation) {
@@ -125,12 +130,13 @@ export default function GeofencingPage() {
     setNewRadius('500');
     setNewGracePeriod(15);
     setNewAutoActivate(true);
+    setNewLocationName('Main Campus');
   };
 
   const handleAddSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLat || !newLng) {
-      toast.error('Please enter coordinates');
+    if (!isValidLocation) {
+      toast.error('Please enter valid coordinates');
       return;
     }
     try {
@@ -143,11 +149,12 @@ export default function GeofencingPage() {
           radius: newRadius,
           gracePeriod: newGracePeriod,
           autoActivate: newAutoActivate,
+          locationName: newLocationName
         });
         setSchedules(prev =>
           prev.map(s =>
             s.id === editingScheduleId
-              ? { ...s, time: newTime, days: newDays, lat: newLat, lng: newLng, radius: newRadius, gracePeriod: newGracePeriod, autoActivate: newAutoActivate }
+              ? { ...s, time: newTime, days: newDays, lat: newLat, lng: newLng, radius: newRadius, gracePeriod: newGracePeriod, autoActivate: newAutoActivate, locationName: newLocationName }
               : s
           )
         );
@@ -163,10 +170,12 @@ export default function GeofencingPage() {
           gracePeriod: newGracePeriod,
           isActive: true,
           autoActivate: newAutoActivate,
+          locationName: newLocationName
         });
         setSchedules(prev => [...prev, created]);
         setNewLat('');
         setNewLng('');
+        setNewLocationName('Main Campus');
         toast.success('Schedule saved to database!');
       }
     } catch (err: any) {
@@ -213,6 +222,22 @@ export default function GeofencingPage() {
             </div>
 
             <form onSubmit={handleAddSchedule} className="space-y-5">
+              {/* Location Name */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Location Label</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Science Block, Main Entrance"
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium shadow-sm transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
               {/* Time Picker */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Activation Time</label>

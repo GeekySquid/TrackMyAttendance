@@ -54,37 +54,42 @@ export default function AnalyticsChart({
     };
   }, [userId, isStudentMode]);
 
-  // ── Chart data computation ──────────────────────────────────────────
+  // ── Chart data computation (Data Science Mode) ────────────────────
   const processChartData = () => {
     const today = new Date();
+    // Normalize today timezone
+    const todayLocalStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+    const activeStudentsCount = isStudentMode ? 1 : (students.length > 0 ? students.length : 1);
 
     if (timeRange === 'Weekly') {
-      // Show Sun–Sat of the current week
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       return Array(7).fill(0).map((_, i) => {
         const d = new Date(today);
         d.setDate(d.getDate() - d.getDay() + i);
-        const dateStr = d.toISOString().split('T')[0];
+        // Correctly handle local dates matching
+        const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
         let dayRecords = attendanceData.filter((r: any) => r.date === dateStr);
-
-        // In admin mode, filter by selected student if any
         if (!isStudentMode && localSelectedStudent !== 'All Students') {
           dayRecords = dayRecords.filter((r: any) => r.userName === localSelectedStudent);
         }
 
+        const presentCount = dayRecords.filter(
+          (r: any) => r.status === 'Present' || r.status === 'Late'
+        ).length;
+
         let attendanceRate = 0;
-        if (dayRecords.length > 0) {
-          const presentCount = dayRecords.filter(
-            (r: any) => r.status === 'Present' || r.status === 'Late'
-          ).length;
-          // In student mode: 100% or 0% per day (either they checked in or not)
-          attendanceRate = isStudentMode
-            ? presentCount > 0 ? 100 : 0
-            : Math.round((presentCount / dayRecords.length) * 100);
+        if (isStudentMode) {
+          attendanceRate = presentCount > 0 ? 100 : 0;
+        } else if (localSelectedStudent !== 'All Students') {
+          attendanceRate = presentCount > 0 ? 100 : 0;
+        } else {
+          // Denominator must be the total school population, not just those who checked in!
+          attendanceRate = Math.round((presentCount / activeStudentsCount) * 100);
         }
-        // Don't show future days
-        const isFuture = d > today;
+
+        const isFuture = dateStr > todayLocalStr;
 
         return {
           name: days[i],
@@ -92,7 +97,7 @@ export default function AnalyticsChart({
         };
       });
     } else {
-      // Monthly: last 4 weeks
+      // Monthly 
       return Array(4).fill(0).map((_, weekIdx) => {
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - (3 - weekIdx) * 7 - today.getDay());
@@ -100,8 +105,15 @@ export default function AnalyticsChart({
         weekEnd.setDate(weekStart.getDate() + 6);
 
         const weekDates: string[] = [];
+        let validOperationDays = 0;
+
         for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
-          weekDates.push(d.toISOString().split('T')[0]);
+          const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+          weekDates.push(dStr);
+          // Only count weekdays (assuming no weekends tracked in denominator)
+          if (d.getDay() !== 0 && d.getDay() !== 6 && dStr <= todayLocalStr) {
+             validOperationDays++;
+          }
         }
 
         let weekRecords = attendanceData.filter((r: any) => weekDates.includes(r.date));
@@ -109,14 +121,18 @@ export default function AnalyticsChart({
           weekRecords = weekRecords.filter((r: any) => r.userName === localSelectedStudent);
         }
 
+        const presentCount = weekRecords.filter(
+          (r: any) => r.status === 'Present' || r.status === 'Late'
+        ).length;
+
         let rate = 0;
-        if (weekRecords.length > 0) {
-          const presentCount = weekRecords.filter(
-            (r: any) => r.status === 'Present' || r.status === 'Late'
-          ).length;
-          rate = isStudentMode
-            ? Math.round((presentCount / Math.min(weekDates.length, 5)) * 100) // out of weekdays
-            : Math.round((presentCount / weekRecords.length) * 100);
+        if (validOperationDays > 0) {
+          if (isStudentMode || localSelectedStudent !== 'All Students') {
+            rate = Math.round((presentCount / validOperationDays) * 100);
+          } else {
+            // school wide weekly attendance rate
+            rate = Math.round((presentCount / (activeStudentsCount * validOperationDays)) * 100);
+          }
         }
 
         return {

@@ -12,6 +12,28 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  
+  // Date and location toolkits
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [hoveredLocId, setHoveredLocId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const hoverLeaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openTooltip  = (id: string) => {
+    if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
+    setHoveredLocId(id);
+  };
+  const closeTooltip = () => {
+    hoverLeaveTimerRef.current = setTimeout(() => setHoveredLocId(null), 80);
+  };
+
+  const handleCopyCoords = (coords: string, id: string) => {
+    navigator.clipboard.writeText(coords).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   const headers = ['Date', 'Check In', 'Check Out', 'Hours', 'Location', 'Status'];
 
@@ -38,10 +60,11 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           status: r.status,
-          location: r.location || 'Campus',
+          rawLocation: r.location || 'Campus',
           lateReason: r.lateReason,
           lateReasonStatus: r.lateReasonStatus,
           image: r.lateReasonImage,
+          rawDate: r.date,
           hours: r.checkInTime && r.checkOutTime 
             ? `${Math.floor((new Date(r.checkOutTime).getTime() - new Date(r.checkInTime).getTime()) / 3600000)}h ${Math.floor(((new Date(r.checkOutTime).getTime() - new Date(r.checkInTime).getTime()) % 3600000) / 60000)}m`
             : '0h 0m'
@@ -56,8 +79,15 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
   const filteredLogs = allLogs.filter(log => {
     const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
     const matchesSearch = log.date.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         log.location.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+                         log.rawLocation.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Date Range Filter
+    const logTime = new Date(log.rawDate).getTime();
+    const start = startDate ? new Date(startDate).getTime() : 0;
+    const end = endDate ? new Date(endDate).getTime() : Infinity;
+    const matchesDate = logTime >= start && logTime <= end;
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   const generateDataArray = () => {
@@ -177,36 +207,54 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           </div>
         </div>
         
-        {/* Filters section */}
-        <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row gap-4 bg-gray-50/50 justify-between">
-          <div className="flex items-center gap-2">
-            <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-10">
-              <option>October 2026</option>
-              <option>September 2026</option>
-              <option>August 2026</option>
-            </select>
+        <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row gap-4 bg-gray-50/50 items-center justify-between">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <span className="text-gray-400 font-bold">-</span>
+              <input 
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              {(startDate || endDate) && (
+                <button 
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  className="text-[10px] text-blue-600 font-bold hover:underline ml-1"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-4 h-10">
-            <div className="relative flex-1 min-w-[250px]">
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text" 
-                placeholder="Search by date or location..." 
-                className="w-full pl-9 pr-4 py-2 h-full text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm"
+                placeholder="Search location..." 
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex gap-2 shrink-0 overflow-x-auto pb-1 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {['All', 'Present', 'Half Day', 'Late', 'Absent'].map(status => (
+            <div className="flex gap-1.5 bg-white p-1 rounded-lg border border-gray-100 shadow-sm overflow-x-auto scrollbar-hide">
+              {['All', 'Present', 'Late', 'Absent'].map(status => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-4 h-full text-[13px] font-bold rounded-lg border whitespace-nowrap transition-all ${
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-all ${
                     statusFilter === status 
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200' 
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white shadow-sm' 
+                    : 'text-gray-500 hover:bg-gray-50'
                   }`}
                 >
                   {status}
@@ -269,16 +317,68 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                           {log.hours}
                         </td>
                         <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
-                          {log.location !== '--' ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
-                                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                          {(() => {
+                            const rawLoc = log.rawLocation || '';
+                            const pipeIdx = rawLoc.indexOf('|');
+                            let cleanName: string;
+                            let locationCoords: string | null = null;
+
+                            if (pipeIdx >= 0) {
+                              cleanName = rawLoc.substring(0, pipeIdx).trim() || 'Location';
+                              locationCoords = rawLoc.substring(pipeIdx + 1).trim() || null;
+                            } else {
+                              cleanName = rawLoc
+                                .replace(/ \(Auto\)$/i, '')
+                                .replace(/ \(Manual\)$/i, '')
+                                .replace(/Verified Campus Geofence/i, 'Campus')
+                                .replace(/Auto-Checkout \(([^)]+)\)/i, '$1')
+                                .replace(/^Auto-Checkout$/i, 'Automatic Out')
+                                .trim() || 'Campus';
+                            }
+
+                            return (
+                              <div
+                                className="flex items-center gap-2 relative"
+                                onMouseEnter={() => locationCoords && openTooltip(log.id)}
+                                onMouseLeave={closeTooltip}
+                              >
+                                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                  <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                                </div>
+                                <span className="font-medium text-gray-700">{cleanName}</span>
+
+                                {locationCoords && (
+                                  <div
+                                    onMouseEnter={() => openTooltip(log.id)}
+                                    onMouseLeave={closeTooltip}
+                                    className={`absolute left-0 bottom-full mb-2 z-50 transition-all duration-150 ${
+                                      hoveredLocId === log.id
+                                        ? 'opacity-100 translate-y-0'
+                                        : 'opacity-0 translate-y-2 pointer-events-none'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 bg-gray-900 text-white text-[10px] font-mono px-3 py-2 rounded-xl shadow-xl whitespace-nowrap">
+                                      <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
+                                      <span>{locationCoords}</span>
+                                      <button
+                                        onMouseDown={(e) => {
+                                          e.stopPropagation();
+                                          handleCopyCoords(locationCoords!, log.id);
+                                        }}
+                                        className="ml-2 hover:bg-white/10 p-1 rounded transition-colors"
+                                      >
+                                        {copiedId === log.id ? (
+                                          <span className="text-green-400 font-bold shrink-0">Copied!</span>
+                                        ) : (
+                                          <Download className="w-2.5 h-2.5 text-gray-400 hover:text-white" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              <span className="font-medium text-gray-700">{log.location}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 ml-3">--</span>
-                          )}
+                            );
+                          })()}
                         </td>
                         <td className="py-3 px-5 text-right whitespace-nowrap relative">
                           <div className="flex justify-end items-center group/status">

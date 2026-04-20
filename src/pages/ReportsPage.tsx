@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square } from 'lucide-react';
+import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf } from 'lucide-react';
 import { listenToCollection } from '../services/dbService';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export default function ReportsPage() {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
@@ -13,6 +16,7 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
   // Export Columns
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
@@ -122,7 +126,7 @@ export default function ReportsPage() {
     }));
   };
 
-  const handleExport = () => {
+  const handleExport = (type: 'csv' | 'excel' | 'pdf') => {
     if (filteredData.length === 0) {
       toast.error("No data to export.");
       return;
@@ -134,38 +138,75 @@ export default function ReportsPage() {
       return;
     }
 
-    const headers = activeColumns.map(([_, col]) => col.label);
-    
-    const csvContent = [
-      headers.join(','),
-      ...filteredData.map(r => {
-        const rowData = [];
-        const recordName = r.userName || r.name || r.studentName || 'Unknown';
-        if (exportColumns.studentName.selected) rowData.push(`"${recordName}"`);
-        if (exportColumns.rollNo.selected) rowData.push(`"${r.rollNo || ''}"`);
-        if (exportColumns.course.selected) rowData.push(`"${r.course || ''}"`);
-        if (exportColumns.date.selected) rowData.push(`"${r.date || ''}"`);
-        if (exportColumns.checkIn.selected) rowData.push(`"${r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}"`);
-        if (exportColumns.checkOut.selected) rowData.push(`"${r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}"`);
-        if (exportColumns.status.selected) rowData.push(`"${r.status || ''}"`);
-        return rowData.join(',');
-      })
-    ].join('\n');
+    setShowExportOptions(false);
+    const dateToday = new Date().toISOString().split('T')[0];
 
-    try {
+    if (type === 'csv') {
+      const headers = activeColumns.map(([_, col]) => col.label);
+      const csvContent = [
+        headers.join(','),
+        ...filteredData.map(r => {
+          const rowData = [];
+          const recordName = r.userName || r.name || r.studentName || 'Unknown';
+          if (exportColumns.studentName.selected) rowData.push(`"${recordName}"`);
+          if (exportColumns.rollNo.selected) rowData.push(`"${r.rollNo || ''}"`);
+          if (exportColumns.course.selected) rowData.push(`"${r.course || ''}"`);
+          if (exportColumns.date.selected) rowData.push(`"${r.date || ''}"`);
+          if (exportColumns.checkIn.selected) rowData.push(`"${r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}"`);
+          if (exportColumns.checkOut.selected) rowData.push(`"${r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}"`);
+          if (exportColumns.status.selected) rowData.push(`"${r.status || ''}"`);
+          return rowData.join(',');
+        })
+      ].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `custom_report_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
+      link.href = URL.createObjectURL(blob);
+      link.download = `custom_report_${dateToday}.csv`;
       link.click();
-      document.body.removeChild(link);
-      setShowColumnDropdown(false);
-      setTimeout(() => toast.success("Report exported successfully!"), 500);
-    } catch (err) {
-      toast.error("Failed to export report.");
+      toast.success("CSV exported successfully!");
+    } else if (type === 'excel') {
+      const data = filteredData.map(r => {
+        const rowObj: any = {};
+        const recordName = r.userName || r.name || r.studentName || 'Unknown';
+        if (exportColumns.studentName.selected) rowObj['Student Name'] = recordName;
+        if (exportColumns.rollNo.selected) rowObj['Roll No'] = r.rollNo || '';
+        if (exportColumns.course.selected) rowObj['Course'] = r.course || '';
+        if (exportColumns.date.selected) rowObj['Date'] = r.date || '';
+        if (exportColumns.checkIn.selected) rowObj['Check-in'] = r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+        if (exportColumns.checkOut.selected) rowObj['Check-out'] = r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+        if (exportColumns.status.selected) rowObj['Status'] = r.status || '';
+        return rowObj;
+      });
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Custom Report");
+      XLSX.writeFile(workbook, `custom_report_${dateToday}.xlsx`);
+      toast.success("Excel exported successfully!");
+    } else if (type === 'pdf') {
+      const doc = new jsPDF();
+      doc.text("Attendance Report", 14, 15);
+      const headers = [activeColumns.map(([_, col]) => col.label)];
+      const body = filteredData.map(r => {
+        const row = [];
+        const recordName = r.userName || r.name || r.studentName || 'Unknown';
+        if (exportColumns.studentName.selected) row.push(recordName);
+        if (exportColumns.rollNo.selected) row.push(r.rollNo || '');
+        if (exportColumns.course.selected) row.push(r.course || '');
+        if (exportColumns.date.selected) row.push(r.date || '');
+        if (exportColumns.checkIn.selected) row.push(r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
+        if (exportColumns.checkOut.selected) row.push(r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--');
+        if (exportColumns.status.selected) row.push(r.status || '');
+        return row;
+      });
+      autoTable(doc, {
+        head: headers,
+        body: body,
+        startY: 20,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [37, 99, 235] }
+      });
+      doc.save(`custom_report_${dateToday}.pdf`);
+      toast.success("PDF exported successfully!");
     }
   };
 
@@ -206,13 +247,46 @@ export default function ReportsPage() {
                 Columns
                 <ChevronDown className="w-4 h-4" />
               </button>
-              <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
+              
+              <div className="relative">
+                <button 
+                  onClick={() => setShowExportOptions(!showExportOptions)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                {showExportOptions && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowExportOptions(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-40 py-2 animate-in fade-in slide-in-from-top-2">
+                      <button
+                        onClick={() => handleExport('csv')}
+                        className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                      >
+                        <FileText className="w-4 h-4 mr-3 text-green-600" />
+                        Download CSV
+                      </button>
+                      <button
+                        onClick={() => handleExport('excel')}
+                        className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 mr-3 text-emerald-600" />
+                        Download Excel
+                      </button>
+                      <button
+                        onClick={() => handleExport('pdf')}
+                        className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                      >
+                        <FilePdf className="w-4 h-4 mr-3 text-red-500" />
+                        Download PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             
             {/* Column Selection Dropdown */}

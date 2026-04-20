@@ -52,8 +52,8 @@ export default function LoginPage({
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
           <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30">
-              <Shield className="w-8 h-8 text-white" />
+            <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30 overflow-hidden">
+              <img src="/logo.png" alt="TrackMyAttendance Logo" className="w-full h-full object-cover p-2" />
             </div>
             <h1 className="text-2xl font-black text-white mb-1 tracking-tight">
               TrackMyAttendance

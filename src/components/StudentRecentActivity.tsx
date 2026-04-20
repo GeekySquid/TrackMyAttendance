@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info } from 'lucide-react';
+import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info, Copy, Check } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -11,7 +11,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const uid = user?.uid;
+    const uid = user?.uid || user?.id;
     if (!uid) return;
     
     setIsLoading(true);
@@ -29,34 +29,88 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           const timeB = b.checkInTime ? new Date(b.checkInTime).getTime() : 0;
           return timeB - timeA;
         })
-        .map(r => ({
-          id: r.id,
-          date: new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
-          in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-          out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-          rawInTime: r.checkInTime,
-          status: r.status,
-          location: r.location || 'Campus',
-          lateReason: r.lateReason,
-          lateReasonStatus: r.lateReasonStatus,
-          image: r.lateReasonImage
-        }));
+        .map(r => {
+          const rawLoc = r.location || '';
+          // Format: "Location Name|lat,lng"
+          // Old records may not have the pipe — handle gracefully.
+          const pipeIdx = rawLoc.indexOf('|');
+          let cleanName: string;
+          let locationCoords: string | null = null;
+
+          if (pipeIdx >= 0) {
+            cleanName    = rawLoc.substring(0, pipeIdx).trim() || 'Location';
+            locationCoords = rawLoc.substring(pipeIdx + 1).trim() || null;
+          } else {
+            // Legacy/auto-checkout strings — clean them up for display
+            cleanName = rawLoc
+              .replace(/ \(Auto\)$/i, '')
+              .replace(/ \(Manual\)$/i, '')
+              .replace(/Verified Campus Geofence/i, 'Campus')
+              .replace(/Auto-Checkout \(([^)]+)\)/i, '$1') // Extract "Session Closed" etc
+              .replace(/^Auto-Checkout$/i, 'Automatic Out')
+              .trim() || 'Campus';
+            locationCoords = null;
+          }
+
+          return {
+            id: r.id,
+            date: new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
+            in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+            out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+            rawInTime: r.checkInTime,
+            status: r.status,
+            locationName: cleanName,
+            locationCoords,
+            lateReason: r.lateReason,
+            lateReasonStatus: r.lateReasonStatus,
+            image: r.lateReasonImage
+          };
+        });
       setAllLogs(studentLogs);
       setIsLoading(false);
     }, uid);
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, user?.id]);
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Track which location cell is showing its tooltip (state-driven, no CSS gap problems)
+  const [hoveredLocId, setHoveredLocId] = useState<string | null>(null);
+  const hoverLeaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openTooltip  = (id: string) => {
+    if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
+    setHoveredLocId(id);
+  };
+  const closeTooltip = () => {
+    // Small delay so moving from cell → tooltip doesn't flicker
+    hoverLeaveTimerRef.current = setTimeout(() => setHoveredLocId(null), 80);
+  };
+
+  const handleCopyCoords = (coords: string, id: string) => {
+    navigator.clipboard.writeText(coords).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   const filteredLogs = allLogs.filter(log => {
     const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
-    const matchesSearch = log.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = log.locationName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           log.date.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+    
+    // Date Range Filter
+    const logTime = log.rawInTime ? new Date(log.rawInTime).getTime() : 0;
+    const start = startDate ? new Date(startDate).getTime() : 0;
+    const end = endDate ? new Date(endDate + 'T23:59:59').getTime() : Infinity;
+    const matchesDate = !log.rawInTime || (logTime >= start && logTime <= end);
+
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   const generateDataArray = () => {
@@ -64,7 +118,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       log.date,
       log.in,
       log.out,
-      log.location,
+      log.locationName,
       log.status
     ]);
   };
@@ -76,7 +130,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       const csvContent = [
         headers.join(','),
         ...filteredLogs.map(log => [
-          `"${log.date}"`, `"${log.in}"`, `"${log.out}"`, `"${log.location}"`, `"${log.status}"`
+          `"${log.date}"`, `"${log.in}"`, `"${log.out}"`, `"${log.locationName}"`, `"${log.status}"`
         ].join(','))
       ].join('\n');
       
@@ -180,27 +234,54 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
         </div>
       </div>
       
-      {/* Filters section */}
-      <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row gap-4 bg-gray-50/50">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search by date or location..." 
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row gap-4 bg-gray-50/50">
+        <div className="flex flex-col md:flex-row gap-3 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search location..." 
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+            <Calendar className="w-3.5 h-3.5 text-blue-600" />
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="text-xs font-bold text-gray-600 focus:outline-none bg-transparent"
+            />
+            <span className="text-gray-300 font-bold">-</span>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="text-xs font-bold text-gray-600 focus:outline-none bg-transparent"
+            />
+            {(startDate || endDate) && (
+              <button 
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                className="ml-1 text-[10px] text-blue-600 font-bold hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2 shrink-0 overflow-x-auto pb-1 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
+        <div className="flex gap-1.5 bg-white p-1 rounded-lg border border-gray-100 shadow-sm overflow-x-auto scrollbar-hide">
           {['All', 'Present', 'Late', 'Absent'].map(status => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 text-[13px] font-bold rounded-lg border whitespace-nowrap transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-md transition-all whitespace-nowrap ${
                 statusFilter === status 
-                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200' 
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'text-gray-500 hover:bg-gray-50'
               }`}
             >
               {status}
@@ -272,12 +353,62 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           )}
                         </td>
                         <td className="py-3 px-5 text-sm text-gray-600 whitespace-nowrap">
-                          {log.location !== '--' ? (
-                            <div className="flex items-center gap-2">
+                          {log.locationName ? (
+                            <div
+                              className="flex items-center gap-2 relative"
+                              onMouseEnter={() => log.locationCoords && openTooltip(log.id)}
+                              onMouseLeave={closeTooltip}
+                            >
                               <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
                                 <MapPin className="w-3.5 h-3.5 text-blue-600" />
                               </div>
-                              <span className="font-medium text-gray-700">{log.location}</span>
+                              <span className="font-medium text-gray-700 max-w-[140px] truncate" title={log.locationName}>
+                                {log.locationName}
+                              </span>
+
+                              {log.locationCoords && (
+                                // Tooltip: state-driven so there is no CSS dead-zone gap
+                                <div
+                                  onMouseEnter={() => openTooltip(log.id)}
+                                  onMouseLeave={closeTooltip}
+                                  className={`absolute left-0 top-full pt-1.5 z-50 transition-all duration-150 ${
+                                    hoveredLocId === log.id
+                                      ? 'opacity-100 pointer-events-auto'
+                                      : 'opacity-0 pointer-events-none'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 bg-gray-900 text-white text-[11px] font-mono px-3 py-2 rounded-xl shadow-xl whitespace-nowrap">
+                                    <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
+                                    <span>{log.locationCoords}</span>
+                                    <button
+                                      onMouseDown={(e) => {
+                                        // Use onMouseDown so click fires before blur/mouseleave
+                                        e.stopPropagation();
+                                        handleCopyCoords(log.locationCoords!, log.id);
+                                      }}
+                                      className="ml-1 p-1 rounded hover:bg-white/20 transition-colors flex items-center justify-center"
+                                      title="Copy coordinates"
+                                    >
+                                      {copiedId === log.id
+                                        ? <Check className="w-3.5 h-3.5 text-green-400" />
+                                        : <Copy className="w-3.5 h-3.5 text-gray-300 hover:text-white" />}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Inline copy button when no coords */}
+                              {!log.locationCoords && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleCopyCoords(log.locationName, log.id); }}
+                                  className="opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-blue-100 text-gray-400 hover:text-blue-600"
+                                  title="Copy location name"
+                                >
+                                  {copiedId === log.id
+                                    ? <Check className="w-3 h-3 text-green-500" />
+                                    : <Copy className="w-3 h-3" />}
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <span className="text-gray-400 ml-3">--</span>

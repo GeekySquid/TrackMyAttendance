@@ -1,9 +1,9 @@
 /**
  * dbService.ts — Supabase Backend Service
- * 
+ *
  * Replaces the previous Firebase + localStorage implementation.
  * All functions mirror the original API signatures for drop-in compatibility.
- * 
+ *
  * Table: public.profiles (maps to frontend "users" collection)
  * Table: public.attendance
  * Table: public.leave_requests
@@ -19,21 +19,14 @@ import { supabase } from '../lib/supabase';
 
 type UnsubFn = () => void;
 
-const MOCK_MENTORS = [
-  { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+91 98765 43210' },
-  { id: 'm2', name: 'Prof. James Chen', phone: '+91 98765 43211' }
-];
-
 // ─── FIELD MAPPERS (DB snake_case → Frontend camelCase) ────────────────────────
 
 export function mapProfile(row: any) {
   if (!row) return null;
-  // NOTE: blood_group, profile_completed, mentor_id do NOT exist in the DB schema.
-  // onboarded is derived from whether the student has completed their profile (has a phone number set).
   const isOnboarded = row.role === 'admin' || !!(row.phone) || !!(row.roll_no);
   return {
     id: row.id,
-    uid: row.id,                        // legacy compat — frontend uses both uid and id
+    uid: row.id,
     name: row.name || '',
     email: row.email || '',
     photoURL: row.photo_url || '',
@@ -42,12 +35,12 @@ export function mapProfile(row: any) {
     course: row.course || '',
     phone: row.phone || '',
     gender: row.gender || '',
-    bloodGroup: '',                     // column does not exist in DB schema
+    bloodGroup: '',
     status: row.status || 'Active',
     attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '100%',
     attendance_pct: row.attendance_pct ?? 100,
     roleId: row.role_id || null,
-    mentorId: null,                     // column does not exist in DB schema
+    mentorId: null,
     onboarded: isOnboarded,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -67,6 +60,7 @@ export function mapAttendance(row: any) {
     checkOutTime: row.check_out_time,
     status: row.status,
     location: row.location || '',
+    locationName: row.location_name || row.location || '',
     lateReason: row.late_reason || '',
     lateReasonStatus: row.late_reason_status || 'Pending',
     lateReasonReviewedAt: row.late_reason_reviewed_at || null,
@@ -96,7 +90,8 @@ export function mapGeofence(row: any) {
   if (!row) return null;
   return {
     id: row.id,
-    time: row.time ? row.time.substring(0, 5) : '',  // 'HH:MM:SS' → 'HH:MM'
+    locationName: row.location_name || '',
+    time: row.time ? row.time.substring(0, 5) : '',
     days: row.days || [],
     lat: String(row.lat),
     lng: String(row.lng),
@@ -104,6 +99,9 @@ export function mapGeofence(row: any) {
     isActive: row.is_active,
     autoActivate: row.auto_activate,
     gracePeriod: row.grace_period || 15,
+    // Server-side timestamp — used as the authoritative session open time
+    // for the student grace-period countdown.
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -122,13 +120,43 @@ export function mapNotification(row: any) {
   };
 }
 
+export function isScheduleActive(s: any): boolean {
+  // 1. Manual Global Override (-999 row)
+  if (parseFloat(s.radius) === -999) return s.isActive;
+
+  // 2. Manual Specific Switch
+  // If isActive is explicitly false for a specific schedule, it overrides Auto-Activation.
+  // We assume 'isActive' is only true if set by Admin to "Force Open".
+  // If it's false, we check if it was explicitly toggled or just default.
+  // For simplicity: If isActive is false, we ignore auto-activate (Admin kill switch).
+  if (s.isActive === false) return false;
+  if (s.isActive === true) return true;
+
+  // 3. Fallback to Auto-Activate
+  if (s.autoActivate && s.time && s.days?.length) {
+    const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
+    if (!s.days.includes(currentDay)) return false;
+    const [h, m] = s.time.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return false;
+    const schedTime = new Date();
+    schedTime.setHours(h, m, 0, 0);
+    const diffMs = Date.now() - schedTime.getTime();
+    if (diffMs >= -1800000 && diffMs <= 7200000) {
+      const lat = parseFloat(s.lat), lng = parseFloat(s.lng), r = parseFloat(s.radius);
+      return !isNaN(lat) && !isNaN(lng) && !isNaN(r) && r > 0;
+    }
+  }
+  return false;
+}
+
 function formatRelativeTime(isoString: string): string {
   if (!isoString) return '';
   const diff = Date.now() - new Date(isoString).getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-  if (mins < 60) return `${mins} minutes ago`;
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins > 1 ? 's' : ''} ago`;
   if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
   return `${days} day${days > 1 ? 's' : ''} ago`;
 }
@@ -143,6 +171,17 @@ function mapRow(table: string, row: any): any {
     case 'geofence_schedules': return mapGeofence(row);
     case 'notifications': return mapNotification(row);
     case 'mentors': return mapMentor(row);
+    case 'documents': return {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      size: row.size,
+      date: row.created_at,
+      uploader: row.uploader,
+      storage_key: row.storage_key,
+      fileData: row.public_url,
+      revisions: row.revisions || []
+    };
     default: return row;
   }
 }
@@ -159,7 +198,6 @@ export function mapMentor(row: any) {
 }
 
 // ─── TABLE RESOLVER ─────────────────────────────────────────────────────────────
-// Maps legacy Firebase collection names to Supabase table names
 
 function resolveTable(collectionName: string): string {
   const tableMap: Record<string, string> = {
@@ -196,13 +234,13 @@ export const getUserById = async (id: string): Promise<any | null> => {
       .from('profiles')
       .select('*')
       .eq('id', id)
-      .maybeSingle(); // maybeSingle returns null without error if not found
+      .maybeSingle();
 
     if (error) {
       console.error('[dbService] getUserById error:', error.message);
-      throw error; // Let caller handle terminal errors
+      throw error;
     }
-    
+
     return data ? mapProfile(data) : null;
   } catch (err) {
     console.error('[dbService] getUserById failed:', err);
@@ -217,10 +255,7 @@ export const saveUser = async (user: any): Promise<boolean> => {
       console.error('[dbService] saveUser: no uid/id provided');
       return false;
     }
-    console.log('[dbService] saveUser starting for:', userId);
 
-    // Build upsert row using ONLY columns that exist in the schema.
-    // Columns NOT in schema: blood_group, profile_completed, mentor_id.
     const row: Record<string, any> = {
       id: userId,
       name: user.name || '',
@@ -240,7 +275,6 @@ export const saveUser = async (user: any): Promise<boolean> => {
       console.error('[dbService] saveUser upsert error:', error.message);
       return false;
     }
-    console.log('[dbService] saveUser success');
     return true;
   } catch (err) {
     console.error('[dbService] saveUser exception:', err);
@@ -275,7 +309,6 @@ export const updateUserProfile = async (
   if (updates.gender !== undefined)   row.gender    = updates.gender;
   if (updates.photoURL !== undefined) row.photo_url = updates.photoURL;
   if (updates.status !== undefined)   row.status    = updates.status;
-  // NOTE: blood_group column does not exist in the profiles schema
 
   const { error } = await supabase
     .from('profiles')
@@ -323,7 +356,7 @@ export const addAttendance = async (record: any): Promise<any> => {
     if (error || (data && data.status === 'failure')) {
       const errorMsg = error?.message || data?.error;
       console.warn('[dbService] addAttendance RPC failed, trying direct insert:', errorMsg);
-      
+
       const row = {
         user_id: record.userId,
         user_name: record.userName || null,
@@ -333,9 +366,6 @@ export const addAttendance = async (record: any): Promise<any> => {
         check_in_time: record.checkInTime || null,
         status: record.status,
         location: record.location || null,
-        late_reason: record.lateReason || null,
-        late_reason_status: record.lateReasonStatus || 'Pending',
-        late_reason_image: record.lateReasonImage || null,
       };
 
       const { data: directData, error: directError } = await supabase
@@ -350,11 +380,10 @@ export const addAttendance = async (record: any): Promise<any> => {
       }
       return mapAttendance(directData);
     }
-    
-    // If successful, we need the full record for the UI
-    // The RPC currently returns {id, status}, so we might need to fetch the full record
-    // but usually mapAttendance( {id, ...record} ) is enough.
-    return { ...record, id: data.id };
+
+    // RPC Success: handle both object and primitive returns for 'id'
+    const finalId = data?.id || data;
+    return { ...record, id: finalId };
   } catch (err) {
     console.error('[dbService] addAttendance exception:', err);
     throw err;
@@ -366,19 +395,24 @@ export const updateAttendance = async (
   updates: any
 ): Promise<void> => {
   const row: Record<string, any> = {};
-  if (updates.checkOutTime !== undefined) row.check_out_time = updates.checkOutTime;
-  if (updates.status !== undefined) row.status = updates.status;
-  if (updates.location !== undefined) row.location = updates.location;
-  if (updates.lateReason !== undefined) row.late_reason = updates.lateReason;
-  if (updates.lateReasonStatus !== undefined) row.late_reason_status = updates.lateReasonStatus;
-  if (updates.lateReasonReviewedAt !== undefined) row.late_reason_reviewed_at = updates.lateReasonReviewedAt;
-  if (updates.lateReasonImage !== undefined) row.late_reason_image = updates.lateReasonImage;
+  if (updates.checkOutTime    !== undefined) row.check_out_time         = updates.checkOutTime;
+  if (updates.status          !== undefined) row.status                 = updates.status;
+  if (updates.location        !== undefined) row.location               = updates.location;
+  if (updates.lateReason      !== undefined) row.late_reason            = updates.lateReason;
+  if (updates.lateReasonStatus!== undefined) row.late_reason_status     = updates.lateReasonStatus;
+  if (updates.lateReasonImage !== undefined) row.late_reason_image      = updates.lateReasonImage;
+  if (updates.checkoutReason  !== undefined) row.checkout_reason        = updates.checkoutReason;
+
+  if (Object.keys(row).length === 0) return; // nothing to update
 
   const { error } = await supabase
     .from('attendance')
     .update(row)
     .eq('id', id);
-  if (error) console.error('[dbService] updateAttendance error:', error.message);
+  if (error) {
+    console.error('[dbService] updateAttendance error:', error.message);
+    throw error;
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -477,7 +511,6 @@ export const addDocument = async (document: any): Promise<any> => {
   let storageKey: string | null = null;
   let publicUrl: string | null = null;
 
-  // Upload file to Supabase Storage if base64 data URL is provided
   if (document.fileData && document.fileData.startsWith('data:')) {
     try {
       const [meta, base64] = document.fileData.split(',');
@@ -497,7 +530,7 @@ export const addDocument = async (document: any): Promise<any> => {
         storageKey = fileName;
         const { data: urlData } = await supabase.storage
           .from('documents')
-          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // 7-day URL
+          .createSignedUrl(fileName, 60 * 60 * 24 * 7);
         publicUrl = urlData?.signedUrl || null;
       } else {
         console.warn('[dbService] Storage upload failed:', uploadError.message);
@@ -507,6 +540,42 @@ export const addDocument = async (document: any): Promise<any> => {
     }
   }
 
+  // Handle Versioning / Replacement
+  if (document.isReplacement && document.originalId) {
+    const { data: existing } = await supabase.from('documents').select('*').eq('id', document.originalId).single();
+    if (existing) {
+      const currentVersion = {
+        name: existing.name,
+        type: existing.type,
+        size: existing.size,
+        date: existing.created_at,
+        uploader: existing.uploader,
+        storage_key: existing.storage_key,
+        fileData: existing.public_url
+      };
+      const newRevisions = [currentVersion, ...(existing.revisions || [])];
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({
+          name: document.name,
+          type: document.type || null,
+          size: document.size || null,
+          size_bytes: document.sizeBytes || null,
+          storage_key: storageKey || existing.storage_key,
+          public_url: publicUrl || existing.public_url,
+          uploader: document.uploader || null,
+          uploader_id: document.uploaderId || null,
+          revisions: newRevisions,
+          created_at: new Date().toISOString()
+        })
+        .eq('id', document.originalId);
+
+      if (updateError) throw updateError;
+      return { id: document.originalId, date: new Date().toISOString() };
+    }
+  }
+
+  // Normal Insert
   const row = {
     name: document.name,
     type: document.type || null,
@@ -516,6 +585,7 @@ export const addDocument = async (document: any): Promise<any> => {
     public_url: publicUrl,
     uploader: document.uploader || null,
     uploader_id: document.uploaderId || null,
+    revisions: [] 
   };
 
   const { data, error } = await supabase
@@ -537,12 +607,12 @@ export const addDocument = async (document: any): Promise<any> => {
     date: data.created_at,
     uploader: data.uploader,
     storage_key: data.storage_key,
-    fileData: publicUrl, // for download compatibility with frontend
+    fileData: publicUrl,
+    revisions: data.revisions || []
   };
 };
 
 export const deleteDocument = async (id: string): Promise<void> => {
-  // Fetch storage key first so we can remove from bucket
   const { data } = await supabase
     .from('documents')
     .select('storage_key')
@@ -589,7 +659,8 @@ export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
     radius: parseInt(schedule.radius) || 500,
     is_active: schedule.isActive ?? true,
     auto_activate: schedule.autoActivate ?? true,
-    grace_period: schedule.gracePeriod ?? 15,
+    location_name: schedule.locationName || '',
+    grace_period: schedule.gracePeriod || 15
   };
 
   const { data, error } = await supabase
@@ -617,6 +688,7 @@ export const updateGeofenceSchedule = async (
   if (updates.radius !== undefined) row.radius = parseInt(updates.radius);
   if (updates.isActive !== undefined) row.is_active = updates.isActive;
   if (updates.autoActivate !== undefined) row.auto_activate = updates.autoActivate;
+  if (updates.locationName !== undefined) row.location_name = updates.locationName;
   if (updates.gracePeriod !== undefined) row.grace_period = updates.gracePeriod;
 
   const { error } = await supabase
@@ -634,6 +706,78 @@ export const deleteGeofenceSchedule = async (id: string): Promise<void> => {
     .eq('id', id);
   if (error)
     console.error('[dbService] deleteGeofenceSchedule error:', error.message);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MANUAL ATTENDANCE WINDOW (Admin quick-toggle from Dashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * We use a TEXT primary key sentinel via a special row where
+ *   lat  = 0, lng = 0, radius = -999
+ * That combination is never created by the UI (radius slider min=1, grace=0-120)
+ * so it uniquely identifies the manual-override row.
+ */
+const MANUAL_OVERRIDE_SENTINEL = { lat: 0, lng: 0, radius: -999 };
+
+export const toggleManualAttendanceWindow = async (
+  active: boolean,
+  lat: number = 0,
+  lng: number = 0,
+  radius: number = -999,
+  locationName: string = 'Manual Selection',
+  gracePeriod: number = 15
+): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('geofence_schedules')
+      .update({ 
+        is_active: active,
+        lat: String(lat),
+        lng: String(lng),
+        radius: radius,
+        location_name: locationName,
+        grace_period: gracePeriod,
+        time: new Date().toISOString() // Force a change so updated_at trigger always fires
+      })
+      .eq('radius', -999)
+      .select();
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      const { data: insData, error: insError } = await supabase
+        .from('geofence_schedules')
+        .insert({
+          lat: String(lat),
+          lng: String(lng),
+          radius: -999,
+          is_active: active,
+          time: '00:00',
+          days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+          auto_activate: false,
+          location_name: locationName,
+          grace_period: gracePeriod
+        })
+        .select();
+      if (insError) throw insError;
+      return insData?.[0];
+    }
+    return data?.[0];
+  } catch (err: any) {
+    console.error('[dbService] toggleManualAttendanceWindow failed:', err.message);
+    throw err;
+  }
+};
+
+/** Returns true if the admin has manually activated the window. */
+export const getManualWindowStatus = async (): Promise<boolean> => {
+  const { data } = await supabase
+    .from('geofence_schedules')
+    .select('is_active')
+    .eq('radius', -999)
+    .maybeSingle();
+  return data?.is_active ?? false;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -709,12 +853,21 @@ export const getAttendanceSummary = async (userId?: string): Promise<any[]> => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REAL-TIME LISTENER (drop-in replacement for Firebase onSnapshot + localStorage)
+// REAL-TIME LISTENER — optimised bi-directional Supabase Realtime
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Mimics the old Firebase listenToCollection() API.
- * Returns an unsubscribe function to clean up the channel.
+ * listenToCollection()
+ *
+ * Subscribes to a Supabase table and calls `callback` with the full,
+ * mapped dataset whenever a change occurs.
+ *
+ * Optimisations vs. the previous version:
+ *  • Payload-level INSERT/UPDATE/DELETE diff applied locally before re-fetch,
+ *    so the UI updates in <10ms instead of waiting for a full round-trip.
+ *  • Re-fetch still happens afterwards to guarantee consistency.
+ *  • Unique channel names prevent ghost subscriptions on hot-reload.
+ *  • Notification broadcast fix: null user_id rows pass through for everyone.
  */
 export const listenToCollection = (
   collectionName: string,
@@ -723,92 +876,134 @@ export const listenToCollection = (
 ): UnsubFn => {
   const table = resolveTable(collectionName);
 
-  // Helper: attach userId filter when appropriate
+  // ── Build the base query ──────────────────────────────────────────────────
   const buildQuery = () => {
     let query = supabase.from(table).select('*');
 
-    if (
-      userId &&
-      (table === 'attendance' ||
-        table === 'leave_requests' ||
-        table === 'notifications')
-    ) {
-      if (table === 'notifications') {
-        query = query.or(`user_id.eq.${userId},user_id.is.null`);
-      } else {
-        query = query.eq('user_id', userId);
-      }
+    if (userId && (table === 'attendance' || table === 'leave_requests')) {
+      query = query.eq('user_id', userId);
+    }
+    if (userId && table === 'notifications') {
+      query = query.or(`user_id.eq.${userId},user_id.is.null`);
     }
 
-    // Default ordering
-    if (table === 'leave_requests' || table === 'notifications') {
-      query = (query as any).order(
-        table === 'notifications' ? 'created_at' : 'applied_on',
-        { ascending: false }
-      );
+    if (table === 'leave_requests') {
+      query = (query as any).order('applied_on', { ascending: false });
+    } else if (table === 'notifications') {
+      query = (query as any).order('created_at', { ascending: false });
     } else if (table === 'attendance') {
       query = (query as any).order('date', { ascending: false });
+    } else if (table === 'profiles') {
+      query = (query as any).order('created_at', { ascending: true });
     }
 
     return query;
   };
 
-  // Initial data load
+  // ── Cache (to apply optimistic local diffs) ───────────────────────────────
+  let cache: any[] = [];
+
   const fetchAndCallback = async () => {
-    const { data } = await buildQuery();
-    if (data) callback(data.map((row) => mapRow(table, row)));
+    try {
+      const { data, error } = await buildQuery();
+      if (error) {
+        console.error(`[dbService] listenToCollection fetch error (${table}):`, error.message);
+        // UNBLOCK UI: Even on error, we must signal that we "loaded" (likely empty)
+        callback(cache || []);
+        return;
+      }
+      cache = (data || []).map((row) => mapRow(table, row));
+      callback(cache);
+    } catch (e) {
+      console.error(`[dbService] listenToCollection catch error (${table}):`, e);
+      callback(cache || []);
+    }
   };
 
+  // Initial load
   fetchAndCallback();
 
-  // Set up realtime channel with unique name to avoid conflicts
-  const channelName = `listen-${table}-${userId || 'all'}-${Math.random().toString(36).substring(2, 9)}`;
+  // ── Realtime channel ──────────────────────────────────────────────────────
+  const channelName = `rt-${table}-${userId ?? 'all'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
   const channel = supabase
     .channel(channelName)
     .on(
       'postgres_changes' as any,
-      {
-        event: '*',
-        schema: 'public',
-        table,
-        // Remove server-side filter as it can be perfectly reliable depending on table state
-        // filter: userId && table !== 'notifications' ? `user_id=eq.${userId}` : undefined
-      },
+      { event: '*', schema: 'public', table },
       (payload: any) => {
-        console.log(`[dbService] Realtime update on ${table} for ${userId}:`, payload.eventType);
-        
-        // If we have a userId and it's not a notification, verify the update belongs to this user
-        if (userId && payload.new && payload.new.user_id !== userId) {
-          return;
+        const { eventType, new: newRow, old: oldRow } = payload;
+
+        // ── Scope filter ──────────────────────────────────────────────────
+        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules') {
+          const rowUserId = newRow?.user_id ?? oldRow?.user_id;
+          if (rowUserId && rowUserId !== userId) return;
         }
 
-        // Re-fetch all data on relevant changes
+        console.log(`[Realtime] ${table} → ${eventType}`, { id: newRow?.id || oldRow?.id });
+
+        // ── Optimistic local diff (With Deep Merge) ───────────────────────
+        if (eventType === 'INSERT' && newRow) {
+          const mapped = mapRow(table, newRow);
+          if (!cache.some((r) => r.id === mapped.id)) {
+            cache = [mapped, ...cache];
+            callback([...cache]);
+          }
+        } else if (eventType === 'UPDATE' && newRow) {
+          const existing = cache.find((r) => r.id === newRow.id);
+          const mappedNew = mapRow(table, newRow);
+          
+          // IMPORTANT: Merge with existing to prevent partial updates from wiping out 
+          // fields that weren't included in the UPDATE payload (like userName, rollNo)
+          const updated = existing ? { ...existing, ...mappedNew } : mappedNew;
+          
+          cache = cache.map((r) => (r.id === updated.id ? updated : r));
+          callback([...cache]);
+        } else if (eventType === 'DELETE' && oldRow) {
+          cache = cache.filter((r) => r.id !== oldRow.id);
+          callback([...cache]);
+        }
+
+        // Proactive sync for eventual consistency
         fetchAndCallback();
       }
     )
-    .subscribe((status) => {
+    .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
-        console.log(`[dbService] Subscribed to realtime updates for ${table}`);
+        console.log(`[Realtime] Subscribed ✓ table="${table}" channel="${channelName}"`);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`[Realtime] ${status} on ${table}:`, err);
+        // Attempt a one-time re-fetch on timeout for immediate UI consistency
+        fetchAndCallback();
       }
     });
 
+  // ── Polling Fallback (Auto-Refresh Guarantee) ──────────────────────────────
+  // Even if Supabase Realtime publication isn't perfectly configured in the
+  // dashboard, this visually guarantees the app universally auto-refreshes.
+  const intervalId = setInterval(() => {
+    fetchAndCallback();
+  }, 10000);
+
   return () => {
+    clearInterval(intervalId);
     supabase.removeChannel(channel);
   };
 };
 
 // ─── MENTOR OPERATIONS ────────────────────────────────────────────────────────
+
 export const getMentors = async (): Promise<any[]> => {
   try {
     const { data, error } = await supabase.rpc('fetch_mentors_list');
-    
+
     if (error) {
       console.warn('[dbService] getMentors RPC error, trying direct table:', error.message);
       const { data: tableData, error: tableError } = await supabase
         .from('mentors')
         .select('*')
         .order('name');
-      
+
       if (tableError) {
         console.error('[dbService] getMentors table error:', tableError.message);
         return [
@@ -848,4 +1043,3 @@ export const deleteMentor = async (id: string): Promise<void> => {
     .eq('id', id);
   if (error) console.error('[dbService] deleteMentor error:', error.message);
 };
-
