@@ -186,22 +186,31 @@ export default function Dashboard() {
   const autoActiveSchedules = schedules.filter(s => parseFloat(s.radius) !== -999 && isScheduleActive(s));
   const isAutoActive = autoActiveSchedules.length > 0;
   
-  const totalStudents = students.length;
+  const totalStudents = students.length || 1; // Prevent division by zero
   const today = new Date().toLocaleDateString('en-CA');
-  const todayAttendance = attendance.filter(a => a.date === today);
+  
+  // Get unique student records for today to prevent duplicates (no 400% logic)
+  const todayRecords = attendance.filter(a => a.date === today);
+  const uniqueStudentsToday = new Map();
+  todayRecords.forEach(r => {
+    if (!uniqueStudentsToday.has(r.student_id)) {
+      uniqueStudentsToday.set(r.student_id, r);
+    }
+  });
 
-  const presentCount = todayAttendance.filter(a => a.status === 'Present' || a.status === 'Late').length;
-  const lateCount = todayAttendance.filter(a => a.status === 'Late').length;
-  const absentCount = todayAttendance.filter(a => a.status === 'Absent').length;
+  const presentCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Present' || a.status === 'Late').length;
+  const lateCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Late').length;
+  const absentCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Absent').length;
 
   const onLeaveCount = leaveRequests.filter(lr => {
     return lr.status === 'Approved' && lr.fromDate <= today && lr.toDate >= today;
   }).length;
 
-  const presentPercentage = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
-  const latePercentage = totalStudents > 0 ? Math.round((lateCount / totalStudents) * 100) : 0;
-  const absentPercentage = totalStudents > 0 ? Math.round((absentCount / totalStudents) * 100) : 0;
-  const leavePercentage = totalStudents > 0 ? Math.round((onLeaveCount / totalStudents) * 100) : 0;
+  // Percentage logic: clamped to 100% max for genuine data
+  const presentPercentage = Math.min(100, Math.round((presentCount / totalStudents) * 100));
+  const latePercentage = Math.min(100, Math.round((lateCount / totalStudents) * 100));
+  const absentPercentage = Math.min(100, Math.round((absentCount / totalStudents) * 100));
+  const leavePercentage = Math.min(100, Math.round((onLeaveCount / totalStudents) * 100));
 
   // Dynamic greeting
   const getGreeting = () => {
