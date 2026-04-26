@@ -35,7 +35,7 @@ export default function AccessControlPage() {
     const unsubscribe = listenToCollection('users', (data) => {
       setUsers(data as User[]);
     });
-    
+
     // Load roles
     const loadRoles = async () => {
       const dbRoles = await getRoles();
@@ -130,7 +130,7 @@ export default function AccessControlPage() {
           <h2 className="text-xl font-bold text-gray-800">Role-Based Access Control</h2>
           <p className="text-sm text-gray-500">Drag and drop users into roles and configure module access.</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddUserModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
         >
@@ -141,7 +141,7 @@ export default function AccessControlPage() {
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Unassigned Users Pool - Premium Floating Design on Mobile */}
-        <div 
+        <div
           className="w-full lg:w-80 bg-white/80 backdrop-blur-md rounded-3xl border border-gray-100 shadow-xl flex flex-col h-auto lg:h-[calc(100vh-12rem)] sticky lg:relative bottom-0 lg:bottom-auto z-40 transition-all overflow-hidden"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null)}
@@ -155,14 +155,14 @@ export default function AccessControlPage() {
               {unassignedUsers.length}
             </span>
           </div>
-          
+
           <div className="p-4 flex-1 overflow-x-auto lg:overflow-y-auto lg:h-full flex lg:flex-col gap-3 custom-scrollbar">
             {unassignedUsers.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-w-[200px]">
                 <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-2">
                   <Check className="w-6 h-6 text-green-500" />
                 </div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-tight">All Users<br/>Assigned</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-tight">All Users<br />Assigned</p>
               </div>
             )}
             {unassignedUsers.map(user => (
@@ -183,7 +183,7 @@ export default function AccessControlPage() {
                   <p className="text-[9px] font-bold text-gray-400 truncate uppercase tracking-tighter">{user.email}</p>
                 </div>
                 {/* Mobile Quick Assign Button */}
-                <button 
+                <button
                   onClick={() => setSelectingRoleForUser(user)}
                   className="lg:hidden p-2 text-blue-600 bg-blue-50 rounded-xl active:scale-90 transition-all"
                 >
@@ -210,26 +210,26 @@ export default function AccessControlPage() {
                       <p className="text-[10px] font-bold text-blue-500 uppercase">{roleUsers.length} Members</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setExpandedRolePermissions(expandedRolePermissions === role.id ? null : role.id)}
                     className="lg:hidden p-2 text-gray-400 hover:text-blue-600 transition-colors"
                   >
                     <MoreVertical className="w-5 h-5" />
                   </button>
                 </div>
-                  
-                  <div className="p-4 flex-1 flex flex-col gap-6">
-                    {/* Drop Zone for Users */}
-                    <div>
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Members</h4>
-                        <UserPlus className="w-3.5 h-3.5 text-gray-300" />
-                      </div>
-                      <div 
-                        className="min-h-[100px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, role.id)}
-                      >
+
+                <div className="p-4 flex-1 flex flex-col gap-6">
+                  {/* Drop Zone for Users */}
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Members</h4>
+                      <UserPlus className="w-3.5 h-3.5 text-gray-300" />
+                    </div>
+                    <div
+                      className="min-h-[100px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, role.id)}
+                    >
                       {roleUsers.length === 0 && (
                         <div className="flex-1 flex items-center justify-center text-sm text-gray-400 font-medium">
                           Drag users here
@@ -250,7 +250,7 @@ export default function AccessControlPage() {
                             <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
                             <p className="text-[8px] font-bold text-gray-400 uppercase truncate">Assigned User</p>
                           </div>
-                          <button 
+                          <button
                             onClick={() => updateUserRole(user.id, null)}
                             className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 bg-gray-50/50 lg:bg-transparent"
                             title="Remove from role"
@@ -262,48 +262,46 @@ export default function AccessControlPage() {
                     </div>
                   </div>
 
-                    {/* Module Permissions */}
-                    <div className={`${expandedRolePermissions === role.id ? 'block' : 'hidden lg:block'} animate-in fade-in slide-in-from-top-2 duration-300`}>
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Module Access Control</h4>
-                        <div className="h-px bg-gray-100 flex-1 ml-4" />
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
-                        {AVAILABLE_MODULES.map(module => {
-                          const isAllowed = role.modules.includes(module);
-                          return (
-                            <label 
-                              key={module} 
-                              className={`flex items-center gap-2 p-2.5 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${
-                                isAllowed ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50' : 'bg-white border-gray-100 hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className={`w-4 h-4 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
-                                isAllowed ? 'bg-blue-600 border-blue-600 rotate-0' : 'border-gray-200 rotate-90'
-                              }`}>
-                                {isAllowed && <Check className="w-2.5 h-2.5 text-white" />}
-                              </div>
-                              <input 
-                                type="checkbox" 
-                                className="hidden" 
-                                checked={isAllowed}
-                                onChange={() => toggleModule(role.id, module)}
-                              />
-                              <span className={`text-[10px] font-black uppercase tracking-tight ${isAllowed ? 'text-blue-900' : 'text-gray-400'}`}>
-                                {module}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                  {/* Module Permissions */}
+                  <div className={`${expandedRolePermissions === role.id ? 'block' : 'hidden lg:block'} animate-in fade-in slide-in-from-top-2 duration-300`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Module Access Control</h4>
+                      <div className="h-px bg-gray-100 flex-1 ml-4" />
                     </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
+                      {AVAILABLE_MODULES.map(module => {
+                        const isAllowed = role.modules.includes(module);
+                        return (
+                          <label
+                            key={module}
+                            className={`flex items-center gap-2 p-2.5 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${isAllowed ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50' : 'bg-white border-gray-100 hover:bg-gray-50'
+                              }`}
+                          >
+                            <div className={`w-4 h-4 rounded-lg border flex items-center justify-center shrink-0 transition-all ${isAllowed ? 'bg-blue-600 border-blue-600 rotate-0' : 'border-gray-200 rotate-90'
+                              }`}>
+                              {isAllowed && <Check className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isAllowed}
+                              onChange={() => toggleModule(role.id, module)}
+                            />
+                            <span className={`text-[10px] font-black uppercase tracking-tight ${isAllowed ? 'text-blue-900' : 'text-gray-400'}`}>
+                              {module}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })}
-          
+
           {/* Add New Role Button */}
-          <button 
+          <button
             onClick={() => setShowAddRoleModal(true)}
             className="h-[200px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all group"
           >
@@ -319,7 +317,7 @@ export default function AccessControlPage() {
       <AnimatePresence>
         {selectingRoleForUser && (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -381,21 +379,21 @@ export default function AccessControlPage() {
             </div>
             <div className="p-6">
               <label className="block text-sm font-bold text-gray-700 mb-1">Role Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 autoFocus
                 value={newRoleName}
                 onChange={(e) => setNewRoleName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateRole()}
-                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. Moderator"
               />
               <p className="text-[10px] text-gray-400 mt-2">New roles have basic 'Dashboard' access by default.</p>
             </div>
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setShowAddRoleModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-              <button 
-                onClick={handleCreateRole} 
+              <button
+                onClick={handleCreateRole}
                 disabled={!newRoleName || isSavingRole}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 flex items-center gap-2 disabled:opacity-50"
               >
@@ -419,21 +417,21 @@ export default function AccessControlPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g. John Doe"
                 />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g. john@example.com"
                 />
               </div>
@@ -451,8 +449,8 @@ export default function AccessControlPage() {
             </div>
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setShowAddUserModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-              <button 
-                onClick={handleAddUser} 
+              <button
+                onClick={handleAddUser}
                 disabled={!newUserName || !newUserEmail}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >

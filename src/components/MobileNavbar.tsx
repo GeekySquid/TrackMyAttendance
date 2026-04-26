@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  MapPin, 
-  ClipboardList, 
-  Settings, 
-  User, 
-  Bell, 
-  LayoutDashboard, 
-  FileText, 
+import {
+  Home,
+  MapPin,
+  ClipboardList,
+  Settings,
+  User,
+  Bell,
+  LayoutDashboard,
+  FileText,
   Trophy,
   MoreHorizontal,
   BarChart2,
@@ -78,7 +78,7 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
               onClick={() => setIsMoreOpen(false)}
               className="fixed inset-0 bg-transparent z-[110]"
             />
-            
+
             {/* Ultra-Compact Menu Container */}
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -113,7 +113,7 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md block lg:hidden">
+      <div id="mobile-navbar" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md block lg:hidden">
         <div className="bg-white/80 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2.5rem] p-2 flex items-center justify-around relative overflow-hidden">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -140,56 +140,50 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
                       initial={{ scale: 0, opacity: 0, rotate: -45 }}
                       animate={{ scale: 1, opacity: 1, rotate: 0 }}
                       exit={{ scale: 0, opacity: 0, rotate: 45 }}
-                      className={`absolute inset-1 rounded-[1.5rem] z-0 blur-sm ${
-                        tab.id === 'dashboard' ? 'bg-gradient-to-br from-rose-400/20 to-rose-600/20' :
-                        tab.id === 'students' || tab.id === 'attendance' ? 'bg-gradient-to-br from-blue-400/20 to-blue-600/20' :
-                        tab.id === 'leave-requests' ? 'bg-gradient-to-br from-amber-400/20 to-amber-600/20' :
-                        tab.id === 'leaderboard' ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20' :
-                        tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-gradient-to-br from-emerald-400/20 to-emerald-600/20' :
-                        tab.id === 'more' ? 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/20' :
-                        'bg-gradient-to-br from-orange-400/20 to-orange-600/20'
-                      }`}
+                      className={`absolute inset-1 rounded-[1.5rem] z-0 blur-sm ${tab.id === 'dashboard' ? 'bg-gradient-to-br from-rose-400/20 to-rose-600/20' :
+                          tab.id === 'students' || tab.id === 'attendance' ? 'bg-gradient-to-br from-blue-400/20 to-blue-600/20' :
+                            tab.id === 'leave-requests' ? 'bg-gradient-to-br from-amber-400/20 to-amber-600/20' :
+                              tab.id === 'leaderboard' ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20' :
+                                tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-gradient-to-br from-emerald-400/20 to-emerald-600/20' :
+                                  tab.id === 'more' ? 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/20' :
+                                    'bg-gradient-to-br from-orange-400/20 to-orange-600/20'
+                        }`}
                     />
                   )}
                 </AnimatePresence>
 
                 {/* Glass Icon Container */}
                 <div className="relative z-10 flex items-center justify-center w-10 h-10">
-                  <div className={`absolute w-7 h-7 rounded-full transition-all duration-700 ${
-                     isActive ? 'scale-100 opacity-100 blur-[2px]' : 'scale-0 opacity-0'
-                  } ${
-                    tab.id === 'dashboard' ? 'bg-rose-500/80 shadow-[0_4px_12px_rgba(244,63,94,0.4)]' :
-                    tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500/80 shadow-[0_4px_12px_rgba(59,130,246,0.4)]' :
-                    tab.id === 'leave-requests' ? 'bg-amber-500/80 shadow-[0_4px_12px_rgba(245,158,11,0.4)]' :
-                    tab.id === 'leaderboard' ? 'bg-yellow-500/80 shadow-[0_4px_12px_rgba(234,179,8,0.4)]' :
-                    tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500/80 shadow-[0_4px_12px_rgba(16,185,129,0.4)]' :
-                    tab.id === 'more' ? 'bg-indigo-500/80 shadow-[0_4px_12px_rgba(99,102,241,0.4)]' :
-                    'bg-orange-500/80 shadow-[0_4px_12px_rgba(249,115,22,0.4)]'
-                  }`} />
+                  <div className={`absolute w-7 h-7 rounded-full transition-all duration-700 ${isActive ? 'scale-100 opacity-100 blur-[2px]' : 'scale-0 opacity-0'
+                    } ${tab.id === 'dashboard' ? 'bg-rose-500/80 shadow-[0_4px_12px_rgba(244,63,94,0.4)]' :
+                      tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500/80 shadow-[0_4px_12px_rgba(59,130,246,0.4)]' :
+                        tab.id === 'leave-requests' ? 'bg-amber-500/80 shadow-[0_4px_12px_rgba(245,158,11,0.4)]' :
+                          tab.id === 'leaderboard' ? 'bg-yellow-500/80 shadow-[0_4px_12px_rgba(234,179,8,0.4)]' :
+                            tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500/80 shadow-[0_4px_12px_rgba(16,185,129,0.4)]' :
+                              tab.id === 'more' ? 'bg-indigo-500/80 shadow-[0_4px_12px_rgba(99,102,241,0.4)]' :
+                                'bg-orange-500/80 shadow-[0_4px_12px_rgba(249,115,22,0.4)]'
+                    }`} />
 
-                  <div className={`absolute inset-0 bg-white/40 backdrop-blur-md rounded-xl border border-white/40 transition-all duration-500 shadow-sm ${
-                    isActive ? 'opacity-100 translate-x-1 -translate-y-1' : 'opacity-0 scale-90'
-                  }`} />
+                  <div className={`absolute inset-0 bg-white/40 backdrop-blur-md rounded-xl border border-white/40 transition-all duration-500 shadow-sm ${isActive ? 'opacity-100 translate-x-1 -translate-y-1' : 'opacity-0 scale-90'
+                    }`} />
 
-                  <Icon className={`w-5 h-5 transition-all duration-500 relative z-20 ${
-                    isActive 
-                      ? 'text-gray-900 drop-shadow-sm scale-110' 
+                  <Icon className={`w-5 h-5 transition-all duration-500 relative z-20 ${isActive
+                      ? 'text-gray-900 drop-shadow-sm scale-110'
                       : 'text-gray-400 group-hover:text-gray-600'
-                  }`} />
+                    }`} />
                 </div>
 
                 {isActive && (
-                  <motion.div 
+                  <motion.div
                     layoutId="activeLine"
-                    className={`absolute bottom-0 w-4 h-1 rounded-full ${
-                      tab.id === 'dashboard' ? 'bg-rose-500' :
-                      tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500' :
-                      tab.id === 'leave-requests' ? 'bg-amber-500' :
-                      tab.id === 'leaderboard' ? 'bg-yellow-500' :
-                      tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500' :
-                      tab.id === 'more' ? 'bg-indigo-500' :
-                      'bg-orange-500'
-                    }`}
+                    className={`absolute bottom-0 w-4 h-1 rounded-full ${tab.id === 'dashboard' ? 'bg-rose-500' :
+                        tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500' :
+                          tab.id === 'leave-requests' ? 'bg-amber-500' :
+                            tab.id === 'leaderboard' ? 'bg-yellow-500' :
+                              tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500' :
+                                tab.id === 'more' ? 'bg-indigo-500' :
+                                  'bg-orange-500'
+                      }`}
                   />
                 )}
               </button>

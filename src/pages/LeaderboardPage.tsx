@@ -86,7 +86,7 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[120px]" />
       </div>
 
-      <div className="max-w-5xl mx-auto space-y-4 relative z-10">
+      <div className="w-full space-y-4 relative z-10">
         {/* Header - Compact */}
         <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-4 sm:p-5 border border-white/50 shadow-xl shadow-blue-500/5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 opacity-40" />

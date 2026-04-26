@@ -26,7 +26,7 @@ export default function StatCard({
       {/* Visual Accent Line - Ultra Sleek */}
       <div className={`h-1 w-full ${progressColorClass} opacity-80 group-hover:opacity-100 transition-opacity`} />
       
-      <div className="p-3 sm:p-4 flex-1">
+      <div className="p-2.5 sm:p-4 flex-1">
         <div className="flex justify-between items-start mb-2 sm:mb-2.5">
           <div className={`p-1.5 rounded-xl ${bgClass} border border-white shadow-sm transition-transform group-hover:scale-105 duration-300`}>
             {/* Direct scale for a compact icon */}
@@ -48,7 +48,7 @@ export default function StatCard({
         <p className="text-[8px] text-gray-400 font-black uppercase tracking-[0.15em] mb-0.5">{title}</p>
         
         <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-lg font-black text-gray-900 tracking-tighter">{value}</span>
+          <span className="text-base sm:text-lg font-black text-gray-900 tracking-tighter">{value}</span>
           {total && total !== '-' && total !== '0' && (
             <div className="flex items-baseline">
               <span className="text-[10px] font-black text-gray-200 mx-0.5">/</span>

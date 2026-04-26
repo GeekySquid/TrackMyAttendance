@@ -1,27 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { 
-  Settings as SettingsIcon, 
-  Bell, 
-  Award, 
-  Shield, 
-  Clock, 
-  AlertTriangle, 
+import {
+  Settings as SettingsIcon,
+  Bell,
+  Award,
+  Shield,
+  Clock,
+  AlertTriangle,
   Save,
   Database,
   Loader2,
   Users,
   User,
   Building,
-  UserCheck
+  UserCheck,
+  Phone,
+  Activity
 } from 'lucide-react';
-import { 
-  saveUser, 
-  addAttendance, 
-  addLeaveRequest, 
-  getMentors, 
-  saveMentor, 
-  deleteMentor, 
+import {
+  saveUser,
+  addAttendance,
+  addLeaveRequest,
+  getMentors,
+  saveMentor,
+  deleteMentor,
   clearDatabase,
   getSystemSettings,
   updateSystemSettings
@@ -30,7 +32,7 @@ import toast from 'react-hot-toast';
 import CustomInput from '../components/CustomInput';
 import CustomDropdown from '../components/CustomDropdown';
 import CustomToggle from '../components/CustomToggle';
-import { Phone, Globe, Calendar as CalendarIcon, Hash, BookOpen, Mail, MessageSquare as MessageSquareIcon, Activity } from 'lucide-react';
+
 
 export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?: 'admin' | 'student', user?: any, onUpdate?: (u: any) => void }) {
   const location = useLocation();
@@ -40,7 +42,31 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const [isClearing, setIsClearing] = useState(false);
   const [mentors, setMentors] = useState<any[]>([]);
   const [newMentor, setNewMentor] = useState({ name: '', phone: '' });
-  const [localSettings, setLocalSettings] = useState<any>({});
+  const [localSettings, setLocalSettings] = useState<any>({
+    institution_name: 'TrackMyAttendance Academy',
+    academic_year: '2023 - 2024',
+    timezone: 'Asia/Kolkata (IST)',
+    date_format: 'DD/MM/YYYY',
+    check_in_time: '08:30',
+    check_out_time: '15:30',
+    late_threshold_mins: 15,
+    half_day_threshold_hours: 4,
+    low_attendance_threshold: 75,
+    consecutive_absences_threshold: 3,
+    auto_notify_parents: true,
+    enable_monthly_awards: true,
+    min_attendance_for_award: 95,
+    max_late_for_award: 0,
+    auto_generate_certificates: true,
+    strict_device_binding: false
+  });
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    gender: user?.gender || '',
+    bloodGroup: user?.bloodGroup || '',
+    mentorId: user?.mentorId || ''
+  });
   const [isLoadingSettings, setIsLoadingSettings] = useState(role === 'admin');
 
   useEffect(() => {
@@ -48,6 +74,18 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
       fetchSettings();
     }
   }, [role]);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        phone: user.phone || '',
+        gender: user.gender || '',
+        bloodGroup: user.bloodGroup || '',
+        mentorId: user.mentorId || ''
+      });
+    }
+  }, [user]);
 
   const fetchSettings = async () => {
     setIsLoadingSettings(true);
@@ -63,18 +101,15 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   };
 
 
-  const handleProfileSave = async (updatedData: any) => {
-    if (user?.id || user?.uid) {
-      const fullUpdate = { ...user, ...updatedData };
-      console.log('[SettingsPage] handleProfileSave for:', user.id || user.uid);
-      const success = await saveUser(fullUpdate);
-      if (success) {
-        if (onUpdate) onUpdate(fullUpdate);
-      } else {
-        toast.error('Failed to update field');
-      }
+  const handleAddMentor = async () => {
+    if (!newMentor.name || !newMentor.phone) return;
+    const success = await saveMentor(newMentor);
+    if (success) {
+      setNewMentor({ name: '', phone: '' });
+      fetchMentors();
+      toast.success('Mentor added successfully');
     } else {
-      console.error('[SettingsPage] handleProfileSave: No user ID found');
+      toast.error('Failed to add mentor');
     }
   };
 
@@ -85,14 +120,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const fetchMentors = async () => {
     const data = await getMentors();
     setMentors(data);
-  };
-
-  const handleAddMentor = async () => {
-    if (!newMentor.name || !newMentor.phone) return;
-    await saveMentor(newMentor);
-    setNewMentor({ name: '', phone: '' });
-    fetchMentors();
-    toast.success('Mentor added successfully');
   };
 
   const handleDeleteMentor = async (id: string) => {
@@ -108,12 +135,34 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   }, [location.state?.tab]);
 
   const handleSave = async () => {
+    if (Object.keys(localSettings).length === 0) {
+      toast.error('Settings not loaded correctly. Please refresh.');
+      return;
+    }
     setIsSaving(true);
+    console.log('[SettingsPage] Saving system settings:', localSettings);
     const success = await updateSystemSettings(localSettings);
     if (success) {
-      toast.success('All changes saved successfully!');
+      toast.success('System settings saved!');
+      await fetchSettings();
     } else {
       toast.error('Failed to save settings');
+    }
+    setIsSaving(false);
+  };
+
+  const handleProfileUpdate = async () => {
+    setIsSaving(true);
+    const userId = user?.id || user?.uid;
+    if (userId) {
+      console.log('[SettingsPage] Updating profile:', profileForm);
+      const success = await saveUser({ id: userId, ...profileForm });
+      if (success) {
+        onUpdate?.({ ...user, ...profileForm });
+        toast.success('Profile updated successfully!');
+      } else {
+        toast.error('Failed to update profile');
+      }
     }
     setIsSaving(false);
   };
@@ -123,7 +172,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     if (!window.confirm('CRITICAL ACTION: Are you sure you want to clear ALL attendance data, leave requests, and documents? This cannot be undone.')) {
       return;
     }
-    
+
     setIsClearing(true);
     try {
       const success = await clearDatabase();
@@ -150,7 +199,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
         { uid: 's4', name: 'Diana Prince', email: 'diana@example.com', role: 'student', rollNo: 'ME301', course: 'Mechanical Engineering', attendance: '76%' },
         { uid: 's5', name: 'Evan Wright', email: 'evan@example.com', role: 'student', rollNo: 'CS103', course: 'Computer Science', attendance: '88%' },
       ];
-      
+
       for (const s of students) {
         await saveUser(s);
       }
@@ -161,7 +210,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
-        
+
         // Skip weekends
         if (d.getDay() === 0 || d.getDay() === 6) continue;
 
@@ -171,7 +220,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
           let status = 'Present';
           let checkInTime = new Date(d);
           checkInTime.setHours(8, Math.floor(Math.random() * 30), 0);
-          
+
           let checkOutTime = new Date(d);
           checkOutTime.setHours(15, Math.floor(Math.random() * 60), 0);
 
@@ -209,7 +258,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
         status: 'Pending',
         appliedOn: new Date().toISOString()
       });
-      
+
       await addLeaveRequest({
         userId: 's4',
         userName: 'Diana Prince',
@@ -257,7 +306,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
             <h2 className="text-lg font-black text-gray-800 tracking-tight">System Settings</h2>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Configure parameters & preferences</p>
           </div>
-          <button 
+          <button
             onClick={handleSave}
             disabled={isSaving}
             className="w-full sm:w-auto bg-blue-600 text-white text-xs py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -288,11 +337,10 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                    isActive 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
-                  }`}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${isActive
+                    ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                   {tab.label}
@@ -305,7 +353,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
         {/* Settings Content */}
         <div className="flex-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 min-h-[500px]">
-            
+
             {activeTab === 'general' && (
               <div className="space-y-5 animate-in fade-in duration-300">
                 <div className="mb-4">
@@ -315,16 +363,16 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Institution Name</label>
-                    <input 
-                      type="text" 
-                      value={localSettings.institution_name || ''} 
+                    <input
+                      type="text"
+                      value={localSettings.institution_name || ''}
                       onChange={(e) => handleSettingsChange({ institution_name: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Academic Year</label>
-                    <select 
+                    <select
                       value={localSettings.academic_year || ''}
                       onChange={(e) => handleSettingsChange({ academic_year: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
@@ -336,7 +384,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Timezone</label>
-                    <select 
+                    <select
                       value={localSettings.timezone || ''}
                       onChange={(e) => handleSettingsChange({ timezone: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
@@ -349,7 +397,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Date Format</label>
-                    <select 
+                    <select
                       value={localSettings.date_format || ''}
                       onChange={(e) => handleSettingsChange({ date_format: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
@@ -370,24 +418,24 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <h3 className="text-lg font-bold text-gray-800">Attendance Rules</h3>
                   <p className="text-sm text-gray-500">Define strict parameters for tracking student presence.</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Standard Check-in Time</label>
-                    <input 
-                      type="time" 
-                      value={localSettings.check_in_time ? localSettings.check_in_time.substring(0, 5) : '08:30'} 
+                    <input
+                      type="time"
+                      value={localSettings.check_in_time ? localSettings.check_in_time.substring(0, 5) : '08:30'}
                       onChange={(e) => handleSettingsChange({ check_in_time: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Standard Check-out Time</label>
-                    <input 
-                      type="time" 
-                      value={localSettings.check_out_time ? localSettings.check_out_time.substring(0, 5) : '15:30'} 
+                    <input
+                      type="time"
+                      value={localSettings.check_out_time ? localSettings.check_out_time.substring(0, 5) : '15:30'}
                       onChange={(e) => handleSettingsChange({ check_out_time: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -399,11 +447,11 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500">Grace period before a student is marked "Late"</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        value={localSettings.late_threshold_mins || 15} 
+                      <input
+                        type="number"
+                        value={localSettings.late_threshold_mins || 15}
                         onChange={(e) => handleSettingsChange({ late_threshold_mins: parseInt(e.target.value) })}
-                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                       <span className="text-sm text-gray-600 font-medium">mins</span>
                     </div>
@@ -415,11 +463,11 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500">Minimum hours required for a full day present mark</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        value={localSettings.half_day_threshold_hours || 4} 
+                      <input
+                        type="number"
+                        value={localSettings.half_day_threshold_hours || 4}
                         onChange={(e) => handleSettingsChange({ half_day_threshold_hours: parseInt(e.target.value) })}
-                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                       <span className="text-sm text-gray-600 font-medium">hours</span>
                     </div>
@@ -451,11 +499,11 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Alert admin when a student's overall attendance drops below this percentage.</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input 
-                        type="number" 
-                        value={localSettings.low_attendance_threshold || 75} 
+                      <input
+                        type="number"
+                        value={localSettings.low_attendance_threshold || 75}
                         onChange={(e) => handleSettingsChange({ low_attendance_threshold: parseInt(e.target.value) })}
-                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                       <span className="text-sm text-gray-600 font-bold">%</span>
                     </div>
@@ -467,11 +515,11 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Flag students who are absent for consecutive days to schedule a follow-up.</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input 
-                        type="number" 
-                        value={localSettings.consecutive_absences_threshold || 3} 
+                      <input
+                        type="number"
+                        value={localSettings.consecutive_absences_threshold || 3}
                         onChange={(e) => handleSettingsChange({ consecutive_absences_threshold: parseInt(e.target.value) })}
-                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                       <span className="text-sm text-gray-600 font-bold">days</span>
                     </div>
@@ -506,24 +554,24 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-gray-800">Award Criteria</h4>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="border border-gray-200 rounded-lg p-4">
                       <label className="block text-xs font-bold text-gray-700 mb-2">Minimum Attendance %</label>
-                      <input 
-                        type="number" 
-                        value={localSettings.min_attendance_for_award || 95} 
+                      <input
+                        type="number"
+                        value={localSettings.min_attendance_for_award || 95}
                         onChange={(e) => handleSettingsChange({ min_attendance_for_award: parseInt(e.target.value) })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                     </div>
                     <div className="border border-gray-200 rounded-lg p-4">
                       <label className="block text-xs font-bold text-gray-700 mb-2">Max Allowed Late Marks</label>
-                      <input 
-                        type="number" 
-                        value={localSettings.max_late_for_award || 0} 
+                      <input
+                        type="number"
+                        value={localSettings.max_late_for_award || 0}
                         onChange={(e) => handleSettingsChange({ max_late_for_award: parseInt(e.target.value) })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
                       />
                     </div>
                   </div>
@@ -554,7 +602,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     onChange={() => toast.error('Enterprise feature. Please contact support.')}
                     disabled
                   />
-                  
+
                   {role === 'admin' && (
                     <CustomToggle
                       label="Strict Device Binding"
@@ -585,7 +633,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-sm text-gray-600 mt-1 mb-4">
                         Populate the database with sample students, attendance records, and leave requests for testing purposes. This will add to existing data.
                       </p>
-                      <button 
+                      <button
                         onClick={generateDemoData}
                         disabled={isGenerating}
                         className="bg-blue-600 text-white text-sm py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -614,10 +662,10 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     <div>
                       <h4 className="text-base font-bold text-gray-800">System Reset (Fresh Start)</h4>
                       <p className="text-sm text-gray-600 mt-1 mb-4">
-                        Permanently delete ALL student accounts, attendance records, leave requests, mentors, and documents. 
+                        Permanently delete ALL student accounts, attendance records, leave requests, mentors, and documents.
                         This action will return the system to a clean state for a new academic year or fresh testing cycle.
                       </p>
-                      <button 
+                      <button
                         onClick={handleClearDatabase}
                         disabled={isClearing}
                         className="bg-red-600 text-white text-sm py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-red-200 hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -655,16 +703,16 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       icon={User}
                       placeholder="Mentor Name"
                       value={newMentor.name}
-                      onChange={(e) => setNewMentor({...newMentor, name: e.target.value})}
+                      onChange={(e) => setNewMentor({ ...newMentor, name: e.target.value })}
                     />
                     <CustomInput
                       icon={Phone}
                       type="tel"
                       placeholder="Phone Number"
                       value={newMentor.phone}
-                      onChange={(e) => setNewMentor({...newMentor, phone: e.target.value})}
+                      onChange={(e) => setNewMentor({ ...newMentor, phone: e.target.value })}
                     />
-                    <button 
+                    <button
                       onClick={handleAddMentor}
                       className="bg-blue-600 text-white text-sm font-black py-3 px-6 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
                     >
@@ -685,7 +733,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                           <p className="text-xs text-gray-500 font-medium">{m.phone}</p>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleDeleteMentor(m.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       >
@@ -714,44 +762,16 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     <CustomInput
                       label="Full Name"
                       icon={User}
-                      value={user?.name || ''}
-                      onChange={(e) => handleProfileSave({ name: e.target.value })}
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <CustomInput
-                      label="Email Address"
-                      icon={Mail}
-                      value={user?.email || ''}
-                      disabled
-                    />
-                  </div>
-                  {user?.role === 'student' && (
-                    <>
-                      <div>
-                        <CustomInput
-                          label="Roll Number"
-                          icon={Hash}
-                          value={user?.rollNo || ''}
-                          disabled
-                        />
-                      </div>
-                      <div>
-                        <CustomInput
-                          label="Course"
-                          icon={BookOpen}
-                          value={user?.course || ''}
-                          disabled
-                        />
-                      </div>
-                    </>
-                  )}
                   <div>
                     <CustomInput
                       label="Phone Number"
                       icon={Phone}
-                      value={user?.phone || ''}
-                      onChange={(e) => handleProfileSave({ phone: e.target.value })}
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                     />
                   </div>
                   <div>
@@ -762,8 +782,8 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                         { value: '', label: 'No Mentor Assigned', icon: User },
                         ...mentors.map(m => ({ value: m.id, label: m.name, icon: User }))
                       ]}
-                      value={user?.mentorId || ''}
-                      onChange={(val) => handleProfileSave({ mentorId: val })}
+                      value={profileForm.mentorId}
+                      onChange={(val) => setProfileForm({ ...profileForm, mentorId: val })}
                     />
                   </div>
                   {user?.role === 'student' && (
@@ -778,8 +798,8 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                             { value: 'Female', label: 'Female' },
                             { value: 'Other', label: 'Other' }
                           ]}
-                          value={user?.gender || ''}
-                          onChange={(val) => handleProfileSave({ gender: val })}
+                          value={profileForm.gender}
+                          onChange={(val) => setProfileForm({ ...profileForm, gender: val })}
                         />
                       </div>
                       <div>
@@ -797,12 +817,22 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                             { value: 'AB+', label: 'AB+' },
                             { value: 'AB-', label: 'AB-' }
                           ]}
-                          value={user?.bloodGroup || ''}
-                          onChange={(val) => handleProfileSave({ bloodGroup: val })}
+                          value={profileForm.bloodGroup}
+                          onChange={(val) => setProfileForm({ ...profileForm, bloodGroup: val })}
                         />
                       </div>
                     </>
                   )}
+                </div>
+                <div className="mt-8 flex justify-end">
+                  <button
+                    onClick={handleProfileUpdate}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Profile Changes
+                  </button>
                 </div>
               </div>
             )}
@@ -817,7 +847,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   label="Push Notifications"
                   description="Receive alerts for attendance and leave updates."
                   checked={true}
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
               </div>
             )}

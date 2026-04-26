@@ -133,6 +133,7 @@ export default function Dashboard({ user }: { user: any }) {
     return () => unsub();
   }, []);
 
+
   // ── Attendance / student data ─────────────────────────────────────────────
   useEffect(() => {
     let studentsLoaded = false;
@@ -457,8 +458,8 @@ export default function Dashboard({ user }: { user: any }) {
 
         {/* Manual Activation Modal */}
         {showConfigModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col md:flex-row relative">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col md:flex-row relative">
               {/* Left side: Map */}
               <div className="w-full md:w-1/2 h-[320px] sm:h-[350px] md:h-auto bg-gray-50 relative shrink-0">
                 {isLoaded ? (

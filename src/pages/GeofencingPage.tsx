@@ -102,7 +102,7 @@ export default function GeofencingPage() {
   const isValidLocation = !isNaN(latNum) && !isNaN(lngNum) && newLat !== '' && newLng !== '';
 
   const toggleDay = (day: string) => {
-    setNewDays(prev => 
+    setNewDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
   };
@@ -237,7 +237,7 @@ export default function GeofencingPage() {
                 </h3>
               </div>
               {editingScheduleId && (
-                <button 
+                <button
                   type="button"
                   onClick={cancelEdit}
                   className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
@@ -254,8 +254,8 @@ export default function GeofencingPage() {
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">Location Label</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. Science Block, Main Entrance"
                     value={newLocationName}
                     onChange={(e) => setNewLocationName(e.target.value)}
@@ -271,8 +271,8 @@ export default function GeofencingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start Time</label>
-                    <input 
-                      type="time" 
+                    <input
+                      type="time"
                       value={newTime}
                       onChange={(e) => setNewTime(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold shadow-sm bg-gray-50/50"
@@ -281,8 +281,8 @@ export default function GeofencingPage() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">End Time</label>
-                    <input 
-                      type="time" 
+                    <input
+                      type="time"
                       value={newEndTime}
                       onChange={(e) => setNewEndTime(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold shadow-sm bg-gray-50/50"
@@ -301,11 +301,10 @@ export default function GeofencingPage() {
                       key={day}
                       type="button"
                       onClick={() => toggleDay(day)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
-                        newDays.includes(day) 
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-200 scale-105' 
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${newDays.includes(day)
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-200 scale-105'
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {day.charAt(0)}
                     </button>
@@ -329,8 +328,8 @@ export default function GeofencingPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Lat (e.g. 40.7128)"
                       value={newLat}
                       onChange={(e) => setNewLat(e.target.value)}
@@ -339,8 +338,8 @@ export default function GeofencingPage() {
                     />
                   </div>
                   <div>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Lng (e.g. -74.0060)"
                       value={newLng}
                       onChange={(e) => setNewLng(e.target.value)}
@@ -355,17 +354,17 @@ export default function GeofencingPage() {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Radius (meters)</label>
                 <div className="flex items-center gap-3">
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="1000" 
+                  <input
+                    type="range"
+                    min="1"
+                    max="1000"
                     step="1"
                     value={newRadius}
                     onChange={(e) => setNewRadius(e.target.value)}
                     className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
                   <div className="relative">
-                    <input 
+                    <input
                       type="number"
                       min="1"
                       max="5000"
@@ -381,17 +380,17 @@ export default function GeofencingPage() {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Grace Period (minutes)</label>
                 <div className="flex items-center gap-3">
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="120" 
+                  <input
+                    type="range"
+                    min="0"
+                    max="120"
                     step="5"
                     value={newGracePeriod}
                     onChange={(e) => setNewGracePeriod(parseInt(e.target.value))}
                     className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
                   <div className="relative">
-                    <input 
+                    <input
                       type="number"
                       min="0"
                       max="120"
@@ -411,9 +410,9 @@ export default function GeofencingPage() {
                   <p className="text-[10px] text-blue-600/70 leading-tight mt-0.5 font-medium">Smart automation for this zone</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer group">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only peer" 
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
                     checked={newAutoActivate}
                     onChange={(e) => setNewAutoActivate(e.target.checked)}
                   />
@@ -421,7 +420,7 @@ export default function GeofencingPage() {
                 </label>
               </div>
 
-              <button 
+              <button
                 type="submit"
                 className={`w-full ${editingScheduleId ? 'bg-gradient-to-br from-indigo-600 to-violet-700 shadow-indigo-200' : 'bg-gradient-to-br from-blue-600 to-indigo-700 shadow-blue-200'} text-white py-4 rounded-2xl font-black text-base shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex items-center justify-center gap-2`}
               >
@@ -460,7 +459,7 @@ export default function GeofencingPage() {
                 </span>
               )}
             </div>
-            
+
             <div className="w-full flex-1 rounded-lg overflow-hidden relative bg-gray-50">
               {isLoaded ? (
                 <GoogleMap
@@ -469,7 +468,7 @@ export default function GeofencingPage() {
                   center={isValidLocation ? { lat: latNum, lng: lngNum } : { lat: 20.5937, lng: 78.9629 }}
                   zoom={isValidLocation ? 16 : 4}
                   mapTypeId={mapType}
-                  options={{ 
+                  options={{
                     disableDefaultUI: true,
                     zoomControl: false,
                     streetViewControl: false,
@@ -539,8 +538,8 @@ export default function GeofencingPage() {
                   </div>
                   {isValidLocation && (
                     <>
-                      <MarkerF 
-                        position={{ lat: latNum, lng: lngNum }} 
+                      <MarkerF
+                        position={{ lat: latNum, lng: lngNum }}
                         draggable={true}
                         onDragEnd={(e) => {
                           if (e.latLng) {
@@ -587,11 +586,11 @@ export default function GeofencingPage() {
       {/* Bottom Row: Saved Alarms/Schedules */}
       <div>
         <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Deployed Schedules</h3>
-        
+
         {schedules.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-gray-300">
-               <Crosshair className="w-8 h-8" />
+              <Crosshair className="w-8 h-8" />
             </div>
             <h4 className="text-gray-900 font-bold mb-1">No Active Boundaries</h4>
             <p className="text-gray-500 text-sm max-w-sm">Use the map editor above to drop your first location pin and schedule an attendance window.</p>
@@ -603,7 +602,7 @@ export default function GeofencingPage() {
                 {schedule.isActive && (
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 rounded-l-xl"></div>
                 )}
-                
+
                 <div className="flex justify-between items-start mb-4 pl-2">
                   <div>
                     <h4 className={`text-2xl font-extrabold tracking-tight ${schedule.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
@@ -619,20 +618,20 @@ export default function GeofencingPage() {
                     </span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
                       checked={schedule.isActive}
                       onChange={() => toggleSchedule(schedule.id)}
                     />
                     <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
                   </label>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-1.5 mb-5 pl-2">
                   {DAYS_OF_WEEK.map(day => (
-                    <span 
-                      key={day} 
+                    <span
+                      key={day}
                       className={`text-[10px] font-bold px-2 py-1 rounded-md ${schedule.days.includes(day) ? (schedule.isActive ? 'text-blue-800 bg-blue-100 border border-blue-200' : 'text-gray-600 bg-gray-100 border border-gray-200') : 'text-gray-300 border border-transparent'}`}
                     >
                       {day}
@@ -652,14 +651,14 @@ export default function GeofencingPage() {
                 </div>
 
                 <div className="flex justify-end mt-2 gap-2">
-                  <button 
+                  <button
                     onClick={() => handleEdit(schedule)}
                     className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                     title="Edit Boundary"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => deleteSchedule(schedule.id)}
                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                     title="Delete Boundary"

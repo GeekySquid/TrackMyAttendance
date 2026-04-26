@@ -61,9 +61,9 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
 
   const filteredLogs = allLogs.filter(log => {
     const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
-    const matchesSearch = log.date.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         log.location.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = log.date.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.location.toLowerCase().includes(searchTerm.toLowerCase());
+
     // Date Range Filter
     const logTime = new Date(log.rawDate).getTime();
     const start = startDate ? new Date(startDate).getTime() : 0;
@@ -155,7 +155,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-gray-50/50">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden max-w-6xl mx-auto">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden w-full">
         {/* Header Section */}
         <div className="p-6 border-b border-gray-100 bg-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -170,7 +170,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
             </div>
 
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
               >
@@ -278,16 +278,15 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                       </td>
                       <td className="py-4 px-5" data-label="Status">
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${
-                            log.status === 'Present' ? 'bg-green-100 text-green-700' :
-                            log.status === 'Late' ? 'bg-orange-100 text-orange-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${log.status === 'Present' ? 'bg-green-100 text-green-700' :
+                              log.status === 'Late' ? 'bg-orange-100 text-orange-700' :
+                                'bg-red-100 text-red-700'
+                            }`}>
                             {log.status}
                           </span>
-                          
+
                           {log.status === 'Late' && (
-                            <button 
+                            <button
                               onClick={() => { setSelectedLog(log); setShowReasonModal(true); }}
                               className="p-1.5 hover:bg-orange-100 rounded-lg text-orange-400 transition-colors"
                               title="View Reason"
@@ -333,7 +332,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                   <p className="text-xs font-bold text-orange-600 uppercase tracking-widest">{selectedLog.date}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setShowReasonModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
               >
@@ -363,26 +362,24 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
               <div className="flex items-center justify-between p-4 bg-orange-50 rounded-2xl border border-orange-100">
                 <div>
                   <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Review Status</p>
-                  <p className={`text-sm font-black uppercase tracking-tight ${
-                    selectedLog.lateReasonStatus === 'Approved' ? 'text-green-600' : 
-                    selectedLog.lateReasonStatus === 'Rejected' ? 'text-red-600' : 
-                    'text-orange-600'
-                  }`}>
+                  <p className={`text-sm font-black uppercase tracking-tight ${selectedLog.lateReasonStatus === 'Approved' ? 'text-green-600' :
+                      selectedLog.lateReasonStatus === 'Rejected' ? 'text-red-600' :
+                        'text-orange-600'
+                    }`}>
                     {selectedLog.lateReasonStatus || 'Pending'}
                   </p>
                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  selectedLog.lateReasonStatus === 'Approved' ? 'bg-green-100 text-green-600' :
-                  selectedLog.lateReasonStatus === 'Rejected' ? 'bg-red-100 text-red-600' :
-                  'bg-orange-100 text-orange-600'
-                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedLog.lateReasonStatus === 'Approved' ? 'bg-green-100 text-green-600' :
+                    selectedLog.lateReasonStatus === 'Rejected' ? 'bg-red-100 text-red-600' :
+                      'bg-orange-100 text-orange-600'
+                  }`}>
                   <Info className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
             <div className="p-6 bg-gray-50 flex justify-end">
-              <button 
+              <button
                 onClick={() => setShowReasonModal(false)}
                 className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all shadow-lg shadow-gray-200"
               >

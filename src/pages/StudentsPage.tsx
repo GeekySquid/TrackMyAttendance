@@ -65,14 +65,14 @@ export default function StudentsPage() {
     const fetchExtraData = async () => {
       const mData = await getMentors();
       setMentors(mData);
-      
+
       const summary = await getAttendanceSummary();
       setAttendanceSummary(summary);
     };
     fetchExtraData();
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredStudents = students.map(s => {
@@ -166,16 +166,16 @@ export default function StudentsPage() {
 
   const handleNavigateProfile = (direction: 'next' | 'prev') => {
     if (filteredStudents.length <= 1) return;
-    
+
     const currentIndex = filteredStudents.findIndex(s => (s.uid || s.id) === (selectedStudent?.uid || selectedStudent?.id));
     let nextIndex;
-    
+
     if (direction === 'next') {
       nextIndex = (currentIndex + 1) % filteredStudents.length;
     } else {
       nextIndex = (currentIndex - 1 + filteredStudents.length) % filteredStudents.length;
     }
-    
+
     setSelectedStudent(filteredStudents[nextIndex]);
   };
 
@@ -227,11 +227,11 @@ export default function StudentsPage() {
           <>
             <StatCard title="Total Students" value={students.length.toString()} total="" percentage="100%" trend="" trendUp={true}
               icon={<Users className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500" />
-            <StatCard title="New Enrollments (30d)" value={newEnrollments.toString()} total="" percentage={`${students.length > 0 ? Math.round((newEnrollments/students.length)*100) : 0}%`} trend="" trendUp={true}
+            <StatCard title="New Enrollments (30d)" value={newEnrollments.toString()} total="" percentage={`${students.length > 0 ? Math.round((newEnrollments / students.length) * 100) : 0}%`} trend="" trendUp={true}
               icon={<UserPlus className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500" />
-            <StatCard title="Active Students" value={activeStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((activeStudents/students.length)*100) : 0}%`} trend="" trendUp={false}
+            <StatCard title="Active Students" value={activeStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((activeStudents / students.length) * 100) : 0}%`} trend="" trendUp={false}
               icon={<UserCheck className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400" />
-            <StatCard title="Dropped Out" value={droppedStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((droppedStudents/students.length)*100) : 0}%`} trend="" trendUp={false}
+            <StatCard title="Dropped Out" value={droppedStudents.toString()} total={students.length.toString()} percentage={`${students.length > 0 ? Math.round((droppedStudents / students.length) * 100) : 0}%`} trend="" trendUp={false}
               icon={<UserMinus className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400" />
           </>
         )}
@@ -318,18 +318,16 @@ export default function StudentsPage() {
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="inline-flex flex-col items-center gap-1">
-                            <span className={`text-xs font-black ${
-                              parseInt(student.attendance) >= 75 ? 'text-green-600' : 
+                            <span className={`text-xs font-black ${parseInt(student.attendance) >= 75 ? 'text-green-600' :
                               parseInt(student.attendance) >= 60 ? 'text-orange-500' : 'text-red-500'
-                            }`}>
+                              }`}>
                               {student.attendance || '0%'}
                             </span>
                             <div className="w-16 bg-gray-100 rounded-full h-1 overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  parseInt(student.attendance) >= 75 ? 'bg-green-500' : 
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${parseInt(student.attendance) >= 75 ? 'bg-green-500' :
                                   parseInt(student.attendance) >= 60 ? 'bg-orange-400' : 'bg-red-400'
-                                }`}
+                                  }`}
                                 style={{ width: student.attendance || '0%' }}
                               />
                             </div>
@@ -364,9 +362,9 @@ export default function StudentsPage() {
               {/* Mobile Card View */}
               <div className="md:hidden p-4 space-y-4">
                 {isLoading ? (
-                   Array(3).fill(0).map((_, i) => (
+                  Array(3).fill(0).map((_, i) => (
                     <div key={i} className="animate-pulse bg-gray-50 h-32 rounded-2xl" />
-                   ))
+                  ))
                 ) : filteredStudents.length === 0 ? (
                   <div className="py-12 text-center text-gray-500 text-sm italic">No students found.</div>
                 ) : (
@@ -374,11 +372,10 @@ export default function StudentsPage() {
                     <div
                       key={student.uid || student.id}
                       onClick={() => setSelectedStudent(student)}
-                      className={`p-4 rounded-2xl border transition-all active:scale-[0.98] ${
-                        selectedStudent?.uid === student.uid || selectedStudent?.id === student.id 
-                        ? 'bg-blue-50 border-blue-200 shadow-md ring-1 ring-blue-100' 
+                      className={`p-4 rounded-2xl border transition-all active:scale-[0.98] ${selectedStudent?.uid === student.uid || selectedStudent?.id === student.id
+                        ? 'bg-blue-50 border-blue-200 shadow-md ring-1 ring-blue-100'
                         : 'bg-white border-gray-100 shadow-sm'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -407,23 +404,21 @@ export default function StudentsPage() {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-white/50 rounded-xl p-3 border border-gray-50">
                         <div className="flex flex-col gap-1">
                           <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Attendance</span>
-                          <span className={`text-sm font-black ${
-                            parseInt(student.attendance) >= 75 ? 'text-green-600' : 
+                          <span className={`text-sm font-black ${parseInt(student.attendance) >= 75 ? 'text-green-600' :
                             parseInt(student.attendance) >= 60 ? 'text-orange-500' : 'text-red-500'
-                          }`}>
+                            }`}>
                             {student.attendance || '0%'}
                           </span>
                         </div>
                         <div className="w-32 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              parseInt(student.attendance) >= 75 ? 'bg-green-500' : 
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${parseInt(student.attendance) >= 75 ? 'bg-green-500' :
                               parseInt(student.attendance) >= 60 ? 'bg-orange-400' : 'bg-red-400'
-                            }`}
+                              }`}
                             style={{ width: student.attendance || '0%' }}
                           />
                         </div>
@@ -525,15 +520,15 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Assign Mentor</label>
-              <CustomDropdown
-                label="Assign Mentor"
-                options={[
-                  { value: "", label: "No Mentor Assigned" },
-                  ...mentors.map(m => ({ value: m.id, label: m.name }))
-                ]}
-                value={newMentorId}
-                onChange={setNewMentorId}
-              />
+                <CustomDropdown
+                  label="Assign Mentor"
+                  options={[
+                    { value: "", label: "No Mentor Assigned" },
+                    ...mentors.map(m => ({ value: m.id, label: m.name }))
+                  ]}
+                  value={newMentorId}
+                  onChange={setNewMentorId}
+                />
               </div>
             </div>
 
@@ -569,13 +564,13 @@ export default function StudentsPage() {
                 Are you sure you want to remove <strong>{students.find(s => (s.uid || s.id) === confirmDeleteId)?.name}</strong>? This action will permanently delete their profile data.
               </p>
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setConfirmDeleteId(null)}
                   className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={confirmDelete}
                   className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-100"
                 >

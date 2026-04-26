@@ -107,13 +107,13 @@ function AppContent() {
         if (existing) {
           const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
           const shouldBeAdmin = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '');
-          
+
           // Sync photo if different or missing from Gmail profile
           const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
-          
+
           if ((shouldBeAdmin && existing.role !== 'admin') || photoDiffers) {
-            await saveUser({ 
-              ...existing, 
+            await saveUser({
+              ...existing,
               role: shouldBeAdmin ? 'admin' : existing.role,
               photoURL: user.imageUrl || existing.photoURL
             });
@@ -147,13 +147,13 @@ function AppContent() {
     setProfile(profileData);
     setOnboarded(isDone);
     localStorage.setItem('tm_onboarded', String(isDone));
-    
+
     // Persist session for 24h
     localStorage.setItem('tm_persistent_session', JSON.stringify({
       profile: profileData,
       timestamp: new Date().getTime()
     }));
-    
+
     setProfileLoading(false);
   };
 
@@ -173,7 +173,7 @@ function AppContent() {
         setProfile(updatedData);
         setOnboarded(true);
         localStorage.setItem('tm_onboarded', 'true');
-        
+
         // Update persistent session if it exists
         const savedSession = localStorage.getItem('tm_persistent_session');
         if (savedSession) {
@@ -182,7 +182,7 @@ function AppContent() {
             timestamp: new Date().getTime()
           }));
         }
-        
+
         toast.success('Profile created successfully!');
       } else {
         toast.error('Failed to save profile. Please try again.');
@@ -253,7 +253,7 @@ function AppContent() {
             handleLogout();
             toast.error('Session expired (24h limit). Please log in again.', { id: 'session-expiry' });
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     };
 
@@ -321,7 +321,7 @@ function AppContent() {
                 <Route path="/admin/reports" element={<ReportsPage />} />
                 <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
                 <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
-                <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} />} />
+                <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} onUpdate={setProfile} />} />
                 <Route path="/admin/geofencing" element={<GeofencingPage />} />
                 <Route path="/admin/access-control" element={<AccessControlPage />} />
                 <Route path="/admin/support" element={<SupportPage role="admin" />} />

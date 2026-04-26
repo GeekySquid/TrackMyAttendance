@@ -140,7 +140,7 @@ export function isScheduleActive(s: any): boolean {
   // 1. Manual Global Override (-999 row)
   if (parseFloat(s.radius) === -999) {
     if (!s.isActive) return false;
-    
+
     // Check if it has an end time and if we are past it
     if (s.endTime) {
       const [eh, em] = s.endTime.split(':').map(Number);
@@ -166,7 +166,7 @@ export function isScheduleActive(s: any): boolean {
 
     const [h, m] = s.time.split(':').map(Number);
     const [eh, em] = (s.endTime || '23:59').split(':').map(Number);
-    
+
     if (isNaN(h) || isNaN(m)) return false;
 
     const now = new Date();
@@ -187,7 +187,7 @@ export function isScheduleActive(s: any): boolean {
       const lat = parseFloat(s.lat), lng = parseFloat(s.lng), r = parseFloat(s.radius);
       return !isNaN(lat) && !isNaN(lng) && !isNaN(r) && r > 0;
     }
-    
+
     // If we are outside the auto-activation time window, it's CLOSED 
     // (unless isActive was used as a manual "Force Open" override, 
     // but here we treat it as an "Enable" flag for the schedule).
@@ -304,14 +304,14 @@ export const saveUser = async (user: any): Promise<boolean> => {
       updated_at: new Date().toISOString(),
     };
     if (user.photoURL !== undefined) row.photo_url = user.photoURL;
-    if (user.role !== undefined)     row.role      = user.role;
-    if (user.rollNo !== undefined)   row.roll_no   = user.rollNo;
-    if (user.course !== undefined)   row.course    = user.course;
-    if (user.phone !== undefined)    row.phone     = user.phone;
-    if (user.gender !== undefined)   row.gender    = user.gender;
+    if (user.role !== undefined) row.role = user.role;
+    if (user.rollNo !== undefined) row.roll_no = user.rollNo;
+    if (user.course !== undefined) row.course = user.course;
+    if (user.phone !== undefined) row.phone = user.phone;
+    if (user.gender !== undefined) row.gender = user.gender;
     if (user.bloodGroup !== undefined) row.blood_group = user.bloodGroup;
-    if (user.status !== undefined)   row.status    = user.status;
-    if (user.mentorId !== undefined) row.mentor_id = user.mentorId;
+    if (user.status !== undefined) row.status = user.status;
+    if (user.mentorId !== undefined) row.mentor_id = user.mentorId || null;
     if (user.profileCompleted !== undefined) row.profile_completed = user.profileCompleted;
 
     const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
@@ -348,11 +348,11 @@ export const updateUserProfile = async (
   }>
 ): Promise<void> => {
   const row: Record<string, any> = {};
-  if (updates.name !== undefined)     row.name      = updates.name;
-  if (updates.phone !== undefined)    row.phone     = updates.phone;
-  if (updates.gender !== undefined)   row.gender    = updates.gender;
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.phone !== undefined) row.phone = updates.phone;
+  if (updates.gender !== undefined) row.gender = updates.gender;
   if (updates.photoURL !== undefined) row.photo_url = updates.photoURL;
-  if (updates.status !== undefined)   row.status    = updates.status;
+  if (updates.status !== undefined) row.status = updates.status;
 
   const { error } = await supabase
     .from('profiles')
@@ -458,7 +458,7 @@ export const addAttendance = async (record: any): Promise<any> => {
         userId: record.userId,
         type: record.status === 'Present' ? 'success' : 'warning',
         title: `Attendance Marked: ${record.status}`,
-        message: record.status === 'Present' 
+        message: record.status === 'Present'
           ? `You have successfully checked in for ${record.course || 'your session'}.`
           : `You have been marked ${record.status} for ${record.course || 'your session'}.`,
         data: { sessionId: finalId }
@@ -479,13 +479,13 @@ export const updateAttendance = async (
   updates: any
 ): Promise<void> => {
   const row: Record<string, any> = {};
-  if (updates.checkOutTime    !== undefined) row.check_out_time         = updates.checkOutTime;
-  if (updates.status          !== undefined) row.status                 = updates.status;
-  if (updates.location        !== undefined) row.location               = updates.location;
-  if (updates.lateReason      !== undefined) row.late_reason            = updates.lateReason;
-  if (updates.lateReasonStatus!== undefined) row.late_reason_status     = updates.lateReasonStatus;
-  if (updates.lateReasonImage !== undefined) row.late_reason_image      = updates.lateReasonImage;
-  if (updates.checkoutReason  !== undefined) row.checkout_reason        = updates.checkoutReason;
+  if (updates.checkOutTime !== undefined) row.check_out_time = updates.checkOutTime;
+  if (updates.status !== undefined) row.status = updates.status;
+  if (updates.location !== undefined) row.location = updates.location;
+  if (updates.lateReason !== undefined) row.late_reason = updates.lateReason;
+  if (updates.lateReasonStatus !== undefined) row.late_reason_status = updates.lateReasonStatus;
+  if (updates.lateReasonImage !== undefined) row.late_reason_image = updates.lateReasonImage;
+  if (updates.checkoutReason !== undefined) row.checkout_reason = updates.checkoutReason;
 
   if (Object.keys(row).length === 0) return; // nothing to update
 
@@ -558,7 +558,7 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
   try {
     const today = new Date().toISOString().split('T')[0];
     const time = checkoutTime || new Date().toISOString();
-    
+
     const { data: records, error: fetchError } = await supabase
       .from('attendance')
       .select('id, user_id, user_name, course')
@@ -569,7 +569,7 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
     if (!records || records.length === 0) return;
 
     const ids = records.map(r => r.id);
-    
+
     const { error: updateError } = await supabase
       .from('attendance')
       .update({ check_out_time: time })
@@ -788,7 +788,7 @@ export const addDocument = async (document: any): Promise<any> => {
     public_url: publicUrl,
     uploader: document.uploader || null,
     uploader_id: document.uploaderId || null,
-    revisions: [] 
+    revisions: []
   };
 
   const { data, error } = await supabase
@@ -985,14 +985,14 @@ export const toggleManualAttendanceWindow = async (
 
     const { data, error } = await supabase
       .from('attendance_windows')
-      .update({ 
+      .update({
         is_active: active,
         lat: String(lat),
         lng: String(lng),
         radius: radius,
         location_name: locationName,
         grace_period: gracePeriod,
-        end_time: endTime || '23:59', 
+        end_time: endTime || '23:59',
         time: currentTimeStr // Store as HH:mm so StudentCheckInWidget can parse it
       })
       .eq('auto_activate', false) // Use auto_activate=false as the stable sentinel identifier
@@ -1254,10 +1254,10 @@ export const listenToCollection = (
         }
         return;
       }
-      
-      
+
+
       const mapped = (data || []).map((row) => mapRow(table, row));
-      
+
       // OPTIMIZATION: Only trigger callback if data actually changed to prevent re-render loops
       // EXCEPTION: First load must always trigger callback to unblock UI loading states
       if (JSON.stringify(mapped) !== JSON.stringify(cache) || !hasInitialLoaded) {
@@ -1305,11 +1305,11 @@ export const listenToCollection = (
         } else if (eventType === 'UPDATE' && newRow) {
           const existing = cache.find((r) => r.id === newRow.id);
           const mappedNew = mapRow(table, newRow);
-          
+
           // IMPORTANT: Merge with existing to prevent partial updates from wiping out 
           // fields that weren't included in the UPDATE payload (like userName, rollNo)
           const updated = existing ? { ...existing, ...mappedNew } : mappedNew;
-          
+
           cache = cache.map((r) => (r.id === updated.id ? updated : r));
           callback([...cache]);
         } else if (eventType === 'DELETE' && oldRow) {
@@ -1399,10 +1399,10 @@ export const clearDatabase = async (): Promise<boolean> => {
   try {
     // 1. Delete all attendance records
     await supabase.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
+
     // 2. Delete all leave requests
     await supabase.from('leave_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
+
     // 3. Delete all documents and clear storage
     const { data: docs } = await supabase.from('documents').select('storage_key');
     if (docs && docs.length > 0) {
@@ -1412,14 +1412,14 @@ export const clearDatabase = async (): Promise<boolean> => {
       }
     }
     await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
+
     // 4. Delete all notifications
     await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    
+
     // 5. Reset all profiles' attendance percentages and mentor associations
-    await supabase.from('profiles').update({ 
+    await supabase.from('profiles').update({
       attendance_pct: 0,
-      mentor_id: null 
+      mentor_id: null
     }).neq('id', '00000000-0000-0000-0000-000000000000');
 
     // 6. Delete all mentors
@@ -1453,19 +1453,21 @@ export const getSystemSettings = async (): Promise<any> => {
 export const updateSystemSettings = async (updates: any): Promise<boolean> => {
   // Clean the updates object to prevent issues with primary keys or protected fields
   const { id, created_at, ...payload } = updates;
-  
+
+  console.log('[dbService] updateSystemSettings payload:', payload);
   const { error } = await supabase
     .from('app_settings')
-    .upsert({ 
+    .upsert({
       id: '00000000-0000-0000-0000-000000000001',
-      ...payload, 
-      updated_at: new Date().toISOString() 
-    });
-    
+      ...payload,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
   if (error) {
-    console.error('[dbService] updateSystemSettings error:', error.message);
+    console.error('[dbService] updateSystemSettings error:', error.message, error.details, error.hint);
     return false;
   }
+  console.log('[dbService] updateSystemSettings success');
   return true;
 };
 

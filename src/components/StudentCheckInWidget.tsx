@@ -202,7 +202,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
           width: 100%;
           max-width: 190px;
           height: 60px;
-          border-radius: 20px;
+          border-radius: 0px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -247,13 +247,13 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
         <div className="w-full flex justify-center py-2 relative z-10">
           <div className="relative w-full max-w-[190px]">
             <div className={`static-ring-system ${isCheckedIn ? 'static-success' :
-                isOutsideZone && windowOpen ? 'static-alert' :
-                  windowOpen ? 'static-active' : 'static-offline'
+              isOutsideZone && windowOpen ? 'static-alert' :
+                windowOpen ? 'static-active' : 'static-offline'
               }`} />
 
             <div
               className={`action-dial-static ${isCheckedIn ? 'text-[#064e3b]' :
-                  windowOpen ? 'text-[#1e40af]' : 'text-slate-400'
+                windowOpen ? 'text-[#1e40af]' : 'text-slate-400'
                 }`}
               onClick={isCheckedIn ? handleCheckOutRequest : undefined}
             >

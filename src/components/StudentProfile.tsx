@@ -23,10 +23,10 @@ export default function StudentProfile({ student }: { student?: any }) {
       <p className="text-xs text-gray-500 mb-6">Quick overview and details</p>
       <div className="flex flex-col items-center text-center mb-8">
         <div className="relative mb-3">
-          <img 
-            alt={displayStudent.name} 
-            className="w-20 h-20 rounded-full border-2 border-white shadow-md object-cover" 
-            src={displayStudent.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayStudent.name}`} 
+          <img
+            alt={displayStudent.name}
+            className="w-20 h-20 rounded-full border-2 border-white shadow-md object-cover"
+            src={displayStudent.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayStudent.name}`}
           />
           <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></span>
         </div>
@@ -36,20 +36,18 @@ export default function StudentProfile({ student }: { student?: any }) {
       </div>
       <div className="space-y-4">
         <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-xl">
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-sm ${
-            parseInt(displayStudent.attendance) >= 75 ? 'bg-green-100 text-green-600' : 
-            parseInt(displayStudent.attendance) >= 60 ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
-          }`}>
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-sm ${parseInt(displayStudent.attendance) >= 75 ? 'bg-green-100 text-green-600' :
+              parseInt(displayStudent.attendance) >= 60 ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
+            }`}>
             {displayStudent.attendance || '0%'}
           </div>
           <div className="flex-1">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Attendance Rate</p>
             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-              <div 
-                className={`h-full rounded-full ${
-                  parseInt(displayStudent.attendance) >= 75 ? 'bg-green-500' : 
-                  parseInt(displayStudent.attendance) >= 60 ? 'bg-orange-500' : 'bg-red-500'
-                }`}
+              <div
+                className={`h-full rounded-full ${parseInt(displayStudent.attendance) >= 75 ? 'bg-green-500' :
+                    parseInt(displayStudent.attendance) >= 60 ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
                 style={{ width: displayStudent.attendance || '0%' }}
               />
             </div>
@@ -59,9 +57,8 @@ export default function StudentProfile({ student }: { student?: any }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 bg-gray-50 rounded-xl">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Status</p>
-            <p className={`text-xs font-bold mt-1 ${
-              (!displayStudent.status || displayStudent.status === 'Active') ? 'text-green-600' : 'text-orange-600'
-            }`}>
+            <p className={`text-xs font-bold mt-1 ${(!displayStudent.status || displayStudent.status === 'Active') ? 'text-green-600' : 'text-orange-600'
+              }`}>
               {displayStudent.status || 'Active'}
             </p>
           </div>
@@ -79,7 +76,7 @@ export default function StudentProfile({ student }: { student?: any }) {
             <p className="text-[10px] text-gray-400">Email</p>
             <p className="text-xs font-semibold text-gray-700 break-all">{displayStudent.email || 'N/A'}</p>
           </div>
-          <button 
+          <button
             onClick={() => navigator.clipboard.writeText(displayStudent.email || '')}
             className="text-gray-400 hover:text-blue-600 transition-colors"
           >
@@ -94,7 +91,7 @@ export default function StudentProfile({ student }: { student?: any }) {
             <p className="text-[10px] text-gray-400">Registration Number</p>
             <p className="text-xs font-semibold text-gray-700">{displayStudent.rollNo || 'N/A'}</p>
           </div>
-          <button 
+          <button
             onClick={() => navigator.clipboard.writeText(displayStudent.rollNo || '')}
             className="text-gray-400 hover:text-blue-600 transition-colors"
           >

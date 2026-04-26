@@ -93,7 +93,7 @@ export default function NotificationsPage({ userId }: { userId?: string }) {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
             <div className="flex items-center gap-3">

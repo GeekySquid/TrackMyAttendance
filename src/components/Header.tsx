@@ -55,13 +55,13 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
     { title: 'My Attendance Log', path: '/track-my-attendance', icon: Calendar },
     { title: 'Apply Leave', path: '/leave-requests', icon: FileText },
   ];
-  
+
   // Dummy workaround for missing LayoutDashboard import issue (fallback to Settings if needed)
   const SearchIconWrapper = ({ Icon }: { Icon: any }) => <Icon className="w-4 h-4 text-gray-400" />;
 
   const quickLinks = role === 'admin' ? adminLinks : studentLinks;
 
-  const filteredLinks = quickLinks.filter(link => 
+  const filteredLinks = quickLinks.filter(link =>
     link.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -125,23 +125,23 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
             Track<span className="text-blue-600">MY</span>Device
           </h1>
         </div>
-        
+
         {/* Interactive Search Bar */}
         <div className="w-full max-w-md relative hidden sm:block">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </span>
-            <input 
-              className="block w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-2xl leading-5 bg-gray-50/50 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 focus:bg-white transition-all text-sm font-medium" 
-              placeholder="Search sections or reports..." 
-              type="text" 
+            <input
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-2xl leading-5 bg-gray-50/50 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 focus:bg-white transition-all text-sm font-medium"
+              placeholder="Search sections or reports..."
+              type="text"
               value={searchQuery}
               onFocus={() => setShowSearch(true)}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          
+
           {/* Search Dropdown Modal */}
           {showSearch && (
             <>
@@ -151,7 +151,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                   <p className="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Jump</p>
                   {filteredLinks.length > 0 ? (
                     filteredLinks.map((link, i) => (
-                      <button 
+                      <button
                         key={i}
                         onClick={() => handleSearchNavigate(link.path)}
                         className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors text-left"
@@ -178,7 +178,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
 
         {/* PWA Install Button */}
         {deferredPrompt && (
-          <button 
+          <button
             onClick={handleInstall}
             className="hidden sm:flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all font-black text-xs shadow-lg shadow-blue-200 active:scale-95"
           >
@@ -189,7 +189,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
 
         {/* Notifications Center */}
         <div className="relative">
-          <button 
+          <button
             onClick={() => setShowNotifications(!showNotifications)}
             className={`p-2 rounded-full border transition-all ${showNotifications ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-100 hover:bg-gray-200 text-gray-500'}`}
           >
@@ -218,9 +218,9 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                           exit={{ opacity: 0, height: 0, x: -100 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <SwipeableNotificationItem 
-                            notification={n} 
-                            onRemove={handleRemoveNotification} 
+                          <SwipeableNotificationItem
+                            notification={n}
+                            onRemove={handleRemoveNotification}
                             variant="compact"
                           />
                         </motion.div>
@@ -242,27 +242,27 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
             </>
           )}
         </div>
-        
+
         {/* Profile Menu Provider */}
         <div className="relative">
           {isSignedIn ? (
             <div className="flex items-center ml-1 border-l border-gray-100 pl-2.5">
-               <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: 'w-9 h-9' } }} />
-               <div className="hidden sm:block text-left ml-3">
-                 <p className="text-xs font-bold text-gray-800 leading-tight truncate max-w-[120px]">{user?.name}</p>
-                 <p className="text-[10px] font-medium text-gray-500 capitalize">{role}</p>
-               </div>
+              <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: 'w-9 h-9' } }} />
+              <div className="hidden sm:block text-left ml-3">
+                <p className="text-xs font-bold text-gray-800 leading-tight truncate max-w-[120px]">{user?.name}</p>
+                <p className="text-[10px] font-medium text-gray-500 capitalize">{role}</p>
+              </div>
             </div>
           ) : (
             <>
-              <button 
+              <button
                 className={`flex items-center space-x-2 sm:space-x-3 cursor-pointer p-1.5 rounded-lg transition-all border ${showProfileMenu ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50 border-transparent'}`}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <img 
-                  alt="Profile" 
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-gray-200 bg-white" 
-                  src={user?.photoURL || (role === 'admin' ? "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" : "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex")} 
+                <img
+                  alt="Profile"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-gray-200 bg-white"
+                  src={user?.photoURL || (role === 'admin' ? "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" : "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex")}
                 />
                 <div className="hidden sm:block text-left">
                   <p className="text-xs font-bold text-gray-800 leading-tight">{user?.name || (role === 'admin' ? 'Admin User' : 'Alex Johnson')}</p>
@@ -270,18 +270,18 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                 </div>
                 <ChevronDown className={`h-4 w-4 text-gray-400 hidden sm:block transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} />
               </button>
-    
+
               {/* Profile Dropdown */}
               {showProfileMenu && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowProfileMenu(false)} 
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowProfileMenu(false)}
                   />
                   <div className="absolute right-0 mt-4 w-64 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-3xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-300 ring-1 ring-black/5">
                     <div className="px-5 py-4 border-b border-gray-100 mb-2 flex flex-col items-center text-center bg-gray-50/50">
-                      <img 
-                        src={user?.photoURL || (role === 'admin' ? "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" : "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex")} 
+                      <img
+                        src={user?.photoURL || (role === 'admin' ? "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" : "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex")}
                         className="w-16 h-16 rounded-full border-2 border-white shadow-md mb-3"
                         alt="Current user avatar"
                       />
@@ -289,26 +289,26 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                       <p className="text-xs font-medium text-gray-500 truncate w-full">{user?.email || (role === 'admin' ? 'admin@trackmyattendance.com' : 'student@example.com')}</p>
                       <span className="mt-2 bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{role}</span>
                     </div>
-                    
+
                     <div className="px-2">
-                      <button 
+                      <button
                         onClick={() => { setShowProfileMenu(false); navigate(role === 'admin' ? '/admin/settings' : '/settings', { state: { tab: 'profile' } }); }}
                         className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
                       >
                         <User className="w-4 h-4 mr-3 opacity-70" />
                         My Profile
                       </button>
-                      <button 
+                      <button
                         onClick={() => { setShowProfileMenu(false); navigate(role === 'admin' ? '/admin/settings' : '/settings', { state: { tab: 'preferences' } }); }}
                         className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
                       >
                         <Settings className="w-4 h-4 mr-3 opacity-70" />
                         Account Settings
                       </button>
-                      
+
                       <div className="border-t border-gray-100 my-2"></div>
-                      
-                      <button 
+
+                      <button
                         onClick={() => { setShowProfileMenu(false); onLogout?.(); }}
                         className="w-full flex items-center px-4 py-2.5 text-sm font-bold text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                       >

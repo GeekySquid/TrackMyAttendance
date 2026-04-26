@@ -88,7 +88,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
@@ -117,17 +117,16 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
             const Icon = item.icon;
             const itemPath = item.id ? `${basePath}/${item.id}` : basePath || '/';
             const isActive = location.pathname === itemPath || (item.id === '' && location.pathname === (basePath || '/'));
-            
+
             return (
               <Link
                 key={item.id}
                 to={itemPath}
                 onClick={() => setIsOpen(false)}
-                className={`w-full flex items-center px-4 py-2.5 text-[13px] font-bold rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'sidebar-active shadow-sm' 
+                className={`w-full flex items-center px-4 py-2.5 text-[13px] font-bold rounded-xl transition-all duration-200 ${isActive
+                    ? 'sidebar-active shadow-sm'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 active:scale-95'
-                }`}
+                  }`}
               >
                 <Icon className="mr-3 h-4 w-4" />
                 {item.label}
@@ -142,7 +141,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
             </div>
             <p className="text-[10px] font-black text-slate-800 tracking-tight">Need help?</p>
             <p className="text-[9px] text-slate-400 mb-2">Documentation & Support</p>
-            <Link 
+            <Link
               to={`${basePath}/support`}
               onClick={() => setIsOpen(false)}
               className="bg-indigo-600 text-white text-[9px] py-1.5 px-3 rounded-lg w-full font-black inline-block shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all active:scale-95 uppercase tracking-wider"
@@ -150,9 +149,9 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
               Get Support
             </Link>
           </div>
-          
+
           {deferredPrompt && (
-            <button 
+            <button
               onClick={handleInstall}
               className="mt-2 bg-gradient-to-br from-indigo-600 to-blue-600 text-white w-full flex items-center justify-center px-3 py-2 text-[10px] font-black rounded-lg transition-all shadow-md shadow-indigo-100 hover:shadow-indigo-200 active:scale-95 uppercase tracking-wide"
             >
@@ -161,8 +160,8 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
             </button>
           )}
 
-          <button 
-            onClick={onLogout} 
+          <button
+            onClick={onLogout}
             className="mt-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 w-full flex items-center px-4 py-2 text-[10px] font-black rounded-lg transition-all active:scale-95 uppercase tracking-wide"
           >
             <LogOut className="mr-2 h-3.5 w-3.5" />

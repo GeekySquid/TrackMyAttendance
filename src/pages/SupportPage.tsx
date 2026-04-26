@@ -139,7 +139,7 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-40">
+      <div className="w-full px-4 sm:px-8 pb-40">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Tabs - Horizontal Scroll on Mobile */}
           <div className="lg:col-span-1">
