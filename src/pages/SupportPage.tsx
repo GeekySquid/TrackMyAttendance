@@ -121,26 +121,15 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
       {/* Header Section */}
       <div className="bg-white border-b border-gray-100 mb-8 overflow-hidden pt-12 pb-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-50 rounded-2xl mb-4">
-            <HelpCircle className="w-8 h-8 text-blue-600" />
+          <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl mb-6 shadow-xl shadow-blue-200">
+            <HelpCircle className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+          <h1 className="text-4xl font-black text-gray-900 mb-3 tracking-tight">
             {role === 'admin' ? 'Admin Help Center' : 'Student Help Center'}
           </h1>
-          <p className="text-gray-500 mb-8 max-w-lg mx-auto">
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-[11px] max-w-lg mx-auto opacity-80">
             Documentation and guides for the {role === 'admin' ? 'Administrative Suite' : 'Student Experience'}
           </p>
-          
-          <div className="relative max-w-xl mx-auto">
-            <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search guides..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-700 shadow-sm"
-            />
-          </div>
         </div>
       </div>
 

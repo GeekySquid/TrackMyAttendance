@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, MarkerF, CircleF } from '@react-google-maps/api';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { GoogleMap, useJsApiLoader, MarkerF, CircleF, Autocomplete } from '@react-google-maps/api';
+const LIBRARIES: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
 import { MapPin, Clock, Plus, Trash2, Map, Crosshair, Navigation, Loader2, Pencil, X, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -12,6 +13,7 @@ import {
 interface GeofenceSchedule {
   id: string;
   time: string;
+  endTime: string;
   days: string[];
   lat: string;
   lng: string;
@@ -27,7 +29,8 @@ const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function GeofencingPage() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    libraries: LIBRARIES
   });
 
   const [schedules, setSchedules] = useState<GeofenceSchedule[]>([]);
@@ -45,6 +48,7 @@ export default function GeofencingPage() {
   }, []);
 
   const [newTime, setNewTime] = useState('09:00');
+  const [newEndTime, setNewEndTime] = useState('17:00');
   const [newDays, setNewDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   const [newLat, setNewLat] = useState('');
   const [newLng, setNewLng] = useState('');
@@ -54,6 +58,23 @@ export default function GeofencingPage() {
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [newLocationName, setNewLocationName] = useState('Main Campus');
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  const onSearchLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    autocompleteRef.current = autocomplete;
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        setNewLat(place.geometry.location.lat().toFixed(6));
+        setNewLng(place.geometry.location.lng().toFixed(6));
+        if (place.name) setNewLocationName(place.name);
+        toast.success(`Location set to ${place.name || 'selected area'}`);
+      }
+    }
+  };
 
   const handleTrackLocation = () => {
     if (!navigator.geolocation) {
@@ -112,6 +133,7 @@ export default function GeofencingPage() {
   const handleEdit = (schedule: GeofenceSchedule) => {
     setEditingScheduleId(schedule.id);
     setNewTime(schedule.time);
+    setNewEndTime(schedule.endTime || '17:00');
     setNewDays(schedule.days);
     setNewLat(schedule.lat);
     setNewLng(schedule.lng);
@@ -124,6 +146,7 @@ export default function GeofencingPage() {
   const cancelEdit = () => {
     setEditingScheduleId(null);
     setNewTime('09:00');
+    setNewEndTime('17:00');
     setNewDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
     setNewLat('');
     setNewLng('');
@@ -143,6 +166,7 @@ export default function GeofencingPage() {
       if (editingScheduleId) {
         await updateGeofenceSchedule(editingScheduleId, {
           time: newTime,
+          endTime: newEndTime,
           days: newDays,
           lat: newLat,
           lng: newLng,
@@ -154,7 +178,7 @@ export default function GeofencingPage() {
         setSchedules(prev =>
           prev.map(s =>
             s.id === editingScheduleId
-              ? { ...s, time: newTime, days: newDays, lat: newLat, lng: newLng, radius: newRadius, gracePeriod: newGracePeriod, autoActivate: newAutoActivate, locationName: newLocationName }
+              ? { ...s, time: newTime, endTime: newEndTime, days: newDays, lat: newLat, lng: newLng, radius: newRadius, gracePeriod: newGracePeriod, autoActivate: newAutoActivate, locationName: newLocationName }
               : s
           )
         );
@@ -163,6 +187,7 @@ export default function GeofencingPage() {
       } else {
         const created = await addGeofenceSchedule({
           time: newTime,
+          endTime: newEndTime,
           days: newDays,
           lat: newLat,
           lng: newLng,
@@ -192,16 +217,16 @@ export default function GeofencingPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-      <div className="mb-6">
+    <div className="flex-1 overflow-y-auto p-3 sm:p-8">
+      <div className="mb-4 sm:mb-6">
         <h2 className="text-xl font-bold text-gray-800">Geofencing Setup & Active Alarms</h2>
         <p className="text-sm text-gray-500">Configure spatial boundaries and automate class attendance windows</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-8 mb-6 sm:mb-10">
         {/* Left Column: Add New Schedule Form */}
         <div className="col-span-1 border-r border-gray-100 lg:pr-8">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 sticky top-4">
+          <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm p-4 sm:p-6 sticky top-4">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-blue-600" />
@@ -241,13 +266,28 @@ export default function GeofencingPage() {
               {/* Time Picker */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Activation Time</label>
-                <input 
-                  type="time" 
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium shadow-sm"
-                  required
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Start Time</label>
+                    <input 
+                      type="time" 
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold shadow-sm bg-gray-50/50"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">End Time</label>
+                    <input 
+                      type="time" 
+                      value={newEndTime}
+                      onChange={(e) => setNewEndTime(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold shadow-sm bg-gray-50/50"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Days Selector */}
@@ -355,43 +395,43 @@ export default function GeofencingPage() {
                       max="120"
                       value={newGracePeriod}
                       onChange={(e) => setNewGracePeriod(parseInt(e.target.value))}
-                      className="w-16 text-sm font-bold text-gray-700 bg-gray-100 px-2 py-1 pr-6 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                      className="w-16 text-sm font-bold text-gray-700 bg-gray-50 px-2 py-1.5 pr-6 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-right transition-all"
                     />
-                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold pointer-events-none">m</span>
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold pointer-events-none uppercase">min</span>
                   </div>
                 </div>
               </div>
 
               {/* Auto Activate Toggle */}
-              <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+              <div className="flex items-center justify-between p-4 bg-blue-50/40 backdrop-blur-sm rounded-2xl border border-blue-100/50 shadow-sm transition-all hover:bg-blue-50/60">
                 <div>
-                  <p className="text-sm font-bold text-gray-800">Auto-Activate Window</p>
-                  <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Automates attendance toggling</p>
+                  <p className="text-sm font-black text-blue-900 tracking-tight">Auto-Activate Window</p>
+                  <p className="text-[10px] text-blue-600/70 leading-tight mt-0.5 font-medium">Smart automation for this zone</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer group">
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
                     checked={newAutoActivate}
                     onChange={(e) => setNewAutoActivate(e.target.checked)}
                   />
-                  <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner group-hover:after:scale-110"></div>
                 </label>
               </div>
 
               <button 
                 type="submit"
-                className={`w-full ${editingScheduleId ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'} text-white py-3 rounded-lg font-bold shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2`}
+                className={`w-full ${editingScheduleId ? 'bg-gradient-to-br from-indigo-600 to-violet-700 shadow-indigo-200' : 'bg-gradient-to-br from-blue-600 to-indigo-700 shadow-blue-200'} text-white py-4 rounded-2xl font-black text-base shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex items-center justify-center gap-2`}
               >
                 {editingScheduleId ? (
                   <>
                     <Pencil className="w-5 h-5" />
-                    Update Geofence Area
+                    Update Geofence Zone
                   </>
                 ) : (
                   <>
                     <Plus className="w-5 h-5" />
-                    Deploy Geofence Area
+                    Deploy Zone
                   </>
                 )}
               </button>
@@ -426,10 +466,16 @@ export default function GeofencingPage() {
                   center={isValidLocation ? { lat: latNum, lng: lngNum } : { lat: 20.5937, lng: 78.9629 }}
                   zoom={isValidLocation ? 16 : 4}
                   options={{ 
-                    disableDefaultUI: false, // Re-enable default UI
-                    mapTypeControl: true,    // MAP vs SATELLITE layers!
-                    zoomControl: true, 
-                    streetViewControl: false, // Not usually needed for boundaries
+                    disableDefaultUI: false,
+                    mapTypeControl: true,
+                    mapTypeControlOptions: {
+                      position: google.maps.ControlPosition.TOP_RIGHT
+                    },
+                    zoomControl: true,
+                    zoomControlOptions: {
+                      position: google.maps.ControlPosition.RIGHT_CENTER
+                    },
+                    streetViewControl: false,
                     fullscreenControl: true
                   }}
                   onClick={(e) => {
@@ -439,6 +485,22 @@ export default function GeofencingPage() {
                     }
                   }}
                 >
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] sm:w-2/3 z-10">
+                    <Autocomplete
+                      onLoad={onSearchLoad}
+                      onPlaceChanged={onPlaceChanged}
+                    >
+                      <div className="relative group">
+                        <Map className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input
+                          type="text"
+                          placeholder="Search for a location or campus..."
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                        />
+                      </div>
+                    </Autocomplete>
+                  </div>
                   {isValidLocation && (
                     <>
                       <MarkerF 
@@ -508,8 +570,8 @@ export default function GeofencingPage() {
                 
                 <div className="flex justify-between items-start mb-4 pl-2">
                   <div>
-                    <h4 className={`text-4xl font-extrabold tracking-tight ${schedule.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {formatTime(schedule.time)}
+                    <h4 className={`text-2xl font-extrabold tracking-tight ${schedule.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {formatTime(schedule.time)} - {formatTime(schedule.endTime || '17:00')}
                     </h4>
                     {schedule.autoActivate && (
                       <span className="inline-flex items-center gap-1 mt-1 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">

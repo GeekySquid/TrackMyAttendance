@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar';
@@ -21,8 +21,18 @@ import NotificationsPage from './pages/NotificationsPage';
 import AccessControlPage from './pages/AccessControlPage';
 import SupportPage from './pages/SupportPage';
 import SSOCallbackPage from './pages/SSOCallbackPage';
+import LandingPage from './pages/LandingPage';
+import InstallPWA from './components/InstallPWA';
+import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
 import { saveUser, getUserById } from './services/dbService';
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
+
+function NotificationManager({ profile }: { profile: any }) {
+  useSupabaseNotifications(profile);
+  return null;
+}
 
 function AppContent() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -33,15 +43,42 @@ function AppContent() {
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('tm_onboarded') === 'true');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
+
+  // ─── Persistence Logic ────────────────────────────────────────────────────
+  useEffect(() => {
+    // Restore persistent session immediately to avoid flicker
+    const savedSession = localStorage.getItem('tm_persistent_session');
+    if (savedSession) {
+      try {
+        const { profile: savedProfile, timestamp } = JSON.parse(savedSession);
+        const now = new Date().getTime();
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+
+        if (now - timestamp < oneDayInMs) {
+          setProfile(savedProfile);
+          setOnboarded(savedProfile.onboarded);
+          // Only stop loading if we actually have a profile to show
+          setProfileLoading(false);
+        } else {
+          localStorage.removeItem('tm_persistent_session');
+        }
+      } catch (err) {
+        console.error('[App] Persistence restore failed:', err);
+      }
+    }
+  }, []);
 
   // ─── Sync Clerk user → Supabase profiles ─────────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
 
     if (!isSignedIn || !user) {
-      setProfile(null);
-      setOnboarded(false);
-      setProfileLoading(false);
+      // If we don't have a profile and we aren't signed in, only then stop loading
+      // (Unless we have a persistent session already set)
+      if (!profile) {
+        setProfileLoading(false);
+      }
       return;
     }
 
@@ -49,35 +86,46 @@ function AppContent() {
       setProfileLoading(true);
       try {
         const clerkId = user.id;
-        console.log('[App] Syncing Clerk ID:', clerkId);
         let existing = await getUserById(clerkId);
-        console.log('[App] Existing Profile:', existing);
 
         if (!existing) {
-          console.log('[App] New user detected, creating profile...');
-          // First sign-in: create profile row using only valid DB columns
+          const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
+          const role = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '') ? 'admin' : 'student';
+
           await saveUser({
             id: clerkId,
             uid: clerkId,
             name: user.fullName || user.firstName || '',
             email: user.primaryEmailAddress?.emailAddress || '',
             photoURL: user.imageUrl || '',
-            role: 'student',
+            role: role,
           });
           existing = await getUserById(clerkId);
         }
 
         if (existing) {
+          const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
+          const shouldBeAdmin = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '');
+          
+          // Sync photo if different or missing from Gmail profile
+          const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
+          
+          if ((shouldBeAdmin && existing.role !== 'admin') || photoDiffers) {
+            await saveUser({ 
+              ...existing, 
+              role: shouldBeAdmin ? 'admin' : existing.role,
+              photoURL: user.imageUrl || existing.photoURL
+            });
+            existing = await getUserById(clerkId);
+          }
+
           setProfile(existing);
-          // onboarded is already correctly set inside mapProfile
-          // (true if admin, or if student has phone/rollNo)
           if (existing.onboarded) {
             setOnboarded(true);
             localStorage.setItem('tm_onboarded', 'true');
           }
         } else {
-          // DB unreachable or RLS blocking — sign out gracefully to prevent loop
-          console.error('[App] Profile creation failed. Signing out to prevent loop.');
+          console.error('[App] Profile creation failed. Signing out.');
           await signOut();
           localStorage.removeItem('tm_onboarded');
         }
@@ -94,9 +142,17 @@ function AppContent() {
   // ─── Demo login (bypasses Clerk, uses mock profile) ──────────────────────
   const handleDemoLogin = (role: 'admin' | 'student', userData?: any) => {
     const isDone = role === 'admin' || userData?.onboarded || !!userData?.phone;
-    setProfile({ ...userData, role, onboarded: isDone });
+    const profileData = { ...userData, role, onboarded: isDone };
+    setProfile(profileData);
     setOnboarded(isDone);
     localStorage.setItem('tm_onboarded', String(isDone));
+    
+    // Persist session for 24h
+    localStorage.setItem('tm_persistent_session', JSON.stringify({
+      profile: profileData,
+      timestamp: new Date().getTime()
+    }));
+    
     setProfileLoading(false);
   };
 
@@ -107,7 +163,7 @@ function AppContent() {
         ...profile,
         ...onboardingData,
         onboarded: true,
-        profile_completed: true // Ensure both keys are set for safety
+        profileCompleted: true
       };
 
       const success = await saveUser(updatedData);
@@ -116,6 +172,16 @@ function AppContent() {
         setProfile(updatedData);
         setOnboarded(true);
         localStorage.setItem('tm_onboarded', 'true');
+        
+        // Update persistent session if it exists
+        const savedSession = localStorage.getItem('tm_persistent_session');
+        if (savedSession) {
+          localStorage.setItem('tm_persistent_session', JSON.stringify({
+            profile: updatedData,
+            timestamp: new Date().getTime()
+          }));
+        }
+        
         toast.success('Profile created successfully!');
       } else {
         toast.error('Failed to save profile. Please try again.');
@@ -126,25 +192,76 @@ function AppContent() {
     }
   };
 
+  // ─── Sync profile changes to persistence ──────────────────────────────────
+  useEffect(() => {
+    if (profile) {
+      const savedSession = localStorage.getItem('tm_persistent_session');
+      if (savedSession) {
+        try {
+          const parsed = JSON.parse(savedSession);
+          // Only update if the profile is actually different to avoid infinite loops
+          if (JSON.stringify(parsed.profile) !== JSON.stringify(profile)) {
+            localStorage.setItem('tm_persistent_session', JSON.stringify({
+              profile,
+              timestamp: parsed.timestamp // Preserve original login timestamp
+            }));
+          }
+        } catch (e) {
+          console.error('[App] Persistence sync failed:', e);
+        }
+      }
+    }
+  }, [profile]);
+
+  const { setRole } = useNotifications();
+
+  // Sync role to notification context
+  useEffect(() => {
+    if (profile?.role) {
+      setRole(profile.role === 'admin' ? 'admin' : 'student');
+    }
+  }, [profile?.role, setRole]);
+
   // ─── Logout ───────────────────────────────────────────────────────────────
-  const handleLogout = async () => {
-    // If it's a demo session (no Clerk session), just clear state
+  const handleLogout = useCallback(async () => {
+    localStorage.removeItem('tm_onboarded');
+    localStorage.removeItem('tm_persistent_session');
+
     if (!isSignedIn) {
       setProfile(null);
       setOnboarded(false);
-      localStorage.removeItem('tm_onboarded');
       navigate('/');
       return;
     }
     await signOut();
     setProfile(null);
     setOnboarded(false);
-    localStorage.removeItem('tm_onboarded');
     navigate('/');
-  };
+  }, [isSignedIn, navigate, signOut]);
+
+  // ─── Auto Logout logic (24h) ─────────────────────────────────────────────
+  useEffect(() => {
+    const checkSession = () => {
+      const savedSession = localStorage.getItem('tm_persistent_session');
+      if (savedSession) {
+        try {
+          const { timestamp } = JSON.parse(savedSession);
+          const now = new Date().getTime();
+          const oneDayInMs = 24 * 60 * 60 * 1000;
+          if (now - timestamp >= oneDayInMs) {
+            handleLogout();
+            toast.error('Session expired (24h limit). Please log in again.', { id: 'session-expiry' });
+          }
+        } catch (e) {}
+      }
+    };
+
+    const intervalId = setInterval(checkSession, 60000); // Check every minute
+    return () => clearInterval(intervalId);
+  }, [handleLogout]);
 
   // ─── Loading ──────────────────────────────────────────────────────────────
-  if (!isLoaded || profileLoading) {
+  if (profileLoading || (!isLoaded && !profile)) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -156,6 +273,15 @@ function AppContent() {
   }
 
   // ─── Auth gates ───────────────────────────────────────────────────────────
+  // If not signed in to Clerk, show Landing Page or Login Page
+  if (!isSignedIn && !profile) {
+    if (showLogin) {
+      return <LoginPage onLogin={handleDemoLogin} onBack={() => setShowLogin(false)} />;
+    }
+    return <LandingPage onGetStarted={() => setShowLogin(true)} />;
+  }
+
+  // If signed in but no profile yet, we show login (which handles demo)
   if (!profile) return <LoginPage onLogin={handleDemoLogin} />;
 
   // onboarded is already correctly computed inside mapProfile via phone/roll_no/role check
@@ -168,71 +294,69 @@ function AppContent() {
   const role: 'admin' | 'student' = profile.role === 'admin' ? 'admin' : 'student';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          className: 'text-sm font-bold',
-          success: { iconTheme: { primary: '#22c55e', secondary: '#fff' } },
-          error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-        }}
-      />
-      <Sidebar
-        isOpen={sidebarOpen}
-        setIsOpen={setSidebarOpen}
-        role={role}
-        onLogout={handleLogout}
-      />
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+    <>
+      {profile && <NotificationManager profile={profile} />}
+      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+        <Sidebar
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
           role={role}
-          user={profile}
           onLogout={handleLogout}
         />
-        <Routes>
-          {role === 'admin' ? (
-            <>
-              <Route path="/admin" element={<Dashboard />} />
-              <Route path="/admin/students" element={<StudentsPage />} />
-              <Route path="/admin/attendance" element={<AttendancePage />} />
-              <Route path="/admin/leave-requests" element={<LeaveRequestsPage role="admin" user={profile} />} />
-              <Route path="/admin/reports" element={<ReportsPage />} />
-              <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
-              <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
-              <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} />} />
-              <Route path="/admin/geofencing" element={<GeofencingPage />} />
-              <Route path="/admin/access-control" element={<AccessControlPage />} />
-              <Route path="/admin/support" element={<SupportPage role="admin" />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
-            </>
-          ) : (
-            <>
-              <Route path="/" element={<StudentDashboard user={profile} />} />
-              <Route path="/leave-requests" element={<LeaveRequestsPage role="student" user={profile} />} />
-              <Route path="/track-my-attendance" element={<TrackMyAttendancePage userId={profile?.id} />} />
-              <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
-              <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
-              <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
-              <Route path="/support" element={<SupportPage role="student" />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </>
-          )}
-        </Routes>
-      </main>
-    </div>
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden pb-24 lg:pb-0">
+          <Header
+            toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            role={role}
+            user={profile}
+            onLogout={handleLogout}
+          />
+          <Routes>
+            {role === 'admin' ? (
+              <>
+                <Route path="/admin" element={<Dashboard />} />
+                <Route path="/admin/students" element={<StudentsPage />} />
+                <Route path="/admin/attendance" element={<AttendancePage />} />
+                <Route path="/admin/leave-requests" element={<LeaveRequestsPage role="admin" user={profile} />} />
+                <Route path="/admin/reports" element={<ReportsPage />} />
+                <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
+                <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
+                <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} />} />
+                <Route path="/admin/geofencing" element={<GeofencingPage />} />
+                <Route path="/admin/access-control" element={<AccessControlPage />} />
+                <Route path="/admin/support" element={<SupportPage role="admin" />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+              </>
+            ) : (
+              <>
+                <Route path="/" element={<StudentDashboard user={profile} />} />
+                <Route path="/leave-requests" element={<LeaveRequestsPage role="student" user={profile} />} />
+                <Route path="/track-my-attendance" element={<TrackMyAttendancePage userId={profile?.id} />} />
+                <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
+                <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
+                <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
+                <Route path="/support" element={<SupportPage role="student" />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            )}
+          </Routes>
+        </main>
+        <InstallPWA />
+        {profile && <MobileNavbar role={role} userId={profile.id} />}
+      </div>
+    </>
   );
 }
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Clerk SSO callback — must be outside AppContent */}
-        <Route path="/sso-callback" element={<SSOCallbackPage />} />
-        <Route path="*" element={<AppContent />} />
-      </Routes>
-    </Router>
+    <NotificationProvider>
+      <Router>
+        <Routes>
+          {/* Clerk SSO callback — must be outside AppContent */}
+          <Route path="/sso-callback" element={<SSOCallbackPage />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </Router>
+    </NotificationProvider>
   );
 }

@@ -19,9 +19,11 @@
 
 @layer components {
   .sidebar-active {
-    background-color: #E0F2FE;
-    color: #0284C7;
-    border-radius: 0.5rem;
+    background-color: #f0f9ff;
+    color: #0284c7;
+    border-radius: 1rem;
+    font-weight: 800;
+    box-shadow: inset 0 0 0 1px #e0f2fe;
   }
   .status-late {
     background-color: #FEF3C7;
@@ -34,15 +36,141 @@
 }
 
 @layer utilities {
-  /* Custom scrollbar for better UI match */
+  /* Custom premium scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #e2e8f0;
     border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+    background-clip: padding-box;
+  }
+
+  @keyframes radar-pulse {
+    0% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+    }
+    100% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+
+  @keyframes radar-pulse-red {
+    0% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+    }
+    100% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+  }
+
+  .animate-radar {
+    animation: radar-pulse 2s infinite;
+  }
+
+  .animate-radar-red {
+    animation: radar-pulse-red 2s infinite;
+  }
+
+  /* Responsive Table "Stacked" Layout - Antigravity Edition */
+  @media (max-width: 640px) {
+    .table-responsive {
+      border: none !important;
+      display: block !important;
+    }
+    .table-responsive thead {
+      display: none !important;
+    }
+    .table-responsive tbody {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0.75rem !important;
+      background: transparent !important;
+    }
+    .table-responsive tr {
+      display: block !important;
+      border: 1px solid rgba(226, 232, 240, 0.5) !important;
+      border-radius: 1.5rem !important;
+      background: white !important;
+      padding: 1rem !important;
+      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+      transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    }
+    .table-responsive tr:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+    }
+    .table-responsive td {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      padding: 0.625rem 0 !important;
+      border-bottom: 1px dashed #f1f5f9 !important;
+      width: 100% !important;
+      text-align: right !important;
+    }
+    .table-responsive td:last-child {
+      border-bottom: none !important;
+      padding-bottom: 0 !important;
+    }
+    .table-responsive td:first-child {
+      padding-top: 0 !important;
+    }
+    .table-responsive td::before {
+      content: attr(data-label);
+      font-weight: 800;
+      font-size: 0.6rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-right: 1.5rem;
+      text-align: left;
+      flex-shrink: 0;
+    }
+    /* Hide decorative elements on mobile cards if they break layout */
+    .table-responsive .hide-mobile {
+      display: none !important;
+    }
+    /* Adjust specific layouts for labels with subtext */
+    .table-responsive td[data-label="Student"] {
+      text-align: left !important;
+      justify-content: flex-start !important;
+      gap: 1rem !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      margin-bottom: 0.25rem !important;
+      padding-bottom: 0.75rem !important;
+    }
+    .table-responsive td[data-label="Student"]::before {
+      display: none !important;
+    }
+  }
+
+  /* Fixed 5-entry height with scrolling */
+  .table-fixed-height {
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: 4px;
   }
 }

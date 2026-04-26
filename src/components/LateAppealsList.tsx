@@ -100,8 +100,19 @@ export default function LateAppealsList() {
           <div key={appeal.id} className="p-5 hover:bg-gray-50 transition-all group">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-sm border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                  {appeal.userName?.charAt(0) || 'S'}
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-sm border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all overflow-hidden">
+                  {appeal.userPhoto ? (
+                    <img 
+                      src={appeal.userPhoto} 
+                      alt={appeal.userName} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(appeal.userName || 'S')}`;
+                      }}
+                    />
+                  ) : (
+                    <span>{appeal.userName?.charAt(0) || 'S'}</span>
+                  )}
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-800 leading-tight">{appeal.userName}</h4>

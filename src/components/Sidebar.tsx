@@ -13,9 +13,12 @@ import {
   LogOut,
   Trophy,
   Shield,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { getSystemSettings } from '../services/dbService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -51,6 +54,34 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
     { id: 'support', label: 'Support', icon: HelpCircle },
   ];
 
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [sysSettings, setSysSettings] = useState<any>(null);
+
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data) setSysSettings(data);
+    });
+  }, []);
+
+  useEffect(() => {
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   const navItems = role === 'admin' ? adminNavItems : studentNavItems;
 
   return (
@@ -69,14 +100,17 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
               <img src="/logo.png" alt="TrackMyAttendance Logo" className="w-full h-full object-contain p-2" />
             </div>
             <div className="text-center px-2">
-              <h1 className="font-extrabold text-gray-900 text-lg tracking-tight leading-tight">TrackMyAttendance</h1>
+              <h1 className="font-extrabold text-gray-900 text-lg tracking-tight leading-tight truncate max-w-[200px]">
+                {sysSettings?.institution_name || 'TrackMyAttendance'}
+              </h1>
+
               <p className="text-[10px] uppercase font-bold text-blue-600 tracking-widest mt-1">
                 {role === 'admin' ? 'Admin Suite' : 'Student Portal'}
               </p>
             </div>
           </div>
-          <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setIsOpen(false)}>
-            <X className="h-5 w-5" />
+          <button className="absolute top-6 right-6 lg:hidden text-gray-400 hover:text-gray-700 p-2 hover:bg-gray-50 rounded-xl transition-all" onClick={() => setIsOpen(false)}>
+            <X className="h-6 w-6" />
           </button>
         </div>
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -90,10 +124,10 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
                 key={item.id}
                 to={itemPath}
                 onClick={() => setIsOpen(false)}
-                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center px-5 py-3.5 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                   isActive 
-                    ? 'sidebar-active' 
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'sidebar-active shadow-sm' 
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 active:scale-95'
                 }`}
               >
                 <Icon className="mr-3 h-5 w-5" />
@@ -103,23 +137,37 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
           })}
         </nav>
         <div className="p-4 mt-auto">
-          <div className="bg-blue-50 rounded-xl p-4 text-center">
-            <p className="text-xs font-semibold text-gray-700">Need help?</p>
-            <p className="text-[10px] text-gray-500 mb-3">Check our documentations</p>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-3xl p-5 text-center border border-blue-100/50 shadow-sm">
+            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-blue-100/50">
+              <HelpCircle className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-xs font-black text-gray-800 tracking-tight">Need help?</p>
+            <p className="text-[10px] text-gray-500/80 mb-4 leading-tight">Check our documentation</p>
             <Link 
               to={`${basePath}/support`}
               onClick={() => setIsOpen(false)}
-              className="bg-blue-600 text-white text-xs py-2 px-4 rounded-lg w-full font-medium inline-block"
+              className="bg-blue-600 text-white text-xs py-2.5 px-4 rounded-2xl w-full font-black inline-block shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all active:scale-95"
             >
               Get Support
             </Link>
           </div>
+          
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstall}
+              className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white w-full flex items-center px-4 py-3 text-sm font-black rounded-lg transition-all shadow-md shadow-blue-100 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Download className="mr-3 h-5 w-5" />
+              INSTALL APP
+            </button>
+          )}
+
           <button 
             onClick={onLogout} 
-            className="mt-4 text-gray-500 hover:text-red-600 hover:bg-red-50 w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+            className="mt-3 text-gray-500 hover:text-red-600 hover:bg-red-50/50 w-full flex items-center px-5 py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-95"
           >
             <LogOut className="mr-3 h-5 w-5" />
-            Logout
+            Sign Out
           </button>
         </div>
       </aside>

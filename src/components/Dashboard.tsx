@@ -1,19 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Clock, XCircle, UserCheck, Zap, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Users, Clock, XCircle, UserCheck, Zap, Loader2, CheckCircle2, Lock, FileText } from 'lucide-react';
 import StatCard from './StatCard';
 import AttendanceTable from './AttendanceTable';
 import LeaveReports from './LeaveReports';
 import AnalyticsChart from './AnalyticsChart';
+import QuickActions from './QuickActions';
 import {
   listenToCollection,
   toggleManualAttendanceWindow,
   getManualWindowStatus,
   isScheduleActive,
-  updateGeofenceSchedule
+  updateGeofenceSchedule,
+  bulkUpdateGeofenceSchedules
 } from '../services/dbService';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
-import { MapPin, Navigation } from 'lucide-react';
+import { MapPin, Navigation, Map as MapIcon, Search } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, MarkerF, CircleF, Autocomplete } from '@react-google-maps/api';
+
+const LIBRARIES: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
 
 // Skeleton for stat cards
 function StatCardSkeleton() {
@@ -33,6 +38,12 @@ function StatCardSkeleton() {
 }
 
 export default function Dashboard() {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    libraries: LIBRARIES
+  });
+
   const { user: clerkUser } = useUser();
   const [selectedStudentName, setSelectedStudentName] = useState('All Students');
   const [students, setStudents] = useState<any[]>([]);
@@ -53,6 +64,26 @@ export default function Dashboard() {
   const [manualRadius, setManualRadius] = useState('500');
   const [manualLocationName, setManualLocationName] = useState('Manual Selection');
   const [manualGracePeriod, setManualGracePeriod] = useState(15);
+  const [manualEndTime, setManualEndTime] = useState('17:00');
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  const onLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    autocompleteRef.current = autocomplete;
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat().toFixed(6);
+        const lng = place.geometry.location.lng().toFixed(6);
+        setManualLat(lat);
+        setManualLng(lng);
+        if (place.name) setManualLocationName(place.name);
+        toast.success(`Location set to ${place.name || 'selected area'}`);
+      }
+    }
+  };
 
   // Sync window status from DB on mount
   useEffect(() => {
@@ -66,7 +97,7 @@ export default function Dashboard() {
   useEffect(() => {
     const unsub = listenToCollection('geofence_schedules', (data) => {
       setSchedules(data);
-      const manualRecord = data.find((s: any) => parseFloat(s.radius) === -999);
+      const manualRecord = data.find((s: any) => parseFloat(s.radius) === -999 || s.locationName === 'Manual Selection');
       if (manualRecord) {
         setIsWindowActive(manualRecord.isActive);
       }
@@ -116,6 +147,37 @@ export default function Dashboard() {
     if (currentlyAnyWindowOpen) {
       handleCloseSession();
     } else {
+      // Find the next/current schedule to pre-populate
+      const now = new Date();
+      const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+
+      const activeOrNext = [...schedules]
+        .filter(s => (s.days || []).includes(currentDay) && parseFloat(s.radius) !== -999)
+        .sort((a, b) => {
+          const [ha, ma] = (a.time || '00:00').split(':').map(Number);
+          const [hb, mb] = (b.time || '00:00').split(':').map(Number);
+          return (ha * 60 + ma) - (hb * 60 + mb);
+        })
+        .find(s => {
+          const [h, m] = (s.time || '00:00').split(':').map(Number);
+          // If we are within 30 mins before or anytime after start (but it's the next one)
+          return (h * 60 + m) >= currentTime - 30;
+        });
+
+      if (activeOrNext) {
+        setManualLat(activeOrNext.lat || '0');
+        setManualLng(activeOrNext.lng || '0');
+        setManualRadius(activeOrNext.radius || '500');
+        setManualLocationName(activeOrNext.locationName || 'Manual Selection');
+        setManualGracePeriod(activeOrNext.gracePeriod || 15);
+        setManualEndTime(activeOrNext.endTime || '17:00');
+      } else {
+        // Default fallbacks if no schedules found
+        setManualLocationName('Manual Selection');
+        setManualEndTime('17:00');
+      }
+      
       setShowConfigModal(true);
     }
   };
@@ -124,11 +186,22 @@ export default function Dashboard() {
     setIsToggling(true);
     setShowConfigModal(false);
     try {
-      // 1. Reset all schedules to "Follow Auto" first to clear any stale Force-Closed states
-      for (const s of schedules) {
-        if (parseFloat(s.radius) !== -999) {
-          await updateGeofenceSchedule(s.id, { isActive: null as any }); // Clear force-closed override
+      // Optimistic UI for instant feedback
+      setIsWindowActive(true);
+      setSchedules(prev => prev.map(s => {
+        if (parseFloat(s.radius) === -999 || s.locationName === 'Manual Selection') {
+          return { ...s, isActive: true, locationName: manualLocationName, radius: manualRadius, gracePeriod: manualGracePeriod };
         }
+        return s;
+      }));
+
+      // 1. Reset all schedules to "Follow Auto" first to clear any stale Force-Closed states
+      const idsToReset = schedules
+        .filter(s => parseFloat(s.radius) !== -999)
+        .map(s => s.id);
+      
+      if (idsToReset.length > 0) {
+        await bulkUpdateGeofenceSchedules(idsToReset, { isActive: true });
       }
       // 2. Open the manual window (with grace period)
       // Note: toggleManualAttendanceWindow updates the row, which triggers 
@@ -139,11 +212,11 @@ export default function Dashboard() {
         parseFloat(manualLng), 
         parseInt(manualRadius),
         manualLocationName,
-        manualGracePeriod
+        manualGracePeriod,
+        manualEndTime
       );
-      setIsWindowActive(true);
       setShowConfigModal(false);
-      toast.success(`Session started at ${manualLocationName} (Grace: ${manualGracePeriod} min)`);
+      toast.success(`Session started at ${manualLocationName} until ${manualEndTime} (Grace: ${manualGracePeriod} min)`);
     } catch (err: any) {
       toast.error('Failed to start session');
     } finally {
@@ -154,15 +227,20 @@ export default function Dashboard() {
   const handleCloseSession = async () => {
     setIsToggling(true);
     try {
+      // Optimistic UI for instant feedback
+      setIsWindowActive(false);
+      setSchedules(prev => prev.map(s => ({ ...s, isActive: false })));
+      
       // 1. Force close the global manual override
-      await toggleManualAttendanceWindow(false);
+      const closeManualPromise = toggleManualAttendanceWindow(false);
 
       // 2. For ALL other active schedules, set isActive = false (FORCE CLOSE)
-      // This ensures that even if one was automatically triggered by an alarm, it stays CLOSED now.
-      const activeRightNow = schedules.filter(s => isScheduleActive(s));
-      for (const s of activeRightNow) {
-        await updateGeofenceSchedule(s.id, { isActive: false });
-      }
+      const activeIds = schedules.filter(s => isScheduleActive(s)).map(s => s.id);
+      const closeOthersPromise = activeIds.length > 0 
+        ? bulkUpdateGeofenceSchedules(activeIds, { isActive: false })
+        : Promise.resolve();
+      
+      await Promise.all([closeManualPromise, closeOthersPromise]);
       
       toast.success('🔒 ALL attendance windows CLOSED successfully.');
     } catch (err) {
@@ -193,18 +271,19 @@ export default function Dashboard() {
   const todayRecords = attendance.filter(a => a.date === today);
   const uniqueStudentsToday = new Map();
   todayRecords.forEach(r => {
-    if (!uniqueStudentsToday.has(r.student_id)) {
-      uniqueStudentsToday.set(r.student_id, r);
+    if (!uniqueStudentsToday.has(r.userId)) {
+      uniqueStudentsToday.set(r.userId, r);
     }
   });
 
   const presentCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Present' || a.status === 'Late').length;
   const lateCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Late').length;
-  const absentCount = Array.from(uniqueStudentsToday.values()).filter(a => a.status === 'Absent').length;
-
+  
   const onLeaveCount = leaveRequests.filter(lr => {
     return lr.status === 'Approved' && lr.fromDate <= today && lr.toDate >= today;
   }).length;
+
+  const absentCount = Math.max(0, totalStudents - presentCount - onLeaveCount);
 
   // Percentage logic: clamped to 100% max for genuine data
   const presentPercentage = Math.min(100, Math.round((presentCount / totalStudents) * 100));
@@ -222,7 +301,7 @@ export default function Dashboard() {
   const adminName = clerkUser?.firstName || clerkUser?.fullName || 'Admin';
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+    <div className="flex-1 overflow-y-auto p-3 sm:p-8">
       {/* Dashboard Intro */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
@@ -232,26 +311,26 @@ export default function Dashboard() {
           </div>
 
           {/* Attendance Window Toggle */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Live status pill */}
             {windowStatusLoaded && (
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-500 ${
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold border transition-all duration-500 backdrop-blur-sm ${
                 isWindowActive
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-500'
+                  ? 'bg-green-50/80 border-green-200 text-green-700 shadow-sm shadow-green-100'
+                  : 'bg-gray-50/80 border-gray-200 text-gray-500'
               }`}>
-                <span className={`w-2 h-2 rounded-full ${isWindowActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
-                {isWindowActive ? 'Window Open' : 'Window Closed'}
+                <span className={`w-2 h-2 rounded-full ${isWindowActive ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300'}`} />
+                {isWindowActive ? 'Window Active' : 'Session Inactive'}
               </div>
             )}
             <div className="flex items-center gap-4">
               <button
                 onClick={handleActionClick}
                 disabled={isToggling || !windowStatusLoaded}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold transition-all shadow-lg active:scale-95 ${
+                className={`flex items-center justify-center gap-2 px-6 py-2.5 sm:px-8 sm:py-3 rounded-2xl font-black transition-all shadow-xl hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 ${
                   currentlyAnyWindowOpen
-                    ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-red-200 hover:shadow-red-300'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-indigo-200 hover:shadow-indigo-300'
+                    ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-rose-200 hover:shadow-rose-300'
+                    : 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white shadow-indigo-200 hover:shadow-indigo-300'
                 }`}
               >
                 {isToggling ? (
@@ -275,7 +354,98 @@ export default function Dashboard() {
         {/* Manual Activation Modal */}
         {showConfigModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col md:flex-row">
+            {/* Left side: Map */}
+            <div className="w-full md:w-1/2 h-[300px] md:h-auto bg-gray-50 relative">
+              {isLoaded ? (
+                <GoogleMap
+                  mapContainerStyle={{ width: '100%', height: '100%' }}
+                  center={{ lat: parseFloat(manualLat) || 20.5937, lng: parseFloat(manualLng) || 78.9629 }}
+                  zoom={parseFloat(manualLat) !== 0 ? 16 : 4}
+                  options={{
+                    disableDefaultUI: false,
+                    mapTypeControl: true,
+                    mapTypeControlOptions: {
+                      position: google.maps.ControlPosition.TOP_RIGHT
+                    },
+                    zoomControl: true,
+                    zoomControlOptions: {
+                      position: google.maps.ControlPosition.RIGHT_CENTER
+                    },
+                    streetViewControl: false,
+                    fullscreenControl: false
+                  }}
+                  onClick={(e) => {
+                    if (e.latLng) {
+                      setManualLat(e.latLng.lat().toFixed(6));
+                      setManualLng(e.latLng.lng().toFixed(6));
+                    }
+                  }}
+                >
+                  <div className="absolute top-4 left-4 w-2/3 md:w-1/2 z-10">
+                    <Autocomplete
+                      onLoad={onLoad}
+                      onPlaceChanged={onPlaceChanged}
+                    >
+                      <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                        <input
+                          type="text"
+                          placeholder="Search for a location..."
+                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
+                          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                        />
+                      </div>
+                    </Autocomplete>
+                  </div>
+                  {parseFloat(manualLat) !== 0 && (
+                    <>
+                      <MarkerF
+                        position={{ lat: parseFloat(manualLat), lng: parseFloat(manualLng) }}
+                        draggable={true}
+                        onDragEnd={(e) => {
+                          if (e.latLng) {
+                            setManualLat(e.latLng.lat().toFixed(6));
+                            setManualLng(e.latLng.lng().toFixed(6));
+                          }
+                        }}
+                      />
+                      <CircleF
+                        center={{ lat: parseFloat(manualLat), lng: parseFloat(manualLng) }}
+                        radius={parseInt(manualRadius) || 500}
+                        options={{
+                          fillColor: '#6366f1',
+                          fillOpacity: 0.15,
+                          strokeColor: '#4f46e5',
+                          strokeOpacity: 0.8,
+                          strokeWeight: 2,
+                          clickable: false,
+                          draggable: false,
+                          editable: false,
+                          visible: true,
+                          zIndex: 1
+                        }}
+                      />
+                    </>
+                  )}
+                </GoogleMap>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+                  <p className="text-xs text-gray-500 font-medium">Loading Maps...</p>
+                </div>
+              )}
+              
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-auto">
+                <div className="bg-white/90 backdrop-blur-md border border-indigo-100 p-2.5 px-4 rounded-2xl shadow-xl flex items-center gap-2 whitespace-nowrap">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-tight">Click or drag marker to refine</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: Config */}
+            <div className="w-full md:w-1/2 flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="p-6 pb-0 flex justify-between items-center border-b border-gray-50 mb-4">
                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                   <Zap className="w-5 h-5 text-indigo-600" />
@@ -337,21 +507,36 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session End Time (Auto-Close)</label>
+                  </div>
+                  <input 
+                    type="time" 
+                    value={manualEndTime} 
+                    onChange={e => setManualEndTime(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold text-indigo-700"
+                  />
+                  <p className="text-[10px] text-indigo-400 mt-1 ml-1 italic">Window will automatically lock at this time.</p>
+                </div>
+
                 <button 
                   onClick={handleGetLocation}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-50/50 text-indigo-600 rounded-2xl text-sm font-bold hover:bg-indigo-100/80 transition-all border border-indigo-100/50 active:scale-[0.99]"
                 >
                   <Navigation className="w-4 h-4" />
-                  Use My Current Location
+                  Pin My Current Spot
                 </button>
 
                 <div className="pt-2">
                   <button 
                     onClick={handleStartManualSession}
-                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all active:scale-[0.98]"
+                    className="w-full py-4.5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white rounded-2xl font-black text-lg shadow-2xl shadow-indigo-200 hover:shadow-indigo-300 transition-all hover:-translate-y-0.5 active:scale-[0.97]"
                   >
-                    Start Session
+                    Launch Session
                   </button>
+                </div>
                 </div>
               </div>
             </div>
@@ -360,7 +545,7 @@ export default function Dashboard() {
 
         {/* Window status banner */}
         {windowStatusLoaded && isWindowActive && (
-          <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="mt-3 sm:mt-4 flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 bg-green-50 border border-green-200 rounded-2xl text-green-700 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
             <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
             <span>
               <strong>Attendance window is OPEN.</strong> Students can check in right now.
@@ -369,7 +554,7 @@ export default function Dashboard() {
           </div>
         )}
         {windowStatusLoaded && !isWindowActive && (
-          <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 text-sm font-medium animate-in fade-in duration-300">
+          <div className="mt-3 sm:mt-4 flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-500 text-sm font-medium animate-in fade-in duration-300">
             <Lock className="w-5 h-5 text-gray-400 shrink-0" />
             <span>
               Attendance window is <strong>closed</strong>. Students cannot check in until you activate the window.
@@ -379,9 +564,10 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {isLoading ? (
           <>
+            <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -390,13 +576,25 @@ export default function Dashboard() {
         ) : (
           <>
             <StatCard
+              title="Total Students"
+              value={students.length.toString()}
+              total=""
+              percentage="100%"
+              trend=""
+              trendUp={true}
+              icon={<Users className="h-6 w-6 text-indigo-600" />}
+              colorClass="text-indigo-600"
+              bgClass="bg-indigo-50"
+              progressColorClass="bg-indigo-500"
+            />
+            <StatCard
               title="Present Today"
               value={presentCount.toString()}
               total={totalStudents.toString()}
               percentage={`${presentPercentage}%`}
-              trend="Today"
+              trend=""
               trendUp={true}
-              icon={<Users className="h-6 w-6 text-blue-600" />}
+              icon={<UserCheck className="h-6 w-6 text-blue-600" />}
               colorClass="text-blue-600"
               bgClass="bg-blue-50"
               progressColorClass="bg-blue-500"
@@ -406,7 +604,7 @@ export default function Dashboard() {
               value={lateCount.toString()}
               total={totalStudents.toString()}
               percentage={`${latePercentage}%`}
-              trend="Needs Attention"
+              trend=""
               trendUp={false}
               icon={<Clock className="h-6 w-6 text-orange-400" />}
               colorClass="text-orange-400"
@@ -418,7 +616,7 @@ export default function Dashboard() {
               value={absentCount.toString()}
               total={totalStudents.toString()}
               percentage={`${absentPercentage}%`}
-              trend="Action Required"
+              trend=""
               trendUp={false}
               icon={<XCircle className="h-6 w-6 text-red-500" />}
               colorClass="text-red-500"
@@ -430,9 +628,9 @@ export default function Dashboard() {
               value={onLeaveCount.toString()}
               total={totalStudents.toString()}
               percentage={`${leavePercentage}%`}
-              trend="Approved"
+              trend=""
               trendUp={true}
-              icon={<UserCheck className="h-6 w-6 text-green-500" />}
+              icon={<FileText className="h-6 w-6 text-green-500" />}
               colorClass="text-green-500"
               bgClass="bg-green-50"
               progressColorClass="bg-green-500"
@@ -442,9 +640,14 @@ export default function Dashboard() {
       </div>
 
       {/* Layout Grid (Attendance & Leave Reports) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
-        <AttendanceTable />
-        <LeaveReports />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div className="lg:col-span-2">
+          <AttendanceTable />
+        </div>
+        <div className="flex flex-col gap-6 sm:gap-8">
+          <QuickActions students={students} attendance={attendance} />
+          <LeaveReports />
+        </div>
       </div>
 
       {/* Bottom Section (Analytics) */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   addAttendance,
   updateAttendance,
@@ -6,6 +6,7 @@ import {
   getMentors,
   listenToCollection,
   isScheduleActive,
+  getSystemSettings,
 } from '../services/dbService';
 import {
   Phone, AlertCircle, Send, X, ClipboardList, LogOut,
@@ -26,8 +27,8 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 
-export default function StudentCheckInWidget({ user }: { user?: any }) {
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
+function StudentCheckInWidget({ user }: { user?: any }) {
+  const [isCheckedIn, setIsCheckedIn] = useState(() => !!localStorage.getItem('tracked_session_id'));
   const [isOutsideZone, setIsOutsideZone] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showAction, setShowAction] = useState(false);
@@ -54,6 +55,17 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [graceSecondsLeft, setGraceSecondsLeft] = useState<number | null>(null);
+  const [lastKnownLocation, setLastKnownLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [locationTimestamp, setLocationTimestamp] = useState<number>(0);
+  const [sysSettings, setSysSettings] = useState<any>(null);
+
+  // ── Fetch System Settings ────────────────────────────────────────────────
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data) setSysSettings(data);
+    });
+  }, []);
+
 
   // ── Session start tracking ────────────────────────────────────────────────
   // We detect the TRANSITION windowOpen false→true and stamp the time ONCE.
@@ -114,13 +126,23 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  // ── Realtime geofence listener ────────────────────────────────────────────
+  // ── Background Location Watcher (Keeps GPS 'Hot') ──────────────────────────
   useEffect(() => {
-    const unsub = listenToCollection('geofence_schedules', (data) => {
-      setSchedules(data);
-      setSchedulesLoaded(true);
-    });
-    return () => unsub();
+    if (!("geolocation" in navigator)) return;
+    
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setLastKnownLocation({ 
+          lat: pos.coords.latitude, 
+          lng: pos.coords.longitude 
+        });
+        setLocationTimestamp(Date.now());
+      },
+      (err) => console.warn('[GPS Watcher] Error:', err.message),
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+    );
+    
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   // ── Derived: is the window currently open? ────────────────────────────────
@@ -140,11 +162,12 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
   const activeScheduleForCountdown: any | null =
     activeSchedules[0] ||
     schedules.find((s) => parseFloat(s.radius) === -999 && s.isActive) ||
+    schedules.find((s) => s.locationName === 'Manual Selection' && s.isActive) ||
     null;
 
   // ── The sentinel (manual override) schedule ───────────────────────────────
   const sentinelSchedule = schedules.find(
-    (s) => parseFloat(s.radius) === -999 && s.isActive
+    (s) => (parseFloat(s.radius) === -999 || s.locationName === 'Manual Selection') && s.isActive
   ) ?? null;
 
   // Server-authoritative session open time: use the sentinel row's Supabase
@@ -174,7 +197,6 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
 
       // If our local ref is empty or older than the DB, update it
       if (isRecent && (!openedAtRef.current || Math.abs(openedAtRef.current - dbTime) > 2000)) {
-        console.log('[Tracker] Syncing session start with server:', new Date(dbTime));
         openedAtRef.current = dbTime;
         setSessionStartMs(dbTime);
         localStorage.setItem('session_opened_at', String(dbTime));
@@ -202,14 +224,13 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
       return;
     }
 
-    const isSentinel = parseFloat(String(_schedRadius)) === -999;
-    const graceMins = _graceMins || 15;
+    const isSentinel = parseFloat(String(_schedRadius)) === -999 || activeScheduleForCountdown?.locationName === 'Manual Selection';
+    const globalGrace = sysSettings?.late_threshold_mins ?? 15;
+    const graceMins = (_graceMins !== undefined && _graceMins !== null) ? _graceMins : globalGrace;
 
-    // CRITICAL: capture openedAt ONCE here (outside the interval closure).
-    // If we call Date.now() inside the closure both as openedAt AND as 'now',
-    // they cancel each other and always return ~0 (the 00:00 bug).
+    // CRITICAL: capture openedAt ONCE here.
     const openedAt = isSentinel
-      ? (openedAtRef.current && !isNaN(openedAtRef.current) ? openedAtRef.current : (_sentinelOpenedMs && !isNaN(_sentinelOpenedMs) ? _sentinelOpenedMs : Date.now()))
+      ? (_sentinelOpenedMs && !isNaN(_sentinelOpenedMs) ? _sentinelOpenedMs : (openedAtRef.current || Date.now()))
       : (() => {
         const [h, m] = (_schedTime || '00:00').split(':').map(Number);
         const t = new Date();
@@ -217,8 +238,9 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
         return t.getTime();
       })();
 
-    const safeGraceMins = isNaN(graceMins) ? 15 : graceMins;
+    const safeGraceMins = isNaN(graceMins) ? globalGrace : graceMins;
     const endOfGrace = openedAt + safeGraceMins * 60 * 1000;
+
 
     const computeSecondsLeft = (): number => {
       if (isNaN(endOfGrace)) return 0;
@@ -233,7 +255,8 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     }, 1000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [windowOpen, _schedId, _schedRadius, _schedTime, _graceMins, sessionStartMs]);
+  }, [windowOpen, _schedId, _schedRadius, _schedTime, _graceMins, sessionStartMs, sysSettings]);
+
 
   useEffect(() => {
     if (user?.mentorId) {
@@ -247,90 +270,108 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
   // ── GPS + late check ──────────────────────────────────────────────────────
   const geofenceCheck = useCallback(
     async (silent: boolean = false): Promise<{ passed: boolean; isLate: boolean; schedule?: any }> => {
-      // Build finalSchedules with SENTINEL FIRST so its late logic takes priority
+      // 1. Preparation: Build finalSchedules with SENTINEL FIRST so its late logic takes priority
       const sentinelSchedules = schedules.filter(s => parseFloat(s.radius) === -999 && s.isActive);
       const finalSchedules = manualOverrideActive
         ? [...sentinelSchedules, ...activeSchedules] // sentinel first
         : activeSchedules;
 
       if (!navigator.geolocation) {
-        if (!silent) toast.error('Geolocation is not supported by your browser.', { id: 'geo-error' });
+        if (!silent) toast.error('Geolocation is not supported.', { id: 'geo-error' });
         return { passed: false, isLate: false };
       }
 
-      return new Promise((resolve) => {
-        if (!silent) toast.loading('Verifying your location securely...', { id: 'location-check' });
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            let passed = false;
-            for (const s of finalSchedules) {
-              const gLat = parseFloat(s.lat), gLng = parseFloat(s.lng), r = parseFloat(s.radius);
-              if (isNaN(gLat) || isNaN(gLng)) continue;
-              if (getDistance(latitude, longitude, gLat, gLng) <= r) { passed = true; break; }
-            }
-            if (!silent) toast.dismiss('location-check');
-            if (passed) {
-              if (!silent) toast.success('Location verified. You are inside the campus zone!', { id: 'location-check' });
+      // 2. Obtain Coords: Use state variables if fresh (< 10s), otherwise fetch new
+      let lat: number, lng: number;
+      if (lastKnownLocation && (Date.now() - locationTimestamp < 10000)) {
+        lat = lastKnownLocation.lat;
+        lng = lastKnownLocation.lng;
+      } else {
+        if (!silent) toast.loading('Verifying location...', { id: 'location-check' });
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) => 
+            navigator.geolocation.getCurrentPosition(res, rej, { 
+              enableHighAccuracy: true, 
+              timeout: 5000, 
+              maximumAge: 1000 
+            })
+          );
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch (error) {
+          if (!silent) toast.error('Location failed', { id: 'location-check' });
+          return { passed: false, isLate: false };
+        }
+      }
 
-              // ── Determine Lateness ────────────────────────────────────────────────
-              let isLate = false;
-              let bestSchedule = finalSchedules[0];
+      // 3. Zone Validation: Check if within any active geofence
+      let passed = false;
+      for (const s of finalSchedules) {
+        const r = parseFloat(s.radius);
+        // Sentinel (-999) means geofence is disabled for this window
+        if (r === -999) { 
+          passed = true; 
+          break; 
+        }
 
-              for (const s of finalSchedules) {
-                // Case A: Sentinel (Manual override)
-                if (parseFloat(s.radius) === -999) {
-                  const openedAt = openedAtRef.current ?? _sentinelOpenedMs ?? Date.now();
-                  const graceMsElapsed = Date.now() - openedAt;
-                  const graceMins = s.gracePeriod || 15;
+        const gLat = parseFloat(s.lat), gLng = parseFloat(s.lng);
+        if (isNaN(gLat) || isNaN(gLng)) continue;
+        
+        if (getDistance(lat, lng, gLat, gLng) <= r) { 
+          passed = true; 
+          break; 
+        }
+      }
 
-                  // Only late if we cross the deadline + 30s grace
-                  if (graceMsElapsed > (graceMins * 60 * 1000) + 30000) {
-                    isLate = true;
-                  } else {
-                    isLate = false;
-                  }
-                  bestSchedule = s;
-                  break; // sentinel always wins
-                }
+      if (!silent) toast.dismiss('location-check');
 
-                // ── Auto-scheduled geofence ────────────────────────────────
-                const [h, m] = (s.time || '00:00').split(':').map(Number);
-                const schedTime = new Date(); schedTime.setHours(h, m, 0, 0);
-                const diffMins = (Date.now() - schedTime.getTime()) / 60000;
-                const grace = s.gracePeriod || 15;
+      if (!passed) {
+        if (!silent) toast.error('Outside campus zone!', { id: 'location-check' });
+        return { passed: false, isLate: false };
+      }
 
-                if (diffMins <= grace && diffMins >= -30) {
-                  isLate = false;
-                  bestSchedule = s;
-                  break;
-                }
+      if (!silent) toast.success('Location verified!', { id: 'location-check' });
 
-                // Track the closest schedule by time for reporting
-                const currentBestTime = (bestSchedule.time || '00:00').split(':').map(Number);
-                const currentBestMs = Math.abs(Date.now() - new Date().setHours(currentBestTime[0], currentBestTime[1], 0, 0));
-                const newAttemptMs = Math.abs(Date.now() - schedTime.getTime());
-                if (newAttemptMs < currentBestMs) bestSchedule = s;
-              }
-              resolve({ passed: true, isLate, schedule: bestSchedule });
-            } else {
-              if (!silent) toast.error('You are outside the permitted campus geofence! Cannot record attendance.', { id: 'location-check', duration: 4000 });
-              resolve({ passed: false, isLate: false });
-            }
-          },
-          (error) => {
-            let msg = 'Failed to get location';
-            if (error.code === 1) msg = 'Location permission denied. Please allow location access.';
-            else if (error.code === 2) msg = 'Location network unavailable.';
-            else if (error.code === 3) msg = 'Location request timed out.';
-            if (!silent) toast.error(msg, { id: 'location-check', duration: 4000 });
-            resolve({ passed: false, isLate: false });
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      });
+      // 4. Lateness Determination
+      let isLate = false;
+      let bestSchedule = finalSchedules[0];
+
+      for (const s of finalSchedules) {
+        if (parseFloat(s.radius) === -999) {
+          const openedAt = openedAtRef.current ?? _sentinelOpenedMs ?? Date.now();
+          const graceMsElapsed = Date.now() - openedAt;
+          const globalGrace = sysSettings?.late_threshold_mins ?? 15;
+          const graceMins = s.gracePeriod || globalGrace;
+          isLate = graceMsElapsed > (graceMins * 60 * 1000) + 30000;
+
+          bestSchedule = s;
+          break;
+        }
+
+        const [h, m] = (s.time || '00:00').split(':').map(Number);
+        const schedTime = new Date(); 
+        schedTime.setHours(h, m, 0, 0);
+        const diffMins = (Date.now() - schedTime.getTime()) / 60000;
+        const globalGrace = sysSettings?.late_threshold_mins ?? 15;
+        const grace = s.gracePeriod || globalGrace;
+
+
+        if (diffMins <= grace && diffMins >= -30) {
+          isLate = false;
+          bestSchedule = s;
+          break;
+        }
+
+        // Compare closeness to scheduled time to find the most relevant window
+        const currentBestTime = (bestSchedule?.time || '00:00').split(':').map(Number);
+        const currentBestMs = bestSchedule ? Math.abs(Date.now() - new Date().setHours(currentBestTime[0], currentBestTime[1], 0, 0)) : Infinity;
+        const newAttemptMs = Math.abs(Date.now() - schedTime.getTime());
+        if (newAttemptMs < currentBestMs) bestSchedule = s;
+      }
+
+      return { passed: true, isLate, schedule: bestSchedule };
     },
-    [manualOverrideActive, activeSchedules]
+    [manualOverrideActive, activeSchedules, schedules, lastKnownLocation, locationTimestamp, _sentinelOpenedMs]
   );
 
   // ── Background Auto-Tracking ─────────────────────────────────────────────
@@ -339,9 +380,17 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     let autoCheckInterval: any = null;
 
     const attemptAutoCheckIn = async () => {
-      // Gate: window must be open and not already checked in
-      if (!windowOpen || isCheckedIn || isProcessing) {
-        if (!windowOpen && mounted) setIsOutsideZone(false); // Reset message when closed
+      // Gate: window must be open, attendance data must be loaded, and student not already checked in
+      if (!windowOpen || !attendanceLoaded || isCheckedIn || isProcessing) {
+        if (!windowOpen && mounted) setIsOutsideZone(false); 
+        return;
+      }
+
+      // Final safety: check if we have any record for today in the local list
+      const today = new Date().toLocaleDateString('en-CA');
+      const hasTodayRecord = attendanceRecords.some(r => r.date === today && !r.checkOutTime);
+      if (hasTodayRecord) {
+        if (mounted) setIsCheckedIn(true);
         return;
       }
 
@@ -359,12 +408,11 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
 
       if (mounted) setIsOutsideZone(false); // successfully inside
 
+      if (mounted) setIsOutsideZone(false); // successfully inside
+
       try {
         if (user) {
           const sched = activeScheduleForCountdown;
-          // Build a human-readable location name.
-          // If the DB column location_name is empty/null (migration not yet run),
-          // display the coordinates in a friendly format instead of the generic "Campus".
           const hasName = sched?.locationName && sched.locationName.trim();
           const locName = hasName
             ? sched.locationName.trim()
@@ -373,6 +421,23 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
               : 'Campus';
           const locCoords = sched ? `${sched.lat},${sched.lng}` : '';
           const locField = locCoords ? `${locName}|${locCoords}` : locName;
+
+          if (isLate) {
+            // IF LATE: We don't auto-check-in. We wait for the user to see the modal.
+            // But we must signal to the UI that they ARE in the zone and should click check-in.
+            // However, the user wants "Auto-Tracking".
+            // Compromise: Mark as Late in DB immediately (so admin sees them), 
+            // but keep the modal prominent.
+            // Actually, the user's prompt says "BEFORE MARKING... IT SHOULD ASK".
+            // So I will STOP auto-check-in for Late users and force them to click.
+            if (!showLateModal) {
+              setShowLateModal(true);
+              toast('Late entry detected. Please provide a reason to check in.', { icon: '⏰', duration: 6000 });
+            }
+            setIsProcessing(false);
+            return;
+          }
+
           const record = {
             userId: user.uid || user.id,
             userName: user.name,
@@ -381,18 +446,14 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
             date: new Date().toLocaleDateString('en-CA'),
             checkInTime: new Date().toISOString(),
             checkOutTime: null,
-            status: isLate ? 'Late' : 'Present',
-            location: locField,
+            status: 'Present',
+            location: locField ? `${locField} | (Auto)` : '(Auto)',
           };
           const saved = await addAttendance(record);
           if (mounted) {
             setCurrentRecordId(saved.id);
             setIsCheckedIn(true);
             toast.success('Auto Check-in successful!', { icon: '🤖' });
-            // Trigger late reason modal if auto-checkin was late
-            if (isLate) {
-              setShowLateModal(true);
-            }
           }
         }
       } catch (err) {
@@ -403,16 +464,16 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     };
 
     // Run once immediately, then poll every 10 seconds if window stands open
-    if (windowOpen && !isCheckedIn) {
+    if (windowOpen && attendanceLoaded && !isCheckedIn) {
       attemptAutoCheckIn();
-      autoCheckInterval = setInterval(attemptAutoCheckIn, 10000);
+      autoCheckInterval = setInterval(attemptAutoCheckIn, 3000); // 3s polling for "instant" feel
     }
 
     return () => {
       mounted = false;
       if (autoCheckInterval) clearInterval(autoCheckInterval);
     };
-  }, [windowOpen, isCheckedIn, geofenceCheck, user]);
+  }, [windowOpen, isCheckedIn, attendanceLoaded, geofenceCheck, user]);
 
   // ── Auto Reset When Window Closes ────────────────────────────────────────
   useEffect(() => {
@@ -422,7 +483,6 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     // Logic: If window is closed and client thinks they are tracked, force a cleanup and checkout.
     if (!windowOpen && isCheckedIn) {
       const recordToClose = currentRecordId || localStorage.getItem('tracked_session_id');
-      console.log('[Tracker] Auto-Reset Triggered.', { recordToClose });
 
       // 1. Force local state reset immediately (Optimistic UI)
       if (mounted) {
@@ -480,6 +540,13 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
               : 'Campus';
           const locCoords = sched ? `${sched.lat},${sched.lng}` : '';
           const locField = locCoords ? `${locName}|${locCoords}` : locName;
+
+          if (isLate) {
+            setShowLateModal(true);
+            toast.error('You are late! Please provide a reason to check in.', { icon: '⏰' });
+            return;
+          }
+
           const record = {
             userId: user.uid || user.id,
             userName: user.name,
@@ -488,19 +555,14 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
             date: new Date().toLocaleDateString('en-CA'),
             checkInTime: new Date().toISOString(),
             checkOutTime: null,
-            status: isLate ? 'Late' : 'Present',
-            location: locField,
+            status: 'Present',
+            location: locField ? `${locField} | (Manual)` : '(Manual)',
           };
           const saved = await addAttendance(record);
           setCurrentRecordId(saved.id);
           setIsCheckedIn(true);
           setShowAction(true);
-          if (isLate) {
-            toast.error('You are late! Please provide a reason.', { icon: '⏰' });
-            setShowLateModal(true);
-          } else {
-            toast.success('Checked in successfully!');
-          }
+          toast.success('Checked in successfully!');
         }
       } catch (err) {
         toast.error('Check-in failed. Error saving to DB.');
@@ -543,20 +605,45 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
   };
 
   const handleSubmitLateReason = async () => {
-    if (!lateReasonText.trim() || !currentRecordId) return;
+    if (!lateReasonText.trim()) return;
     setIsProcessing(true);
     try {
-      await updateAttendance(currentRecordId, {
-        lateReason: lateReasonText,
-        lateReasonStatus: 'Pending Review', // Match DB migration
-        lateReasonImage: lateReasonImage,
-      });
-      toast.success('Reason submitted for mentor approval.', { icon: '✅' });
-      setShowLateModal(false);
-      setLateReasonText('');
-      setLateReasonImage(null);
+      if (user) {
+        const sched = activeScheduleForCountdown;
+        const hasName = sched?.locationName && sched.locationName.trim();
+        const locName = hasName
+          ? sched.locationName.trim()
+          : sched
+            ? `${parseFloat(String(sched.lat)).toFixed(4)}°N, ${parseFloat(String(sched.lng)).toFixed(4)}°E`
+            : 'Campus';
+        const locCoords = sched ? `${sched.lat},${sched.lng}` : '';
+        const locField = locCoords ? `${locName}|${locCoords}` : locName;
+
+        const record = {
+          userId: user.uid || user.id,
+          userName: user.name,
+          rollNo: user.rollNo,
+          course: user.course,
+          date: new Date().toLocaleDateString('en-CA'),
+          checkInTime: new Date().toISOString(),
+          checkOutTime: null,
+          status: 'Late',
+          location: locField ? `${locField} | (Manual)` : '(Manual)',
+          lateReason: lateReasonText,
+          lateReasonStatus: 'Pending Review',
+          lateReasonImage: lateReasonImage,
+        };
+        const saved = await addAttendance(record);
+        setCurrentRecordId(saved.id);
+        setIsCheckedIn(true);
+        setShowAction(true);
+        toast.success('Late attendance recorded and appeal submitted.', { icon: '✅' });
+        setShowLateModal(false);
+        setLateReasonText('');
+        setLateReasonImage(null);
+      }
     } catch (err) {
-      toast.error('Failed to submit reason. DB error.');
+      toast.error('Failed to record attendance. DB error.');
     } finally {
       setIsProcessing(false);
     }
@@ -601,7 +688,7 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
   return (
     <>
       {/* Main widget */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[300px]">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 lg:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[250px] lg:min-h-[350px]">
         {/* Top accent bar — green when open, red when closed */}
         <div className={`absolute top-0 left-0 w-full h-2 transition-colors duration-700 ${windowOpen ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`} />
 
@@ -612,12 +699,12 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
               <Timer className="w-4 h-4 text-orange-500" />
               Grace Period
             </h3>
-            <div className={`text-4xl font-black font-mono tracking-tight mb-1 transition-colors ${(graceSecondsLeft || 0) <= 60 ? 'text-red-500 animate-pulse' :
+            <div className={`text-3xl lg:text-4xl font-black font-mono tracking-tight mb-1 transition-colors ${(graceSecondsLeft || 0) <= 60 ? 'text-red-500 animate-pulse' :
                 (graceSecondsLeft || 0) <= 180 ? 'text-orange-500' : 'text-gray-800'
               }`}>
               {String(Math.floor((graceSecondsLeft || 0) / 60)).padStart(2, '0')}:{String((graceSecondsLeft || 0) % 60).padStart(2, '0')}
             </div>
-            <p className="text-[11px] text-gray-400 font-semibold mb-0.5">
+            <p className="text-[11px] lg:text-xs text-gray-400 font-semibold mb-0.5">
               {graceSecondsLeft > 0 ? 'Time left to check in on time' : 'Grace period expired — you will be marked Late'}
             </p>
             {activeScheduleForCountdown?.locationName && (
@@ -629,8 +716,8 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
           </>
         ) : (
           <>
-            <h3 className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">Current Time</h3>
-            <div className="text-4xl font-black text-gray-800 mb-1 font-mono tracking-tight">
+            <h3 className="text-xs lg:text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Current Time</h3>
+            <div className="text-3xl lg:text-4xl font-black text-gray-800 mb-1 font-mono tracking-tight">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
           </>
@@ -639,26 +726,26 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
         {/* Live window status badge */}
         <WindowBadge />
 
-        <div className="mt-5">
-          {isCheckedIn ? (
-            <div className="w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-xl shadow-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-teal-200 mx-auto transition-transform hover:scale-105">
-              <MapPin className="w-8 h-8 mb-2 mx-auto" />
+        <div className="mt-5 lg:mt-6">
+          {isOutsideZone && windowOpen ? (
+            <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-xs lg:text-sm shadow-xl bg-gradient-to-br from-red-500 to-rose-600 shadow-red-300 mx-auto animate-radar-red text-center px-4 leading-snug border-4 border-white/20">
+              <AlertCircle className="w-8 h-8 lg:w-10 lg:h-10 mb-1 mx-auto" />
+              <span className="uppercase tracking-tighter">OUT OF ZONE</span>
+            </div>
+          ) : isCheckedIn ? (
+            <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-lg lg:text-xl shadow-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-teal-200 mx-auto transition-transform hover:scale-105 border-4 border-white/20">
+              <MapPin className="w-7 h-7 lg:w-9 lg:h-9 mb-1 mx-auto" />
               TRACKED
             </div>
           ) : !windowOpen ? (
-            <div className="w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-sm shadow-xl bg-gradient-to-br from-indigo-400 to-purple-500 shadow-indigo-200 mx-auto animate-pulse">
-              <Loader2 className="w-8 h-8 mb-2 mx-auto animate-spin" />
-              tracking
-            </div>
-          ) : isOutsideZone ? (
-            <div className="w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-[13px] shadow-xl bg-gradient-to-br from-red-400 to-rose-500 shadow-red-200 mx-auto animate-pulse text-center px-3 leading-snug">
-              <AlertCircle className="w-8 h-8 mb-2 mx-auto" />
-              student is outof the zone area
+            <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-xs lg:text-sm shadow-xl bg-gradient-to-br from-indigo-400 to-purple-500 shadow-indigo-200 mx-auto border-4 border-white/20">
+              <Lock className="w-7 h-7 lg:w-9 lg:h-9 mb-1 mx-auto" />
+              LOCKED
             </div>
           ) : (
-            <div className="w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-sm shadow-xl bg-gradient-to-br from-blue-400 to-indigo-500 shadow-blue-200 mx-auto animate-pulse">
-              <Loader2 className="w-8 h-8 mb-2 mx-auto animate-spin" />
-              TRACKING...
+            <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full flex flex-col items-center justify-center text-white font-bold text-xs lg:text-sm shadow-xl bg-gradient-to-br from-blue-400 to-indigo-500 shadow-blue-200 mx-auto animate-radar border-4 border-white/20">
+              <Loader2 className="w-7 h-7 lg:w-9 lg:h-9 mb-1 mx-auto animate-spin" />
+              TRACKING
             </div>
           )}
         </div>
@@ -788,3 +875,5 @@ export default function StudentCheckInWidget({ user }: { user?: any }) {
     </>
   );
 }
+
+export default StudentCheckInWidget;

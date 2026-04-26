@@ -7,6 +7,9 @@ import {
   markAllNotificationsRead,
 } from '../services/dbService';
 import { supabase } from '../lib/supabase';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import SwipeableNotificationItem from '../components/SwipeableNotificationItem';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface Notification {
   id: string;
@@ -62,6 +65,10 @@ export default function NotificationsPage({ userId }: { userId?: string }) {
     );
   };
 
+  const handleRemoveNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'alert': return <AlertTriangle className="w-5 h-5 text-red-500" />;
@@ -81,6 +88,8 @@ export default function NotificationsPage({ userId }: { userId?: string }) {
   };
 
   const unreadCount = notifications.filter(n => n.unread).length;
+
+  const { visibleItems, sentinelRef } = useInfiniteScroll(notifications, 10, 5);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
@@ -119,57 +128,26 @@ export default function NotificationsPage({ userId }: { userId?: string }) {
             <p className="text-xs text-gray-400 mt-1">You're all caught up!</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {notifications.map((notif) => (
-              <div
-                key={notif.id}
-                onClick={() => notif.unread && handleMarkAsRead(notif.id)}
-                className={`p-4 sm:p-5 rounded-xl border ${
-                  notif.unread
-                    ? 'bg-white border-blue-200 shadow-[0_2px_10px_rgba(37,99,235,0.05)] cursor-pointer'
-                    : 'bg-gray-50/50 border-transparent'
-                } flex flex-col sm:flex-row gap-4 transition-all hover:shadow-md group`}
-              >
-                <div className="flex items-start gap-4 flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${getBg(notif.type)}`}>
-                    {getIcon(notif.type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1 gap-1">
-                      <h4 className={`text-sm font-bold ${notif.unread ? 'text-gray-900 group-hover:text-blue-700' : 'text-gray-700'} transition-colors`}>
-                        {notif.title}
-                      </h4>
-                      <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {notif.time}
-                      </span>
-                    </div>
-                    <p className={`text-sm ${notif.unread ? 'text-gray-700' : 'text-gray-500'}`}>
-                      {notif.message}
-                    </p>
-
-                    {notif.data && notif.data.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {notif.data.map((item, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-gray-100 text-gray-800 border border-gray-200 shadow-sm"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="hidden sm:flex items-center justify-center w-6">
-                  {notif.unread && (
-                    <div className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="space-y-4 pb-10">
+            <AnimatePresence initial={false}>
+              {visibleItems.map((notif) => (
+                <motion.div
+                  key={notif.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -100 }}
+                  onClick={() => notif.unread && handleMarkAsRead(notif.id)}
+                >
+                  <SwipeableNotificationItem 
+                    notification={notif} 
+                    onRemove={handleRemoveNotification}
+                    variant="full"
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div ref={sentinelRef} className="h-4" />
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import AttendanceTable from '../components/AttendanceTable';
 import AnalyticsChart from '../components/AnalyticsChart';
 import StudentProfile from '../components/StudentProfile';
 import LateAppealsList from '../components/LateAppealsList';
+import QuickActions from '../components/QuickActions';
 import { listenToCollection } from '../services/dbService';
 import toast from 'react-hot-toast';
 
@@ -108,33 +109,8 @@ export default function AttendancePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
         <AttendanceTable />
-        <div className="hidden lg:block col-span-1">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 h-full flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-4">
-              <CheckSquare className="text-green-600 w-6 h-6" />
-            </div>
-            <h4 className="text-base font-bold text-gray-800 mb-2">Quick Actions</h4>
-            <p className="text-xs text-gray-500 mb-6">Manage attendance efficiently with bulk actions.</p>
-            
-            <div className="w-full space-y-3">
-              <button 
-                onClick={() => toast.success("Bulk attendance marked successfully!")}
-                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckSquare className="w-4 h-4" />
-                Mark Bulk Present
-              </button>
-              <button 
-                onClick={() => toast.success("Reminders sent to absent students!")}
-                className="w-full bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-bold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                Send Reminders
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="col-span-1 lg:col-span-1">
+        <div className="flex flex-col gap-8">
+          <QuickActions students={students} attendance={attendanceData} />
           <LateAppealsList />
         </div>
       </div>

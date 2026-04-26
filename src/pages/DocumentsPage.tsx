@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Folder, File, Download, MoreVertical, Search, Plus, Trash2, X, FileText, FileSpreadsheet, FileIcon as FilePdf, Image as ImageIcon, History, Clock, User, Eye } from 'lucide-react';
 import { listenToCollection, addDocument, deleteDocument } from '../services/dbService';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export default function DocumentsPage({ user }: { user?: any }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,12 +191,13 @@ export default function DocumentsPage({ user }: { user?: any }) {
       URL.revokeObjectURL(url);
     }
   };
-
-  const filteredDocuments = documents.filter(doc => 
-    (doc.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredDocuments = documents.filter(doc =>
+    doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (doc.uploader || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (doc.type || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const { visibleItems, sentinelRef } = useInfiniteScroll(filteredDocuments, 10, 5);
 
   return (
     <div className="flex-1 p-4 sm:p-8 relative min-h-screen">
@@ -282,15 +284,15 @@ export default function DocumentsPage({ user }: { user?: any }) {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
+        <div className="table-fixed-height">
+          <table className="w-full text-left border-collapse table-responsive">
+            <thead className="sticky top-0 z-10 bg-gray-50/50 backdrop-blur-md">
+              <tr className="border-b border-gray-100">
                 <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase">Name</th>
                 <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase">Size</th>
                 <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase">Date Modified</th>
                 <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase">Uploaded By</th>
-                <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase text-right w-[200px]">Actions</th>
+                <th className="py-3 px-6 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -299,20 +301,20 @@ export default function DocumentsPage({ user }: { user?: any }) {
                   <td colSpan={5} className="py-8 text-center text-gray-500 text-sm">No documents found. Click 'Upload File' to add one.</td>
                 </tr>
               )}
-              {filteredDocuments.map((doc) => (
+              {visibleItems.map((doc) => (
                 <tr key={doc.id} className="group hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6" data-label="Name">
                     <div className="flex items-center gap-3">
                       {getFileIcon(doc.type)}
-                      <span className="text-sm font-bold text-gray-800 truncate max-w-[200px] sm:max-w-[300px]">{doc.name}</span>
+                      <span className="text-sm font-bold text-gray-800 truncate max-w-[200px] sm:max-w-[300px] text-left">{doc.name}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap">{doc.size}</td>
-                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap">
+                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap" data-label="Size">{doc.size}</td>
+                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap" data-label="Date Modified">
                     {formatDate(doc.date)}
                   </td>
-                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap">{doc.uploader}</td>
-                  <td className="py-4 px-6 text-right relative">
+                  <td className="py-4 px-6 text-sm text-gray-500 whitespace-nowrap" data-label="Uploaded By">{doc.uploader}</td>
+                  <td className="py-4 px-6 text-right relative" data-label="Actions">
                     <div className="flex items-center justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                       {/* Primary Actions (Always Visible on this row) */}
                       <button 
@@ -362,6 +364,7 @@ export default function DocumentsPage({ user }: { user?: any }) {
               ))}
             </tbody>
           </table>
+          <div ref={sentinelRef} className="h-4" />
         </div>
       </div>
 

@@ -9,7 +9,7 @@
  * Table: public.leave_requests
  * Table: public.roles
  * Table: public.documents
- * Table: public.geofence_schedules
+ * Table: public.attendance_windows
  * Table: public.notifications
  */
 
@@ -23,26 +23,27 @@ type UnsubFn = () => void;
 
 export function mapProfile(row: any) {
   if (!row) return null;
-  const isOnboarded = row.role === 'admin' || !!(row.phone) || !!(row.roll_no);
+  const isOnboarded = row.role === 'admin' || !!(row.phone) || !!(row.roll_no) || !!(row.profile_completed);
   return {
     id: row.id,
-    uid: row.id,
-    name: row.name || '',
-    email: row.email || '',
-    photoURL: row.photo_url || '',
+    uid: row.id || row.uid,
+    name: row.name || row.full_name || row.display_name || '',
+    email: row.email || row.user_email || '',
+    photoURL: row.photo_url || row.avatar_url || '',
     role: row.role || 'student',
-    rollNo: row.roll_no || '',
-    course: row.course || '',
-    phone: row.phone || '',
+    rollNo: row.roll_no || row.roll_number || row.student_id || '',
+    course: row.course || row.department || '',
+    phone: row.phone || row.mobile || '',
     gender: row.gender || '',
-    bloodGroup: '',
+    bloodGroup: row.blood_group || '',
     status: row.status || 'Active',
-    attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '100%',
-    attendance_pct: row.attendance_pct ?? 100,
+    attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '0%',
+    attendance_pct: row.attendance_pct ?? 0,
     roleId: row.role_id || null,
-    mentorId: null,
+    mentorId: row.mentor_id || null,
     onboarded: isOnboarded,
-    createdAt: row.created_at,
+    profileCompleted: row.profile_completed || false,
+    createdAt: row.created_at || row.joined_at,
     updatedAt: row.updated_at,
   };
 }
@@ -55,16 +56,17 @@ export function mapAttendance(row: any) {
     userName: row.user_name || '',
     rollNo: row.roll_no || '',
     course: row.course || '',
-    date: row.date,
-    checkInTime: row.check_in_time,
-    checkOutTime: row.check_out_time,
-    status: row.status,
-    location: row.location || '',
-    locationName: row.location_name || row.location || '',
-    lateReason: row.late_reason || '',
+    date: row.date || row.created_at?.split('T')[0],
+    checkInTime: row.check_in_time || row.time || row.check_in || (row.created_at ? new Date(row.created_at).toLocaleTimeString() : ''),
+    checkOutTime: row.check_out_time || row.check_out || row.end_time,
+    status: row.status || 'Present',
+    location: row.location || row.address || (row.location_lat ? `${row.location_lat},${row.location_lng}` : ''),
+    locationName: row.location_name || row.location || 'Campus',
+    lateReason: row.late_reason || row.reason || '',
     lateReasonStatus: row.late_reason_status || 'Pending',
     lateReasonReviewedAt: row.late_reason_reviewed_at || null,
     lateReasonImage: row.late_reason_image || null,
+    userPhoto: row.profiles?.photo_url || row.user_photo || '',
   };
 }
 
@@ -75,14 +77,15 @@ export function mapLeaveRequest(row: any) {
     userId: row.user_id,
     userName: row.user_name || '',
     rollNo: row.roll_no || '',
-    fromDate: row.from_date,
-    toDate: row.to_date,
+    fromDate: row.from_date || row.start_date,
+    toDate: row.to_date || row.end_date,
     type: row.type,
     reason: row.reason,
     status: row.status,
-    appliedOn: row.applied_on,
+    appliedOn: row.applied_on || row.created_at,
     reviewedBy: row.reviewed_by,
     reviewedAt: row.reviewed_at,
+    userPhoto: row.profiles?.photo_url || row.user_photo || '',
   };
 }
 
@@ -92,6 +95,7 @@ export function mapGeofence(row: any) {
     id: row.id,
     locationName: row.location_name || '',
     time: row.time ? row.time.substring(0, 5) : '',
+    endTime: row.end_time ? row.end_time.substring(0, 5) : '',
     days: row.days || [],
     lat: String(row.lat),
     lng: String(row.lng),
@@ -105,48 +109,92 @@ export function mapGeofence(row: any) {
   };
 }
 
-export function mapNotification(row: any) {
+export function mapMentor(row: any) {
   if (!row) return null;
   return {
     id: row.id,
-    userId: row.user_id,
-    type: row.type,
-    title: row.title,
-    message: row.message,
-    data: Array.isArray(row.data) ? row.data : [],
-    unread: !row.is_read,
-    time: formatRelativeTime(row.created_at),
+    name: row.name || '',
+    phone: row.phone || '',
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapNotification(n: any) {
+  if (!n) return null;
+  return {
+    id: n.id,
+    userId: n.user_id,
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    unread: !n.is_read,
+    isImportant: !!n.is_important,
+    time: formatRelativeTime(n.created_at),
+    data: n.data || null,
   };
 }
 
 export function isScheduleActive(s: any): boolean {
   // 1. Manual Global Override (-999 row)
-  if (parseFloat(s.radius) === -999) return s.isActive;
+  if (parseFloat(s.radius) === -999) {
+    if (!s.isActive) return false;
+    
+    // Check if it has an end time and if we are past it
+    if (s.endTime) {
+      const [eh, em] = s.endTime.split(':').map(Number);
+      if (!isNaN(eh)) {
+        const now = new Date();
+        const schedEnd = new Date();
+        schedEnd.setHours(eh, em, 0, 0);
+        // If we are past the end time, it's effectively closed
+        if (now > schedEnd) return false;
+      }
+    }
+    return true;
+  }
 
-  // 2. Manual Specific Switch
-  // If isActive is explicitly false for a specific schedule, it overrides Auto-Activation.
-  // We assume 'isActive' is only true if set by Admin to "Force Open".
-  // If it's false, we check if it was explicitly toggled or just default.
-  // For simplicity: If isActive is false, we ignore auto-activate (Admin kill switch).
+  // 2. Master Kill Switch
+  // If isActive is explicitly false, the window is CLOSED regardless of auto-activation.
   if (s.isActive === false) return false;
-  if (s.isActive === true) return true;
 
-  // 3. Fallback to Auto-Activate
+  // 3. Auto-Activation Logic
   if (s.autoActivate && s.time && s.days?.length) {
     const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
     if (!s.days.includes(currentDay)) return false;
+
     const [h, m] = s.time.split(':').map(Number);
+    const [eh, em] = (s.endTime || '23:59').split(':').map(Number);
+    
     if (isNaN(h) || isNaN(m)) return false;
-    const schedTime = new Date();
-    schedTime.setHours(h, m, 0, 0);
-    const diffMs = Date.now() - schedTime.getTime();
-    if (diffMs >= -1800000 && diffMs <= 7200000) {
+
+    const now = new Date();
+    const schedStart = new Date();
+    schedStart.setHours(h, m, 0, 0);
+
+    const schedEnd = new Date();
+    schedEnd.setHours(eh, em, 0, 0);
+
+    // If endTime is earlier than startTime, assume it spans to the next day
+    if (schedEnd < schedStart) {
+      schedEnd.setDate(schedEnd.getDate() + 1);
+    }
+
+    const isWithinTimeRange = now >= schedStart && now <= schedEnd;
+
+    if (isWithinTimeRange) {
       const lat = parseFloat(s.lat), lng = parseFloat(s.lng), r = parseFloat(s.radius);
       return !isNaN(lat) && !isNaN(lng) && !isNaN(r) && r > 0;
     }
+    
+    // If we are outside the auto-activation time window, it's CLOSED 
+    // (unless isActive was used as a manual "Force Open" override, 
+    // but here we treat it as an "Enable" flag for the schedule).
+    return false;
   }
-  return false;
+
+  // 4. Manual Specific Switch (Fallback for non-auto schedules)
+  return !!s.isActive;
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -168,7 +216,7 @@ function mapRow(table: string, row: any): any {
     case 'attendance': return mapAttendance(row);
     case 'leave_requests':
     case 'leaveRequests': return mapLeaveRequest(row);
-    case 'geofence_schedules': return mapGeofence(row);
+    case 'attendance_windows': return mapGeofence(row);
     case 'notifications': return mapNotification(row);
     case 'mentors': return mapMentor(row);
     case 'documents': return {
@@ -176,26 +224,17 @@ function mapRow(table: string, row: any): any {
       name: row.name,
       type: row.type,
       size: row.size,
-      date: row.created_at,
+      date: row.created_at || row.upload_date,
       uploader: row.uploader,
       storage_key: row.storage_key,
-      fileData: row.public_url,
+      fileData: row.public_url || row.url,
       revisions: row.revisions || []
     };
     default: return row;
   }
 }
 
-export function mapMentor(row: any) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name || '',
-    phone: row.phone || '',
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
+
 
 // ─── TABLE RESOLVER ─────────────────────────────────────────────────────────────
 
@@ -208,6 +247,7 @@ function resolveTable(collectionName: string): string {
     documents: 'documents',
     notifications: 'notifications',
     mentors: 'mentors',
+    geofence_schedules: 'attendance_windows',
   };
   return tableMap[collectionName] || collectionName;
 }
@@ -243,7 +283,7 @@ export const getUserById = async (id: string): Promise<any | null> => {
 
     return data ? mapProfile(data) : null;
   } catch (err) {
-    console.error('[dbService] getUserById failed:', err);
+    console.error('[dbService] getUserById failed:', err instanceof Error ? err.message : err);
     return null;
   }
 };
@@ -262,13 +302,16 @@ export const saveUser = async (user: any): Promise<boolean> => {
       email: user.email || '',
       updated_at: new Date().toISOString(),
     };
-    if (user.photoURL) row.photo_url = user.photoURL;
-    if (user.role)    row.role      = user.role;
-    if (user.rollNo)  row.roll_no   = user.rollNo;
-    if (user.course)  row.course    = user.course;
-    if (user.phone)   row.phone     = user.phone;
-    if (user.gender)  row.gender    = user.gender;
-    if (user.status)  row.status    = user.status;
+    if (user.photoURL !== undefined) row.photo_url = user.photoURL;
+    if (user.role !== undefined)     row.role      = user.role;
+    if (user.rollNo !== undefined)   row.roll_no   = user.rollNo;
+    if (user.course !== undefined)   row.course    = user.course;
+    if (user.phone !== undefined)    row.phone     = user.phone;
+    if (user.gender !== undefined)   row.gender    = user.gender;
+    if (user.bloodGroup !== undefined) row.blood_group = user.bloodGroup;
+    if (user.status !== undefined)   row.status    = user.status;
+    if (user.mentorId !== undefined) row.mentor_id = user.mentorId;
+    if (user.profileCompleted !== undefined) row.profile_completed = user.profileCompleted;
 
     const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
@@ -277,7 +320,7 @@ export const saveUser = async (user: any): Promise<boolean> => {
     }
     return true;
   } catch (err) {
-    console.error('[dbService] saveUser exception:', err);
+    console.error('[dbService] saveUser exception:', err instanceof Error ? err.message : err);
     return false;
   }
 };
@@ -317,6 +360,17 @@ export const updateUserProfile = async (
   if (error) console.error('[dbService] updateUserProfile error:', error.message);
 };
 
+export const deleteUser = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('[dbService] deleteUser error:', error.message);
+    throw error;
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ATTENDANCE OPERATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,7 +378,7 @@ export const updateUserProfile = async (
 export const getAttendance = async (userId?: string): Promise<any[]> => {
   let query = supabase
     .from('attendance')
-    .select('*')
+    .select('*, profiles(photo_url)')
     .order('date', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
 
@@ -355,7 +409,20 @@ export const addAttendance = async (record: any): Promise<any> => {
 
     if (error || (data && data.status === 'failure')) {
       const errorMsg = error?.message || data?.error;
-      console.warn('[dbService] addAttendance RPC failed, trying direct insert:', errorMsg);
+      console.warn('[dbService] addAttendance RPC failed, trying direct insert fallback check:', errorMsg);
+
+      // FALLBACK SAFETY: Check if a record already exists for today before direct insert
+      const { data: existing, error: checkError } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('user_id', record.userId)
+        .eq('date', record.date)
+        .is('check_out_time', null)
+        .maybeSingle();
+
+      if (!checkError && existing) {
+        return mapAttendance(existing);
+      }
 
       const row = {
         user_id: record.userId,
@@ -383,6 +450,22 @@ export const addAttendance = async (record: any): Promise<any> => {
 
     // RPC Success: handle both object and primitive returns for 'id'
     const finalId = data?.id || data;
+
+    // ── Automated Trigger: Check-in Notification ──
+    try {
+      await addNotification({
+        userId: record.userId,
+        type: record.status === 'Present' ? 'success' : 'warning',
+        title: `Attendance Marked: ${record.status}`,
+        message: record.status === 'Present' 
+          ? `You have successfully checked in for ${record.course || 'your session'}.`
+          : `You have been marked ${record.status} for ${record.course || 'your session'}.`,
+        data: { sessionId: finalId }
+      });
+    } catch (e) {
+      console.warn('[dbService] Automated check-in notification failed:', e);
+    }
+
     return { ...record, id: finalId };
   } catch (err) {
     console.error('[dbService] addAttendance exception:', err);
@@ -405,13 +488,111 @@ export const updateAttendance = async (
 
   if (Object.keys(row).length === 0) return; // nothing to update
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('attendance')
     .update(row)
-    .eq('id', id);
+    .eq('id', id)
+    .select('user_id, status, user_name, course')
+    .single();
+
   if (error) {
     console.error('[dbService] updateAttendance error:', error.message);
     throw error;
+  }
+
+  // ── Automated Trigger: Late Reason Status Update ──
+  if (updates.lateReasonStatus && data) {
+    try {
+      await addNotification({
+        userId: data.user_id,
+        type: updates.lateReasonStatus === 'Approved' ? 'success' : 'alert',
+        title: `Late Reason ${updates.lateReasonStatus}`,
+        message: `Your late reason for ${data.course || 'session'} has been ${updates.lateReasonStatus.toLowerCase()}.`,
+        data: { attendanceId: id }
+      });
+    } catch (e) {
+      console.warn('[dbService] Automated late reason notification failed:', e);
+    }
+  }
+};
+
+export const bulkMarkAttendance = async (records: any[]): Promise<void> => {
+  const rows = records.map(r => ({
+    user_id: r.userId,
+    user_name: r.userName || null,
+    roll_no: r.rollNo || null,
+    course: r.course || null,
+    date: r.date,
+    status: r.status,
+    check_in_time: r.checkInTime || new Date().toISOString(),
+  }));
+
+  const { error } = await supabase.from('attendance').insert(rows);
+  if (error) {
+    console.error('[dbService] bulkMarkAttendance error:', error.message);
+    throw error;
+  }
+
+  // ── Automated Trigger: Bulk Notifications ──
+  try {
+    const notifications = records.map(r => ({
+      user_id: r.userId,
+      type: 'success',
+      title: 'Attendance Marked (Bulk)',
+      message: `Your attendance for ${r.course || 'the session'} on ${r.date} has been marked as ${r.status} by Admin.`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }));
+    await supabase.from('notifications').insert(notifications);
+  } catch (e) {
+    console.warn('[dbService] Bulk attendance notifications failed:', e);
+  }
+};
+
+/**
+ * Marks all students who checked in today but haven't checked out yet as checked out.
+ * Usually called when the admin manually closes the attendance window.
+ */
+export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const time = checkoutTime || new Date().toISOString();
+    
+    const { data: records, error: fetchError } = await supabase
+      .from('attendance')
+      .select('id, user_id, user_name, course')
+      .eq('date', today)
+      .is('check_out_time', null);
+
+    if (fetchError) throw fetchError;
+    if (!records || records.length === 0) return;
+
+    const ids = records.map(r => r.id);
+    
+    const { error: updateError } = await supabase
+      .from('attendance')
+      .update({ check_out_time: time })
+      .in('id', ids);
+
+    if (updateError) throw updateError;
+
+    // Send notifications
+    try {
+      const notifications = records.map(r => ({
+        user_id: r.user_id,
+        type: 'info',
+        title: 'Check-out Marked',
+        message: `Your session for ${r.course || 'the class'} has ended. You have been checked out automatically.`,
+        is_read: false,
+        created_at: new Date().toISOString()
+      }));
+      await supabase.from('notifications').insert(notifications);
+    } catch (e) {
+      console.warn('[dbService] Bulk check-out notifications failed:', e);
+    }
+  } catch (err: any) {
+    console.error('[dbService] markBulkCheckOut error:', err.message);
+    throw err;
   }
 };
 
@@ -422,7 +603,7 @@ export const updateAttendance = async (
 export const getLeaveRequests = async (userId?: string): Promise<any[]> => {
   let query = supabase
     .from('leave_requests')
-    .select('*')
+    .select('*, profiles(photo_url)')
     .order('applied_on', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
 
@@ -464,11 +645,32 @@ export const updateLeaveRequestStatus = async (
   id: string,
   status: string
 ): Promise<void> => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('leave_requests')
     .update({ status, reviewed_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) console.error('[dbService] updateLeaveRequestStatus error:', error.message);
+    .eq('id', id)
+    .select('user_id, type')
+    .single();
+
+  if (error) {
+    console.error('[dbService] updateLeaveRequestStatus error:', error.message);
+    return;
+  }
+
+  // ── Automated Trigger: Leave Request Update ──
+  if (data) {
+    try {
+      await addNotification({
+        userId: data.user_id,
+        type: status === 'Approved' ? 'success' : 'alert',
+        title: `Leave Request ${status}`,
+        message: `Your ${data.type || 'leave'} request has been ${status.toLowerCase()}.`,
+        data: { requestId: id }
+      });
+    } catch (e) {
+      console.warn('[dbService] Automated leave notification failed:', e);
+    }
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -640,7 +842,7 @@ export const deleteDocument = async (id: string): Promise<void> => {
 
 export const getGeofenceSchedules = async (): Promise<any[]> => {
   const { data, error } = await supabase
-    .from('geofence_schedules')
+    .from('attendance_windows')
     .select('*')
     .order('created_at');
   if (error) {
@@ -653,6 +855,7 @@ export const getGeofenceSchedules = async (): Promise<any[]> => {
 export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
   const row = {
     time: schedule.time,
+    end_time: schedule.endTime || '17:00:00',
     days: schedule.days || [],
     lat: parseFloat(schedule.lat),
     lng: parseFloat(schedule.lng),
@@ -664,7 +867,7 @@ export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
   };
 
   const { data, error } = await supabase
-    .from('geofence_schedules')
+    .from('attendance_windows')
     .insert(row)
     .select()
     .single();
@@ -682,26 +885,44 @@ export const updateGeofenceSchedule = async (
 ): Promise<void> => {
   const row: Record<string, any> = {};
   if (updates.time !== undefined) row.time = updates.time;
+  if (updates.endTime !== undefined) row.end_time = updates.endTime;
   if (updates.days !== undefined) row.days = updates.days;
   if (updates.lat !== undefined) row.lat = parseFloat(updates.lat);
   if (updates.lng !== undefined) row.lng = parseFloat(updates.lng);
   if (updates.radius !== undefined) row.radius = parseInt(updates.radius);
-  if (updates.isActive !== undefined) row.is_active = updates.isActive;
-  if (updates.autoActivate !== undefined) row.auto_activate = updates.autoActivate;
+  if (typeof updates.isActive === 'boolean') row.is_active = updates.isActive;
+  if (typeof updates.autoActivate === 'boolean') row.auto_activate = updates.autoActivate;
   if (updates.locationName !== undefined) row.location_name = updates.locationName;
   if (updates.gracePeriod !== undefined) row.grace_period = updates.gracePeriod;
 
   const { error } = await supabase
-    .from('geofence_schedules')
+    .from('attendance_windows')
     .update(row)
     .eq('id', id);
   if (error)
     console.error('[dbService] updateGeofenceSchedule error:', error.message);
 };
 
+export const bulkUpdateGeofenceSchedules = async (
+  ids: string[],
+  updates: Partial<any>
+): Promise<void> => {
+  if (!ids.length) return;
+  const row: Record<string, any> = {};
+  if (typeof updates.isActive === 'boolean') row.is_active = updates.isActive;
+  if (typeof updates.autoActivate === 'boolean') row.auto_activate = updates.autoActivate;
+
+  const { error } = await supabase
+    .from('attendance_windows')
+    .update(row)
+    .in('id', ids);
+  if (error)
+    console.error('[dbService] bulkUpdateGeofenceSchedules error:', error.message);
+};
+
 export const deleteGeofenceSchedule = async (id: string): Promise<void> => {
   const { error } = await supabase
-    .from('geofence_schedules')
+    .from('attendance_windows')
     .delete()
     .eq('id', id);
   if (error)
@@ -726,11 +947,15 @@ export const toggleManualAttendanceWindow = async (
   lng: number = 0,
   radius: number = -999,
   locationName: string = 'Manual Selection',
-  gracePeriod: number = 15
+  gracePeriod: number = 15,
+  endTime?: string
 ): Promise<any> => {
   try {
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
     const { data, error } = await supabase
-      .from('geofence_schedules')
+      .from('attendance_windows')
       .update({ 
         is_active: active,
         lat: String(lat),
@@ -738,22 +963,33 @@ export const toggleManualAttendanceWindow = async (
         radius: radius,
         location_name: locationName,
         grace_period: gracePeriod,
-        time: new Date().toISOString() // Force a change so updated_at trigger always fires
+        end_time: endTime || '23:59', 
+        time: currentTimeStr // Store as HH:mm so StudentCheckInWidget can parse it
       })
-      .eq('radius', -999)
+      .or(`radius.eq.-999,location_name.eq."Manual Selection",location_name.eq."${locationName}"`)
       .select();
 
     if (error) throw error;
 
+    // Automated Trigger: Mark Bulk Check-out when window is closed
+    if (!active) {
+      try {
+        await markBulkCheckOut();
+      } catch (e) {
+        console.warn('[dbService] Automated bulk check-out failed:', e);
+      }
+    }
+
     if (!data || data.length === 0) {
       const { data: insData, error: insError } = await supabase
-        .from('geofence_schedules')
+        .from('attendance_windows')
         .insert({
           lat: String(lat),
           lng: String(lng),
           radius: -999,
           is_active: active,
           time: '00:00',
+          end_time: endTime || '23:59',
           days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
           auto_activate: false,
           location_name: locationName,
@@ -773,9 +1009,9 @@ export const toggleManualAttendanceWindow = async (
 /** Returns true if the admin has manually activated the window. */
 export const getManualWindowStatus = async (): Promise<boolean> => {
   const { data } = await supabase
-    .from('geofence_schedules')
+    .from('attendance_windows')
     .select('is_active')
-    .eq('radius', -999)
+    .or('radius.eq.-999,location_name.eq."Manual Selection"')
     .maybeSingle();
   return data?.is_active ?? false;
 };
@@ -802,6 +1038,50 @@ export const getNotifications = async (userId?: string): Promise<any[]> => {
   return (data || []).map(mapNotification);
 };
 
+export const addNotification = async (notification: any): Promise<void> => {
+  const row = {
+    user_id: notification.userId || null,
+    type: notification.type || 'info',
+    title: notification.title,
+    message: notification.message,
+    data: notification.data || [],
+    is_read: false,
+    created_at: new Date().toISOString()
+  };
+  const { error } = await supabase.from('notifications').insert(row);
+  if (error) {
+    console.error('[dbService] addNotification error:', error.message);
+    throw error;
+  }
+};
+
+export const broadcastNotification = async (notification: { title: string, message: string, type?: string }): Promise<void> => {
+  await addNotification({
+    userId: null, // This triggers broadcast logic in listenToCollection
+    type: notification.type || 'info',
+    title: notification.title,
+    message: notification.message,
+    data: { isBroadcast: true }
+  });
+};
+
+export const bulkAddNotifications = async (notifications: any[]): Promise<void> => {
+  const rows = notifications.map(n => ({
+    user_id: n.userId || null,
+    type: n.type || 'info',
+    title: n.title,
+    message: n.message,
+    data: n.data || [],
+    is_read: false,
+    created_at: new Date().toISOString()
+  }));
+  const { error } = await supabase.from('notifications').insert(rows);
+  if (error) {
+    console.error('[dbService] bulkAddNotifications error:', error.message);
+    throw error;
+  }
+};
+
 export const markNotificationRead = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('notifications')
@@ -820,6 +1100,22 @@ export const markAllNotificationsRead = async (userId?: string): Promise<void> =
     console.error('[dbService] markAllNotificationsRead error:', error.message);
 };
 
+export const toggleNotificationImportant = async (id: string, current: boolean): Promise<void> => {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_important: !current })
+    .eq('id', id);
+  if (error) console.error('[dbService] toggleNotificationImportant error:', error.message);
+};
+
+export const deleteNotification = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', id);
+  if (error) console.error('[dbService] deleteNotification error:', error.message);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -827,7 +1123,7 @@ export const markAllNotificationsRead = async (userId?: string): Promise<void> =
 export const getLeaderboard = async (): Promise<any[]> => {
   const { data, error } = await supabase
     .from('leaderboard')
-    .select('*')
+    .select('*, photo_url')
     .limit(20);
   if (error) {
     console.error('[dbService] getLeaderboard error:', error.message);
@@ -841,7 +1137,7 @@ export const getLeaderboard = async (): Promise<any[]> => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getAttendanceSummary = async (userId?: string): Promise<any[]> => {
-  let query = supabase.from('attendance_summary').select('*');
+  let query = supabase.from('attendance_summary').select('*, photo_url');
   if (userId) query = query.eq('user_id', userId);
 
   const { data, error } = await query;
@@ -878,7 +1174,11 @@ export const listenToCollection = (
 
   // ── Build the base query ──────────────────────────────────────────────────
   const buildQuery = () => {
-    let query = supabase.from(table).select('*');
+    let selectStr = '*';
+    if (table === 'attendance' || table === 'leave_requests') {
+      selectStr = '*, profiles(photo_url)';
+    }
+    let query = supabase.from(table).select(selectStr);
 
     if (userId && (table === 'attendance' || table === 'leave_requests')) {
       query = query.eq('user_id', userId);
@@ -902,6 +1202,7 @@ export const listenToCollection = (
 
   // ── Cache (to apply optimistic local diffs) ───────────────────────────────
   let cache: any[] = [];
+  let hasInitialLoaded = false;
 
   const fetchAndCallback = async () => {
     try {
@@ -909,14 +1210,29 @@ export const listenToCollection = (
       if (error) {
         console.error(`[dbService] listenToCollection fetch error (${table}):`, error.message);
         // UNBLOCK UI: Even on error, we must signal that we "loaded" (likely empty)
-        callback(cache || []);
+        if (!hasInitialLoaded) {
+          hasInitialLoaded = true;
+          callback(cache || []);
+        }
         return;
       }
-      cache = (data || []).map((row) => mapRow(table, row));
-      callback(cache);
+      
+      
+      const mapped = (data || []).map((row) => mapRow(table, row));
+      
+      // OPTIMIZATION: Only trigger callback if data actually changed to prevent re-render loops
+      // EXCEPTION: First load must always trigger callback to unblock UI loading states
+      if (JSON.stringify(mapped) !== JSON.stringify(cache) || !hasInitialLoaded) {
+        cache = mapped;
+        hasInitialLoaded = true;
+        callback(cache);
+      }
     } catch (e) {
       console.error(`[dbService] listenToCollection catch error (${table}):`, e);
-      callback(cache || []);
+      if (!hasInitialLoaded) {
+        hasInitialLoaded = true;
+        callback(cache || []);
+      }
     }
   };
 
@@ -935,12 +1251,11 @@ export const listenToCollection = (
         const { eventType, new: newRow, old: oldRow } = payload;
 
         // ── Scope filter ──────────────────────────────────────────────────
-        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules') {
+        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'attendance_windows') {
           const rowUserId = newRow?.user_id ?? oldRow?.user_id;
           if (rowUserId && rowUserId !== userId) return;
         }
 
-        console.log(`[Realtime] ${table} → ${eventType}`, { id: newRow?.id || oldRow?.id });
 
         // ── Optimistic local diff (With Deep Merge) ───────────────────────
         if (eventType === 'INSERT' && newRow) {
@@ -970,9 +1285,8 @@ export const listenToCollection = (
     )
     .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
-        console.log(`[Realtime] Subscribed ✓ table="${table}" channel="${channelName}"`);
+        // Subscribed successfully
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn(`[Realtime] ${status} on ${table}:`, err);
         // Attempt a one-time re-fetch on timeout for immediate UI consistency
         fetchAndCallback();
       }
@@ -983,7 +1297,7 @@ export const listenToCollection = (
   // dashboard, this visually guarantees the app universally auto-refreshes.
   const intervalId = setInterval(() => {
     fetchAndCallback();
-  }, 10000);
+  }, 3000); // Poll every 3 seconds as a relaxed fallback (was 5s)
 
   return () => {
     clearInterval(intervalId);
@@ -1043,3 +1357,77 @@ export const deleteMentor = async (id: string): Promise<void> => {
     .eq('id', id);
   if (error) console.error('[dbService] deleteMentor error:', error.message);
 };
+export const clearDatabase = async (): Promise<boolean> => {
+  try {
+    // 1. Delete all attendance records
+    await supabase.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    // 2. Delete all leave requests
+    await supabase.from('leave_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    // 3. Delete all documents and clear storage
+    const { data: docs } = await supabase.from('documents').select('storage_key');
+    if (docs && docs.length > 0) {
+      const keys = docs.map(d => d.storage_key).filter(Boolean);
+      if (keys.length > 0) {
+        await supabase.storage.from('documents').remove(keys);
+      }
+    }
+    await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    // 4. Delete all notifications
+    await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    // 5. Reset all profiles' attendance percentages and mentor associations
+    await supabase.from('profiles').update({ 
+      attendance_pct: 0,
+      mentor_id: null 
+    }).neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // 6. Delete all mentors
+    await supabase.from('mentors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // 7. Delete all student users (keep admins)
+    await supabase.from('users').delete().eq('role', 'student');
+    await supabase.from('profiles').delete().eq('role', 'student');
+
+    return true;
+  } catch (err) {
+    console.error('[dbService] clearDatabase error:', err instanceof Error ? err.message : err);
+    return false;
+  }
+};
+
+// ─── SYSTEM SETTINGS ────────────────────────────────────────────────────────
+
+export const getSystemSettings = async (): Promise<any> => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('*')
+    .maybeSingle();
+  if (error) {
+    console.error('[dbService] getSystemSettings error:', error.message);
+    return null;
+  }
+  return data;
+};
+
+export const updateSystemSettings = async (updates: any): Promise<boolean> => {
+  // Clean the updates object to prevent issues with primary keys or protected fields
+  const { id, created_at, ...payload } = updates;
+  
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ 
+      id: '00000000-0000-0000-0000-000000000001',
+      ...payload, 
+      updated_at: new Date().toISOString() 
+    });
+    
+  if (error) {
+    console.error('[dbService] updateSystemSettings error:', error.message);
+    return false;
+  }
+  return true;
+};
+

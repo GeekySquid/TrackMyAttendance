@@ -30,29 +30,49 @@ export default function StudentStatsGrid({ userId }: { userId?: string }) {
 
   // Streak: consecutive days from today backwards where student was present/late
   const streak = (() => {
-    const sorted = [...attendanceLogs]
-      .filter((r) => r.status === 'Present' || r.status === 'Late')
-      .map((r) => r.date)
-      .sort((a, b) => (a < b ? 1 : -1)); // newest first
+    // 1. Deduplicate by date (take best status if multiple records for same day)
+    const recordsByDate = new Map<string, string>();
+    attendanceLogs.forEach(r => {
+      const existing = recordsByDate.get(r.date);
+      if (!existing || (r.status === 'Present' && existing !== 'Present')) {
+        recordsByDate.set(r.date, r.status);
+      }
+    });
+
+    const sortedDates = Array.from(recordsByDate.keys()).sort((a, b) => (a < b ? 1 : -1));
 
     let count = 0;
     let cursor = new Date();
     cursor.setHours(0, 0, 0, 0);
 
-    for (const dateStr of sorted) {
+    for (const dateStr of sortedDates) {
+      const status = recordsByDate.get(dateStr);
       const d = new Date(dateStr + 'T00:00:00');
-      const diff = Math.round(
-        (cursor.getTime() - d.getTime()) / 86400000
-      );
+      const diff = Math.round((cursor.getTime() - d.getTime()) / 86400000);
+
+      // If this record is from today or yesterday
       if (diff === 0 || diff === 1) {
-        count++;
-        cursor = d;
-      } else {
+        if (status === 'Present' || status === 'Late') {
+          count++;
+          cursor = d;
+        } else {
+          // If the record exists but is Absent/Half Day, break the streak
+          // (Unless it's 'today' and we haven't checked in yet? 
+          // Usually streak continues if yesterday was good, until today ends.
+          // But if there IS an Absent record for today, break it.)
+          break;
+        }
+      } else if (diff > 1) {
+        // Gap in attendance, break streak
         break;
       }
     }
     return count;
   })();
+
+  // Sessions Attended Today
+  const today = new Date().toLocaleDateString('en-CA');
+  const sessionsToday = attendanceLogs.filter(r => r.date === today).length;
 
   // Rank & score from leaderboard view
   const myEntry = userId
@@ -64,93 +84,91 @@ export default function StudentStatsGrid({ userId }: { userId?: string }) {
 
   // Progress label
   const nextBadge = 15 - (streak % 15);
-  const attendanceTrend =
-    attendancePct > 90
-      ? '+Good standing'
-      : attendancePct > 75
-      ? 'Needs improvement'
-      : '⚠ Low attendance';
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
+    <div className="grid grid-cols-2 gap-3 lg:gap-4">
       {/* Streak */}
-      <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200 p-6 flex flex-col justify-center">
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-200 shrink-0">
-            <Flame className="w-6 h-6" />
+      <div className="bg-gradient-to-br from-orange-500/10 via-orange-50/30 to-white rounded-3xl border border-orange-200/50 p-3 lg:p-4 flex flex-col justify-center transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/20 hover:scale-[1.02] group relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-20 h-20 bg-orange-400/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+        <div className="flex flex-row lg:flex-col lg:items-start items-center gap-2 lg:gap-3 mb-2 lg:mb-3 relative z-10">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-orange-500/30 shrink-0 group-hover:rotate-12 transition-transform duration-500">
+            <Flame className="w-5 h-5 lg:w-6 lg:h-6" />
           </div>
-          <div>
-            <p className="text-xs font-bold text-orange-800 uppercase tracking-wider">Current Streak</p>
-            <h4 className="text-2xl font-black text-orange-900">
+          <div className="min-w-0">
+            <p className="text-[9px] lg:text-[10px] font-black text-orange-800/50 uppercase tracking-[0.2em] truncate mb-0.5">Streak</p>
+            <h4 className="text-lg lg:text-xl font-black text-orange-950 truncate tracking-tight">
               {streak > 0 ? `${streak} Day${streak !== 1 ? 's' : ''}` : '0 Days'}
             </h4>
           </div>
         </div>
-        <p className="text-xs font-medium text-orange-700 mt-2 bg-orange-200/50 py-1 px-2 rounded inline-block w-fit">
-          {streak > 0
-            ? `${nextBadge} day${nextBadge !== 1 ? 's' : ''} to next badge!`
-            : 'Check in to start your streak!'}
-        </p>
+        <div className="relative z-10">
+          <p className="text-[10px] lg:text-[11px] font-black text-orange-700 bg-orange-200/40 py-2 px-4 rounded-xl inline-block w-fit truncate max-w-full border border-orange-200/50">
+            {streak > 0 ? `${nextBadge} DAYS TO LEVEL UP` : 'START YOUR JOURNEY'}
+          </p>
+        </div>
+      </div>
+
+      {/* Sessions Attended Today */}
+      <div className="bg-gradient-to-br from-blue-500/10 via-blue-50/30 to-white rounded-3xl border border-blue-200/50 p-3 lg:p-4 flex flex-col justify-center transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 hover:scale-[1.02] group relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+        <div className="flex flex-row lg:flex-col lg:items-start items-center gap-2 lg:gap-3 mb-2 lg:mb-3 relative z-10">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-white shadow-xl shadow-blue-500/30 shrink-0 group-hover:rotate-12 transition-transform duration-500">
+            <CheckCircle className="w-5 h-5 lg:w-6 lg:h-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] lg:text-[10px] font-black text-blue-800/50 uppercase tracking-[0.2em] truncate mb-0.5">Attendance</p>
+            <h4 className="text-lg lg:text-xl font-black text-blue-950 truncate tracking-tight">
+              {sessionsToday} Session{sessionsToday !== 1 ? 's' : ''}
+            </h4>
+          </div>
+        </div>
+        <div className="relative z-10">
+          <p className="text-[10px] lg:text-[11px] font-black text-blue-700 bg-blue-200/40 py-2 px-4 rounded-xl inline-block w-fit truncate max-w-full border border-blue-200/50">
+            {sessionsToday > 0 ? 'KEEP IT UP!' : 'READY TO TRACK'}
+          </p>
+        </div>
       </div>
 
       {/* Points / Score */}
-      <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 p-6 flex flex-col justify-center">
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-yellow-900 shadow-lg shadow-yellow-200 shrink-0">
-            <Star className="w-6 h-6" />
+      <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-50/30 to-white rounded-3xl border border-yellow-200/50 p-3 lg:p-4 flex flex-col justify-center transition-all duration-500 hover:shadow-2xl hover:shadow-yellow-500/20 hover:scale-[1.02] group relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-400/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+        <div className="flex flex-row lg:flex-col lg:items-start items-center gap-2 lg:gap-3 mb-2 lg:mb-3 relative z-10">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl flex items-center justify-center text-yellow-950 shadow-xl shadow-yellow-500/30 shrink-0 group-hover:rotate-12 transition-transform duration-500">
+            <Star className="w-5 h-5 lg:w-6 lg:h-6" />
           </div>
-          <div>
-            <p className="text-xs font-bold text-yellow-800 uppercase tracking-wider">Total Points</p>
-            <h4 className="text-2xl font-black text-yellow-900">
+          <div className="min-w-0">
+            <p className="text-[9px] lg:text-[10px] font-black text-yellow-800/50 uppercase tracking-[0.2em] truncate mb-0.5">Points</p>
+            <h4 className="text-lg lg:text-xl font-black text-yellow-900 truncate tracking-tight">
               {score !== '--' ? score.toLocaleString() : '--'}
             </h4>
           </div>
         </div>
-        <p className="text-xs font-medium text-yellow-700 mt-2 bg-yellow-200/50 py-1 px-2 rounded inline-block w-fit">
-          {myEntry ? `Top ${Math.ceil((rank / totalInBoard) * 100)}% of your class` : 'No ranking data yet'}
-        </p>
-      </div>
-
-      {/* Attendance % */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col justify-center">
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0">
-            <CheckCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Overall Attendance</p>
-            <h4 className="text-2xl font-black text-gray-800">
-              {totalDays > 0 ? `${attendancePct}%` : '--'}
-            </h4>
-          </div>
+        <div className="relative z-10">
+          <p className="text-[10px] lg:text-[11px] font-black text-yellow-700 bg-yellow-200/40 py-2 px-4 rounded-xl inline-block w-fit truncate max-w-full border border-yellow-200/50">
+            {myEntry ? `TOP ${Math.ceil((rank / totalInBoard) * 100)}% PERFORMANCE` : 'CALCULATING...'}
+          </p>
         </div>
-        <p className={`text-xs font-medium mt-2 py-1 px-2 rounded inline-block w-fit ${
-          attendancePct > 90
-            ? 'text-green-600 bg-green-50'
-            : attendancePct > 75
-            ? 'text-orange-600 bg-orange-50'
-            : 'text-red-600 bg-red-50'
-        }`}>
-          {totalDays > 0 ? attendanceTrend : 'No records yet'}
-        </p>
       </div>
 
       {/* Class Rank */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col justify-center">
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center text-purple-600 shrink-0">
-            <Trophy className="w-6 h-6" />
+      <div className="bg-gradient-to-br from-purple-600 via-purple-800 to-indigo-900 rounded-3xl border border-white/20 p-3 lg:p-4 flex flex-col justify-center transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/30 hover:scale-[1.02] group relative overflow-hidden text-white shadow-xl">
+        <div className="absolute top-[-10%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+        <div className="flex flex-row lg:flex-col lg:items-start items-center gap-2 lg:gap-3 mb-2 lg:mb-3 relative z-10">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-white border border-white/20 shadow-lg shrink-0 group-hover:rotate-12 transition-transform duration-500">
+            <Trophy className="w-5 h-5 lg:w-6 lg:h-6" />
           </div>
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Class Rank</p>
-            <h4 className="text-2xl font-black text-gray-800">
+          <div className="min-w-0">
+            <p className="text-[9px] lg:text-[10px] font-black text-white/50 uppercase tracking-[0.2em] truncate mb-0.5">Rank</p>
+            <h4 className="text-lg lg:text-xl font-black text-white truncate tracking-tight">
               {rank !== '--' ? `${rank}${getRankSuffix(rank)}` : '--'}
             </h4>
           </div>
         </div>
-        <p className="text-xs font-medium text-purple-600 mt-2 bg-purple-50 py-1 px-2 rounded inline-block w-fit">
-          {totalInBoard > 0 ? `Out of ${totalInBoard} students` : 'No ranking data yet'}
-        </p>
+        <div className="relative z-10">
+          <p className="text-[10px] lg:text-[11px] font-black text-white bg-white/10 py-2 px-4 rounded-xl inline-block w-fit truncate max-w-full border border-white/10 backdrop-blur-sm">
+            {totalInBoard > 0 ? `OUT OF ${totalInBoard} STUDENTS` : 'RANK PENDING'}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -159,7 +177,9 @@ export default function StudentStatsGrid({ userId }: { userId?: string }) {
 function getRankSuffix(rank: number | string): string {
   const n = Number(rank);
   if (isNaN(n)) return '';
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
+  const j = n % 10, k = n % 100;
+  if (j === 1 && k !== 11) return "st";
+  if (j === 2 && k !== 12) return "nd";
+  if (j === 3 && k !== 13) return "rd";
+  return "th";
 }

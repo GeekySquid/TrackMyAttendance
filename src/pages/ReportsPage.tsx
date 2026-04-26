@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf } from 'lucide-react';
 import { listenToCollection } from '../services/dbService';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -110,6 +111,8 @@ export default function ReportsPage() {
     // Default sort by date descending
     filteredData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
+
+  const { visibleItems, sentinelRef } = useInfiniteScroll(filteredData, 10, 5);
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -369,37 +372,37 @@ export default function ReportsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">To Date</label>
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">To Date</label>
             <input 
               type="date" 
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm font-bold text-gray-700"
             />
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto border border-gray-100 rounded-lg">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('date')}>
+        {/* Table Container with Fixed Height & Infinite Scroll */}
+        <div className="table-fixed-height border border-gray-100 rounded-lg">
+          <table className="w-full text-left border-collapse table-responsive">
+            <thead className="sticky top-0 z-20 bg-gray-50">
+              <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('date')}>
                   Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('userName')}>
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('userName')}>
                   Student {sortConfig?.key === 'userName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('course')}>
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('course')}>
                   Course {sortConfig?.key === 'course' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkInTime')}>
-                  Check-in {sortConfig?.key === 'checkInTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkInTime')}>
+                  In {sortConfig?.key === 'checkInTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkOutTime')}>
-                  Check-out {sortConfig?.key === 'checkOutTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkOutTime')}>
+                  Out {sortConfig?.key === 'checkOutTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-4 py-3 font-bold cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('status')}>
+                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('status')}>
                   Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
               </tr>
@@ -410,20 +413,25 @@ export default function ReportsPage() {
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No records found for the selected filters.</td>
                 </tr>
               ) : (
-                filteredData.slice(0, 50).map((record, i) => {
+                visibleItems.map((record, i) => {
                   const recordName = record.userName || record.name || record.studentName || 'Unknown';
                   return (
                   <tr key={record.id || i} className="hover:bg-gray-50/50 text-sm transition-colors">
-                    <td className="px-4 py-3 text-gray-600">{record.date}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{recordName} <span className="text-xs text-gray-400 font-normal ml-1">({record.rollNo})</span></td>
-                    <td className="px-4 py-3 text-gray-600">{record.course}</td>
-                    <td className="px-4 py-3 text-gray-600">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                    <td className="px-4 py-3 text-gray-600">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        record.status === 'Present' ? 'bg-green-100 text-green-700' :
-                        record.status === 'Late' ? 'bg-orange-100 text-orange-700' :
-                        'bg-red-100 text-red-700'
+                    <td className="px-4 py-3 text-gray-600" data-label="Date">{record.date}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800" data-label="Student">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-left">{recordName}</span>
+                        <span className="text-[10px] text-gray-400 font-medium text-left">{record.rollNo}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600" data-label="Course">{record.course}</td>
+                    <td className="px-4 py-3 text-gray-600 font-bold" data-label="In">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+                    <td className="px-4 py-3 text-gray-600" data-label="Out">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+                    <td className="px-4 py-3 text-right" data-label="Status">
+                      <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                        record.status === 'Present' ? 'bg-green-50 text-green-700 border border-green-100' :
+                        record.status === 'Late' ? 'bg-orange-50 text-orange-700 border border-orange-100' :
+                        'bg-red-50 text-red-700 border border-red-100'
                       }`}>
                         {record.status}
                       </span>
@@ -433,11 +441,7 @@ export default function ReportsPage() {
               )}
             </tbody>
           </table>
-          {filteredData.length > 50 && (
-            <div className="p-3 text-center text-xs text-gray-500 bg-gray-50 border-t border-gray-100">
-              Showing 50 of {filteredData.length} records. Export to view all.
-            </div>
-          )}
+          <div ref={sentinelRef} className="h-4" />
         </div>
       </div>
 

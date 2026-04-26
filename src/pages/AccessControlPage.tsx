@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, GripVertical, Check, Plus, XCircle } from 'lucide-react';
+import { Shield, Users, GripVertical, Check, Plus, XCircle, Loader2 } from 'lucide-react';
 import { listenToCollection, updateUserRole, saveUser, getRoles, saveRoles } from '../services/dbService';
 
 type User = { id: string; uid?: string; name: string; email: string; roleId: string | null };
@@ -20,9 +20,12 @@ export default function AccessControlPage() {
   const [draggedUserId, setDraggedUserId] = useState<string | null>(null);
 
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<string | null>(null);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [isSavingRole, setIsSavingRole] = useState(false);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('users', (data) => {
@@ -96,6 +99,22 @@ export default function AccessControlPage() {
     setNewUserEmail('');
     setNewUserRole(null);
     setShowAddUserModal(false);
+  };
+
+  const handleCreateRole = async () => {
+    if (!newRoleName) return;
+    setIsSavingRole(true);
+    const newRole: Role = {
+      id: `r-${Date.now()}`,
+      name: newRoleName,
+      modules: ['Dashboard'] // Default access
+    };
+    const updatedRoles = [...roles, newRole];
+    setRoles(updatedRoles);
+    await saveRoles(updatedRoles);
+    setNewRoleName('');
+    setShowAddRoleModal(false);
+    setIsSavingRole(false);
   };
 
   const unassignedUsers = users.filter(u => u.roleId === null || u.roleId === undefined);
@@ -236,12 +255,54 @@ export default function AccessControlPage() {
           })}
           
           {/* Add New Role Button */}
-          <button className="h-[200px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all">
-            <Plus className="w-8 h-8 mb-2" />
+          <button 
+            onClick={() => setShowAddRoleModal(true)}
+            className="h-[200px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all group"
+          >
+            <div className="w-12 h-12 rounded-full bg-gray-50 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors">
+              <Plus className="w-6 h-6" />
+            </div>
             <span className="font-bold">Create New Role</span>
           </button>
         </div>
       </div>
+
+      {/* Add Role Modal */}
+      {showAddRoleModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Create New Role</h3>
+              <button onClick={() => setShowAddRoleModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Role Name</label>
+              <input 
+                type="text" 
+                autoFocus
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateRole()}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="e.g. Moderator"
+              />
+              <p className="text-[10px] text-gray-400 mt-2">New roles have basic 'Dashboard' access by default.</p>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setShowAddRoleModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+              <button 
+                onClick={handleCreateRole} 
+                disabled={!newRoleName || isSavingRole}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSavingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Role'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddUserModal && (

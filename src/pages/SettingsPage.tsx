@@ -15,7 +15,17 @@ import {
   Building,
   UserCheck
 } from 'lucide-react';
-import { saveUser, addAttendance, addLeaveRequest, getMentors, saveMentor, deleteMentor } from '../services/dbService';
+import { 
+  saveUser, 
+  addAttendance, 
+  addLeaveRequest, 
+  getMentors, 
+  saveMentor, 
+  deleteMentor, 
+  clearDatabase,
+  getSystemSettings,
+  updateSystemSettings
+} from '../services/dbService';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?: 'admin' | 'student', user?: any, onUpdate?: (u: any) => void }) {
@@ -23,8 +33,31 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const [activeTab, setActiveTab] = useState(location.state?.tab || (role === 'admin' ? 'general' : 'profile'));
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [mentors, setMentors] = useState<any[]>([]);
   const [newMentor, setNewMentor] = useState({ name: '', phone: '' });
+  const [localSettings, setLocalSettings] = useState<any>({});
+  const [isLoadingSettings, setIsLoadingSettings] = useState(role === 'admin');
+
+  useEffect(() => {
+    if (role === 'admin') {
+      fetchSettings();
+    }
+  }, [role]);
+
+  const fetchSettings = async () => {
+    setIsLoadingSettings(true);
+    const data = await getSystemSettings();
+    if (data) {
+      setLocalSettings(data);
+    }
+    setIsLoadingSettings(false);
+  };
+
+  const handleSettingsChange = (updates: any) => {
+    setLocalSettings((prev: any) => ({ ...prev, ...updates }));
+  };
+
 
   const handleProfileSave = async (updatedData: any) => {
     if (user?.id || user?.uid) {
@@ -70,12 +103,36 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     }
   }, [location.state?.tab]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    const success = await updateSystemSettings(localSettings);
+    if (success) {
       toast.success('All changes saved successfully!');
-    }, 800);
+    } else {
+      toast.error('Failed to save settings');
+    }
+    setIsSaving(false);
+  };
+
+
+  const handleClearDatabase = async () => {
+    if (!window.confirm('CRITICAL ACTION: Are you sure you want to clear ALL attendance data, leave requests, and documents? This cannot be undone.')) {
+      return;
+    }
+    
+    setIsClearing(true);
+    try {
+      const success = await clearDatabase();
+      if (success) {
+        toast.success('Database cleared successfully');
+      } else {
+        toast.error('Failed to clear database');
+      }
+    } catch (err) {
+      toast.error('An error occurred while clearing the database');
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const generateDemoData = async () => {
@@ -254,36 +311,54 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Institution Name</label>
-                    <input type="text" defaultValue="Techwood University" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input 
+                      type="text" 
+                      value={localSettings.institution_name || ''} 
+                      onChange={(e) => handleSettingsChange({ institution_name: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Academic Year</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option>2023 - 2024</option>
-                      <option selected>2024 - 2025</option>
-                      <option>2025 - 2026</option>
+                    <select 
+                      value={localSettings.academic_year || ''}
+                      onChange={(e) => handleSettingsChange({ academic_year: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
+                    >
+                      <option value="2023 - 2024">2023 - 2024</option>
+                      <option value="2024 - 2025">2024 - 2025</option>
+                      <option value="2025 - 2026">2025 - 2026</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Timezone</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option selected>America/New_York (EST)</option>
-                      <option>America/Los_Angeles (PST)</option>
-                      <option>Europe/London (GMT)</option>
-                      <option>Asia/Kolkata (IST)</option>
+                    <select 
+                      value={localSettings.timezone || ''}
+                      onChange={(e) => handleSettingsChange({ timezone: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
+                    >
+                      <option value="America/New_York (EST)">America/New_York (EST)</option>
+                      <option value="America/Los_Angeles (PST)">America/Los_Angeles (PST)</option>
+                      <option value="Europe/London (GMT)">Europe/London (GMT)</option>
+                      <option value="Asia/Kolkata (IST)">Asia/Kolkata (IST)</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Date Format</label>
-                    <select className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option selected>MM/DD/YYYY</option>
-                      <option>DD/MM/YYYY</option>
-                      <option>YYYY-MM-DD</option>
+                    <select 
+                      value={localSettings.date_format || ''}
+                      onChange={(e) => handleSettingsChange({ date_format: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
+                    >
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                     </select>
                   </div>
                 </div>
               </div>
             )}
+
 
             {activeTab === 'attendance' && (
               <div className="space-y-6 animate-in fade-in duration-300">
@@ -295,11 +370,21 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Standard Check-in Time</label>
-                    <input type="time" defaultValue="08:30" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input 
+                      type="time" 
+                      value={localSettings.check_in_time ? localSettings.check_in_time.substring(0, 5) : '08:30'} 
+                      onChange={(e) => handleSettingsChange({ check_in_time: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Standard Check-out Time</label>
-                    <input type="time" defaultValue="15:30" className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input 
+                      type="time" 
+                      value={localSettings.check_out_time ? localSettings.check_out_time.substring(0, 5) : '15:30'} 
+                      onChange={(e) => handleSettingsChange({ check_out_time: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                    />
                   </div>
                 </div>
 
@@ -310,7 +395,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500">Grace period before a student is marked "Late"</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input type="number" defaultValue="15" className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.late_threshold_mins || 15} 
+                        onChange={(e) => handleSettingsChange({ late_threshold_mins: parseInt(e.target.value) })}
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                       <span className="text-sm text-gray-600 font-medium">mins</span>
                     </div>
                   </div>
@@ -321,13 +411,19 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500">Minimum hours required for a full day present mark</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input type="number" defaultValue="4" className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.half_day_threshold_hours || 4} 
+                        onChange={(e) => handleSettingsChange({ half_day_threshold_hours: parseInt(e.target.value) })}
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                       <span className="text-sm text-gray-600 font-medium">hours</span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
 
             {activeTab === 'alerts' && (
               <div className="space-y-6 animate-in fade-in duration-300">
@@ -351,7 +447,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Alert admin when a student's overall attendance drops below this percentage.</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input type="number" defaultValue="75" className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.low_attendance_threshold || 75} 
+                        onChange={(e) => handleSettingsChange({ low_attendance_threshold: parseInt(e.target.value) })}
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                       <span className="text-sm text-gray-600 font-bold">%</span>
                     </div>
                   </div>
@@ -362,7 +463,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Flag students who are absent for consecutive days to schedule a follow-up.</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input type="number" defaultValue="3" className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.consecutive_absences_threshold || 3} 
+                        onChange={(e) => handleSettingsChange({ consecutive_absences_threshold: parseInt(e.target.value) })}
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                       <span className="text-sm text-gray-600 font-bold">days</span>
                     </div>
                   </div>
@@ -373,13 +479,19 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Send automated SMS/Email to parents when thresholds are breached.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={localSettings.auto_notify_parents ?? true} 
+                        onChange={(e) => handleSettingsChange({ auto_notify_parents: e.target.checked })}
+                      />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                   </div>
                 </div>
               </div>
             )}
+
 
             {activeTab === 'awards' && (
               <div className="space-y-6 animate-in fade-in duration-300">
@@ -399,7 +511,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={localSettings.enable_monthly_awards ?? true} 
+                      onChange={(e) => handleSettingsChange({ enable_monthly_awards: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-blue-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
@@ -410,11 +527,21 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="border border-gray-200 rounded-lg p-4">
                       <label className="block text-xs font-bold text-gray-700 mb-2">Minimum Attendance %</label>
-                      <input type="number" defaultValue="95" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.min_attendance_for_award || 95} 
+                        onChange={(e) => handleSettingsChange({ min_attendance_for_award: parseInt(e.target.value) })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                     </div>
                     <div className="border border-gray-200 rounded-lg p-4">
                       <label className="block text-xs font-bold text-gray-700 mb-2">Max Allowed Late Marks</label>
-                      <input type="number" defaultValue="0" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input 
+                        type="number" 
+                        value={localSettings.max_late_for_award || 0} 
+                        onChange={(e) => handleSettingsChange({ max_late_for_award: parseInt(e.target.value) })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
+                      />
                     </div>
                   </div>
 
@@ -424,13 +551,19 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <p className="text-xs text-gray-500 mt-1">Create downloadable PDF certificates for winners.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={localSettings.auto_generate_certificates ?? true} 
+                        onChange={(e) => handleSettingsChange({ auto_generate_certificates: e.target.checked })}
+                      />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                   </div>
                 </div>
               </div>
             )}
+
 
             {activeTab === 'security' && (
               <div className="space-y-6 animate-in fade-in duration-300">
@@ -440,7 +573,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                  <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg bg-gray-50/30">
                     <div className="flex items-center gap-3">
                       <UserCheck className="w-5 h-5 text-gray-400" />
                       <div>
@@ -449,8 +582,8 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <input type="checkbox" className="sr-only peer" disabled />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 opacity-50"></div>
                     </label>
                   </div>
                   
@@ -464,7 +597,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                         </div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={localSettings.strict_device_binding ?? true} 
+                          onChange={(e) => handleSettingsChange({ strict_device_binding: e.target.checked })}
+                        />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
@@ -473,6 +611,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
               </div>
             )}
 
+
             {activeTab === 'data' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="mb-6">
@@ -480,7 +619,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <p className="text-sm text-gray-500">Manage application data and testing tools.</p>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-6">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
                   <div className="flex items-start gap-4">
                     <div className="p-3 bg-blue-100 rounded-lg text-blue-600 shrink-0">
                       <Database className="w-6 h-6" />
@@ -510,6 +649,39 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-red-50 border border-red-100 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-red-100 rounded-lg text-red-600 shrink-0">
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-gray-800">System Reset (Fresh Start)</h4>
+                      <p className="text-sm text-gray-600 mt-1 mb-4">
+                        Permanently delete ALL student accounts, attendance records, leave requests, mentors, and documents. 
+                        This action will return the system to a clean state for a new academic year or fresh testing cycle.
+                      </p>
+                      <button 
+                        onClick={handleClearDatabase}
+                        disabled={isClearing}
+                        className="bg-red-600 text-white text-sm py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-red-200 hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        {isClearing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Resetting System...
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-4 h-4" />
+                            Reset Complete Database
+                          </>
+                        )}
+                      </button>
+                      <p className="text-[10px] text-red-400 font-bold mt-3 uppercase tracking-widest">Warning: This action is irreversible.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -528,14 +700,14 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       placeholder="Mentor Name" 
                       value={newMentor.name}
                       onChange={(e) => setNewMentor({...newMentor, name: e.target.value})}
-                      className="border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                     <input 
                       type="tel" 
                       placeholder="Phone Number" 
                       value={newMentor.phone}
                       onChange={(e) => setNewMentor({...newMentor, phone: e.target.value})}
-                      className="border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                     <button 
                       onClick={handleAddMentor}
@@ -589,7 +761,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       type="text" 
                       value={user?.name || ''} 
                       onChange={(e) => handleProfileSave({ name: e.target.value })}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                   </div>
                   <div>
@@ -598,7 +770,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       type="email" 
                       value={user?.email || ''} 
                       disabled
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                     />
                   </div>
                   {user?.role === 'student' && (
@@ -609,7 +781,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                           type="text" 
                           value={user?.rollNo || ''} 
                           disabled
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                         />
                       </div>
                       <div>
@@ -618,7 +790,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                           type="text" 
                           value={user?.course || ''} 
                           disabled
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" 
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                         />
                       </div>
                     </>
@@ -630,7 +802,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       value={user?.phone || ''}
                       onChange={(e) => handleProfileSave({ phone: e.target.value })}
                       placeholder="+1 (555) 123-4567" 
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                   </div>
                   <div>
@@ -638,7 +810,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     <select 
                       value={user?.mentorId || ''}
                       onChange={(e) => handleProfileSave({ mentorId: e.target.value })}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
                     >
                       <option value="">No Mentor Assigned</option>
                       {mentors.map(m => (
@@ -653,7 +825,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                         <select 
                           value={user?.gender || ''}
                           onChange={(e) => handleProfileSave({ gender: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
                         >
                           <option value="">Select</option>
                           <option value="Male">Male</option>
@@ -666,7 +838,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                         <select 
                           value={user?.bloodGroup || ''}
                           onChange={(e) => handleProfileSave({ bloodGroup: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
                         >
                           <option value="">Select</option>
                           <option value="A+">A+</option>

@@ -48,7 +48,7 @@ export default function StudentLeaveBalance({ userId }: { userId?: string }) {
             <div key={i} className={`p-4 rounded-lg border ${leave.border} ${leave.bg}`}>
               <div className="flex justify-between items-center mb-2">
                 <span className={`text-sm font-bold ${leave.color}`}>{leave.type}</span>
-                <span className="text-xs font-bold text-gray-700">{leave.total - leave.used} Left</span>
+                <span className="text-xs font-black text-gray-800">{leave.used} TAKEN</span>
               </div>
               <div className="w-full bg-white/60 rounded-full h-2 overflow-hidden mb-1">
                 <div
@@ -56,7 +56,7 @@ export default function StudentLeaveBalance({ userId }: { userId?: string }) {
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <p className="text-[10px] text-gray-500 text-right">{leave.used} of {leave.total} used</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{leave.type} history</p>
             </div>
           );
         })}
