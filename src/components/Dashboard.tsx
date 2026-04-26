@@ -516,7 +516,7 @@ export default function Dashboard({ user }: { user: any }) {
                         </div>
                       </Autocomplete>
                     </div>
- 
+
                     {/* Custom Unified Map Controls - Bottom Left */}
                     <div className="absolute bottom-6 left-6 z-10 flex flex-col bg-white/90 backdrop-blur-md rounded-2xl border border-white/50 shadow-2xl overflow-hidden">
                       <button
@@ -793,9 +793,9 @@ export default function Dashboard({ user }: { user: any }) {
             <AttendanceTable />
           </div>
           <div className="flex flex-col gap-6 sm:gap-8">
-            <QuickActions 
-              students={students} 
-              attendance={attendance} 
+            <QuickActions
+              students={students}
+              attendance={attendance}
               adminProfile={user}
             />
             <LeaveReports />

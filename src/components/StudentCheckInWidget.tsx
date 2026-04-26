@@ -141,10 +141,10 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
 
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3;
-    const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const φ1 = lat1 * Math.PI / 180; const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180; const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
   const handleCheckOutRequest = () => setShowCheckoutModal(true);
@@ -232,13 +232,13 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
         }
       `}</style>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="liquid-glass-final rounded-[40px] p-6 lg:p-8 flex flex-col items-center justify-between h-[200px] lg:h-[220px] w-full relative overflow-hidden"
+        className="liquid-glass-final rounded-[32px] p-5 lg:p-6 pb-8 lg:pb-10 flex flex-col items-center justify-between h-[200px] lg:h-[220px] w-full relative overflow-hidden"
       >
         <div className="flex flex-col items-center text-center w-full z-10">
-          <div className="text-black-force text-4xl lg:text-5xl tracking-tighter flex items-baseline justify-center w-full">
+          <div className="text-black-force text-3xl lg:text-4xl tracking-tighter flex items-baseline justify-center w-full">
             <span className="font-mono">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
           </div>
           <span className="text-black-force opacity-40 uppercase text-[9px] lg:text-[10px] tracking-[0.4em] mt-1 lg:mt-2">Precision System Status</span>
@@ -246,17 +246,15 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
 
         <div className="w-full flex justify-center py-2 relative z-10">
           <div className="relative w-full max-w-[190px]">
-            <div className={`static-ring-system ${
-              isCheckedIn ? 'static-success' : 
-              isOutsideZone && windowOpen ? 'static-alert' : 
-              windowOpen ? 'static-active' : 'static-offline'
-            }`} />
-            
-            <div 
-              className={`action-dial-static ${
-                isCheckedIn ? 'text-[#064e3b]' : 
-                windowOpen ? 'text-[#1e40af]' : 'text-slate-400'
-              }`}
+            <div className={`static-ring-system ${isCheckedIn ? 'static-success' :
+                isOutsideZone && windowOpen ? 'static-alert' :
+                  windowOpen ? 'static-active' : 'static-offline'
+              }`} />
+
+            <div
+              className={`action-dial-static ${isCheckedIn ? 'text-[#064e3b]' :
+                  windowOpen ? 'text-[#1e40af]' : 'text-slate-400'
+                }`}
               onClick={isCheckedIn ? handleCheckOutRequest : undefined}
             >
               <AnimatePresence mode="wait">

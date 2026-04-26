@@ -155,7 +155,7 @@ export default function AnalyticsChart({
     const today = new Date();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const daysElapsed = today.getDate();
-    
+
     // Count weekdays in month so far
     let weekdaysSoFar = 0;
     for (let i = 1; i <= daysElapsed; i++) {
@@ -166,7 +166,7 @@ export default function AnalyticsChart({
     if (localSelectedStudent === 'All Students' && !isStudentMode) {
       // Return Best Student of Month logic
       if (students.length === 0) return { type: 'spotlight', name: '—', score: '—', photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=none' };
-      
+
       const studentsWithStats = students.map(s => {
         const studentRecords = attendanceData.filter(r => r.userId === (s.uid || s.id) && new Date(r.date) >= monthStart);
         const uniqueDays = new Set(studentRecords.filter(r => r.status === 'Present' || r.status === 'Late').map(r => r.date)).size;
@@ -186,18 +186,18 @@ export default function AnalyticsChart({
       // Individual User Analysis (Ongoing Data)
       const targetName = isStudentMode ? students.find(s => (s.uid || s.id) === userId)?.name : localSelectedStudent;
       const targetUser = students.find(s => s.name === targetName) || (isStudentMode ? { id: userId, name: 'You' } : null);
-      
+
       if (!targetUser) return null;
 
-      const userRecords = attendanceData.filter(r => 
-        (r.userName === targetName || r.userId === (targetUser.uid || targetUser.id)) && 
+      const userRecords = attendanceData.filter(r =>
+        (r.userName === targetName || r.userId === (targetUser.uid || targetUser.id)) &&
         new Date(r.date) >= monthStart
       );
 
       const presentDays = new Set(userRecords.filter(r => r.status === 'Present').map(r => r.date)).size;
       const lateDays = new Set(userRecords.filter(r => r.status === 'Late').map(r => r.date)).size;
       const totalPresent = presentDays + lateDays;
-      
+
       const attendanceRate = weekdaysSoFar > 0 ? Math.round((totalPresent / weekdaysSoFar) * 100) : 0;
       const punctualityRate = totalPresent > 0 ? Math.round((presentDays / totalPresent) * 100) : 100;
 
@@ -280,7 +280,7 @@ export default function AnalyticsChart({
           {analysis && (
             <div className={`w-full lg:w-64 bg-gradient-to-br ${analysis.type === 'spotlight' ? 'from-blue-50 to-indigo-50 border-blue-100' : 'from-gray-50 to-white border-gray-100'} rounded-2xl p-6 border flex flex-col items-center text-center shadow-sm relative overflow-hidden group`}>
               {analysis.type === 'spotlight' && <div className="absolute -top-10 -right-10 w-24 h-24 bg-yellow-400/10 rounded-full blur-2xl group-hover:bg-yellow-400/20 transition-all duration-700" />}
-              
+
               <p className={`text-[10px] font-black uppercase tracking-widest mb-4 ${analysis.type === 'spotlight' ? 'text-blue-600' : 'text-gray-400'}`}>
                 {analysis.label}
               </p>

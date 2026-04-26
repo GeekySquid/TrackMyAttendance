@@ -15,12 +15,12 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   useEffect(() => {
     const uid = user?.uid || user?.id;
     if (!uid) return;
-    
+
     setIsLoading(true);
     const unsubscribe = listenToCollection('attendance', (data) => {
       // 1. Deduplicate by ID
       const uniqueRecords = Array.from(new Map(data.map(item => [item.id, item])).values());
-      
+
       // 2. Filter for this user and format for the table
       const studentLogs = uniqueRecords
         .filter(r => r.userId === uid)
@@ -29,7 +29,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           const dateA = new Date(a.date).getTime();
           const dateB = new Date(b.date).getTime();
           if (dateA !== dateB) return dateB - dateA;
-          
+
           const timeA = a.checkInTime ? new Date(a.checkInTime).getTime() : 0;
           const timeB = b.checkInTime ? new Date(b.checkInTime).getTime() : 0;
           return timeB - timeA;
@@ -42,7 +42,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           let locationCoords: string | null = null;
 
           if (pipeIdx >= 0) {
-            cleanName    = rawLoc.substring(0, pipeIdx).trim() || 'Location';
+            cleanName = rawLoc.substring(0, pipeIdx).trim() || 'Location';
             locationCoords = rawLoc.substring(pipeIdx + 1).trim() || null;
           } else {
             cleanName = rawLoc
@@ -82,7 +82,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   const [endDate, setEndDate] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const filters = ['All', 'Present', 'Late', 'Absent'];
-  
+
   const handleSwipe = (direction: 'left' | 'right') => {
     const currentIndex = filters.indexOf(statusFilter);
     if (direction === 'left' && currentIndex < filters.length - 1) {
@@ -96,7 +96,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   const [hoveredLocId, setHoveredLocId] = useState<string | null>(null);
   const hoverLeaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openTooltip  = (id: string) => {
+  const openTooltip = (id: string) => {
     if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
     setHoveredLocId(id);
   };
@@ -117,9 +117,9 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
     const logDate = new Date(log.date);
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-      
+
     const matchesDate = (!start || logDate >= start) && (!end || logDate <= end);
-      
+
     return matchesStatus && matchesDate;
   });
 
@@ -145,7 +145,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           `"${log.date}"`, `"${log.in}"`, `"${log.out}"`, `"${log.locationName}"`, `"${log.status}"`
         ].join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -173,7 +173,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
     try {
       const doc = new jsPDF();
       doc.text("Student Activity Log", 14, 15);
-      
+
       autoTable(doc, {
         head: [headers],
         body: generateDataArray(),
@@ -181,7 +181,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
         styles: { fontSize: 10 },
         headStyles: { fillColor: [37, 99, 235] }
       });
-      
+
       doc.save(`activity_log_${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success('PDF Exported Successfully');
     } catch (e) {
@@ -213,18 +213,18 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           </h3>
           <p className="text-[10px] sm:text-[13px] text-gray-500 mt-0.5 ml-9 sm:ml-12 truncate">Daily attendance history</p>
         </div>
-        
+
         {/* Actions section */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-all shadow-sm active:scale-95"
             >
               <Download className="w-3.5 h-3.5 text-blue-600" />
               Export
             </button>
-            
+
             {showExportMenu && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
@@ -248,27 +248,27 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
         </div>
       </div>
-      
+
       <div className="px-4 sm:px-6 py-3 border-b border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-3 bg-gray-50/50">
         <div className="flex flex-col md:flex-row gap-3">
-          
+
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
             <Calendar className="w-3.5 h-3.5 text-blue-600" />
-            <input 
+            <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="text-xs font-bold text-gray-600 focus:outline-none bg-transparent"
             />
             <span className="text-gray-300 font-bold">-</span>
-            <input 
+            <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="text-xs font-bold text-gray-600 focus:outline-none bg-transparent"
             />
             {(startDate || endDate) && (
-              <button 
+              <button
                 onClick={() => { setStartDate(''); setEndDate(''); }}
                 className="ml-1 text-[10px] text-blue-600 font-bold hover:underline"
               >
@@ -283,18 +283,17 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 text-xs font-bold rounded-md transition-all whitespace-nowrap ${
-                statusFilter === status 
-                ? 'bg-blue-600 text-white shadow-sm' 
-                : 'text-gray-500 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-xs font-bold rounded-md transition-all whitespace-nowrap ${statusFilter === status
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-50'
+                }`}
             >
               {status}
             </button>
           ))}
         </div>
       </div>
-      
+
       {/* Table section */}
       <div className="flex-1 p-3 sm:p-4">
         <div className="table-fixed-height bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -311,7 +310,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                  {isLoading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan={5} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center">
@@ -335,7 +334,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.in !== '--' ? (
                               <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
-                                <Clock className="w-3.5 h-3.5 text-blue-500" /> 
+                                <Clock className="w-3.5 h-3.5 text-blue-500" />
                                 <span className="font-semibold">{log.in}</span>
                               </div>
                             ) : <span className="text-gray-400 font-medium ml-2">--</span>}
@@ -343,7 +342,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.out !== '--' ? (
                               <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
-                                <Clock className="w-3.5 h-3.5 text-purple-500" /> 
+                                <Clock className="w-3.5 h-3.5 text-purple-500" />
                                 <span className="font-semibold">{log.out}</span>
                               </div>
                             ) : <span className="text-gray-400 font-medium ml-2">--</span>}
@@ -371,11 +370,10 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           </td>
                           <td className="py-2.5 px-5 text-right whitespace-nowrap relative">
                             <div className="flex justify-end items-center group/status">
-                              <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center cursor-help transition-all duration-300 hover:scale-105 ${
-                                log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200' :
-                                log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 ring-2 ring-transparent hover:ring-orange-200' :
-                                'bg-red-50 text-red-700 border-red-200'
-                              }`}>
+                              <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center cursor-help transition-all duration-300 hover:scale-105 ${log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200' :
+                                  log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 ring-2 ring-transparent hover:ring-orange-200' :
+                                    'bg-red-50 text-red-700 border-red-200'
+                                }`}>
                                 <span className={`w-1.5 h-1.5 rounded-full mr-2 ${log.status === 'Present' ? 'bg-green-500' : log.status === 'Late' ? 'bg-orange-500' : 'bg-red-500'}`} />
                                 {log.status}
                               </span>
@@ -411,7 +409,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           </div>
 
           {/* Mobile View: High-Fidelity Cards with Swipe */}
-          <motion.div 
+          <motion.div
             className="md:hidden divide-y divide-gray-100 overflow-y-auto max-h-[calc(100vh-350px)] touch-pan-y"
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
@@ -433,11 +431,10 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date</span>
                       <span className="text-sm font-black text-gray-800">{log.date}</span>
                     </div>
-                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider ${
-                      log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-100' :
-                      log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                      'bg-red-50 text-red-700 border-red-100'
-                    }`}>
+                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider ${log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-100' :
+                        log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                          'bg-red-50 text-red-700 border-red-100'
+                      }`}>
                       {log.status}
                     </span>
                   </div>

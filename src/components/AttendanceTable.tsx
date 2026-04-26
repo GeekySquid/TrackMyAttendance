@@ -32,13 +32,13 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showReasonModal, setShowReasonModal] = useState(false);
-  
+
   // Hover & Copy toolkit
   const [hoveredLocId, setHoveredLocId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const hoverLeaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openTooltip  = (id: string) => {
+  const openTooltip = (id: string) => {
     if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
     setHoveredLocId(id);
   };
@@ -85,7 +85,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
     const matchesStatus = statusFilter === 'All' || record.status === statusFilter;
     return matchesToday && matchesSearch && matchesStatus;
   });
-  
+
   const { visibleItems, sentinelRef } = useInfiniteScroll(filteredRecords, 10, 5);
 
   const formatTime = (timeStr: string | null) => {
@@ -188,7 +188,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
             </h3>
           </div>
           {onClose && (
-            <button 
+            <button
               onClick={onClose}
               className="sm:hidden p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -196,36 +196,34 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
             </button>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap pb-1 sm:pb-0">
           <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100/50 shrink-0">
             <button
               onClick={() => setViewMode('today')}
-              className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${
-                viewMode === 'today' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${viewMode === 'today' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Today
             </button>
             <button
               onClick={() => setViewMode('all')}
-              className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${
-                viewMode === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${viewMode === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               History
             </button>
           </div>
-          
+
           <div className="relative shrink-0">
-            <button 
+            <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-[10px] sm:text-xs font-bold rounded-lg hover:bg-gray-50 transition-all shadow-sm active:scale-95"
             >
               <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600" />
               <span>Export</span>
             </button>
-            
+
             {showExportMenu && (
               <>
                 <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
@@ -247,11 +245,10 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
           <div className="relative shrink-0">
             <button
               onClick={() => setShowFilter(!showFilter)}
-              className={`flex items-center px-3 py-1.5 text-[10px] sm:text-xs font-bold border rounded-lg transition-colors ${
-                statusFilter !== 'All'
+              className={`flex items-center px-3 py-1.5 text-[10px] sm:text-xs font-bold border rounded-lg transition-colors ${statusFilter !== 'All'
                   ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
                   : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <Filter className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 text-blue-600" />
               {statusFilter === 'All' ? 'Filter' : statusFilter}
@@ -264,9 +261,8 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                     <button
                       key={status}
                       onClick={() => { setStatusFilter(status); setShowFilter(false); }}
-                      className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-50 ${
-                        statusFilter === status ? 'text-blue-600' : 'text-gray-700'
-                      }`}
+                      className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-50 ${statusFilter === status ? 'text-blue-600' : 'text-gray-700'
+                        }`}
                     >
                       {status}
                     </button>
@@ -277,7 +273,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
           </div>
 
           {onClose && (
-            <button 
+            <button
               onClick={onClose}
               className="hidden sm:block p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -326,10 +322,12 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
               </>
             ) : filteredRecords.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-500 text-sm">
-                  <div className="flex flex-col items-center gap-2">
-                    <CalendarDays className="w-8 h-8 text-gray-200" />
-                    <span>
+                <td colSpan={7} className="py-12 text-center text-gray-500 text-sm sm:table-cell flex flex-col items-center justify-center w-full">
+                  <div className="flex flex-col items-center justify-center gap-3 w-full">
+                    <div className="p-4 bg-gray-50 rounded-full border border-gray-100 mb-2">
+                      <CalendarDays className="w-10 h-10 text-gray-200" />
+                    </div>
+                    <span className="font-bold tracking-tight px-4">
                       {viewMode === 'today'
                         ? 'No check-ins recorded yet today.'
                         : 'No attendance records found.'}
@@ -349,24 +347,22 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                 return (
                   <tr
                     key={record.id || idx}
-                    className={`text-[11px] sm:text-xs transition-all duration-500 ${
-                      isNew
+                    className={`text-[11px] sm:text-xs transition-all duration-500 ${isNew
                         ? 'bg-blue-50/80 animate-in fade-in slide-in-from-left-2'
                         : 'hover:bg-gray-50/50'
-                    }`}
+                      }`}
                   >
                     <td className="py-2.5 px-1 sm:py-3 sm:px-2" data-label="Student">
                       <div className="flex items-center space-x-2.5">
                         <div className="relative shrink-0">
                           <div
-                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-xs transition-colors shadow-sm overflow-hidden border ${
-                              isNew ? 'bg-blue-600 text-white border-blue-400' : 'bg-blue-100 text-blue-600 border-blue-50'
-                            }`}
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-xs transition-colors shadow-sm overflow-hidden border ${isNew ? 'bg-blue-600 text-white border-blue-400' : 'bg-blue-100 text-blue-600 border-blue-50'
+                              }`}
                           >
                             {record.userPhoto ? (
-                              <img 
-                                src={record.userPhoto} 
-                                alt={record.userName} 
+                              <img
+                                src={record.userPhoto}
+                                alt={record.userName}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(record.userName || 'U')}`;
@@ -423,9 +419,8 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                             onMouseEnter={() => locationCoords && openTooltip(record.id)}
                             onMouseLeave={closeTooltip}
                           >
-                            <div className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
-                              isNew ? 'bg-blue-600 border-blue-500' : 'bg-gray-50 border-gray-100 group-hover:bg-white'
-                            }`}>
+                            <div className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${isNew ? 'bg-blue-600 border-blue-500' : 'bg-gray-50 border-gray-100 group-hover:bg-white'
+                              }`}>
                               <MapPin className={`w-2.5 h-2.5 ${isNew ? 'text-white' : 'text-blue-500'}`} />
                             </div>
                             <span className="font-semibold text-gray-700 truncate max-w-[80px] sm:max-w-[100px]" title={cleanName}>
@@ -490,7 +485,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                   <p className="text-xs font-bold text-orange-600 uppercase tracking-widest">{selectedRecord.userName}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setShowReasonModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-xl transition-colors group"
               >

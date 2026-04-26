@@ -254,8 +254,8 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">System Settings</h2>
-            <p className="text-sm text-gray-500">Configure application parameters and admin preferences</p>
+            <h2 className="text-lg font-black text-gray-800 tracking-tight">System Settings</h2>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Configure parameters & preferences</p>
           </div>
           <button 
             onClick={handleSave}
@@ -279,8 +279,8 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Settings Sidebar */}
-        <div className="w-full lg:w-64 shrink-0">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-2 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-1">
+        <div className="w-full lg:w-56 shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-1.5 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-0.5">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -288,13 +288,13 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
                     isActive 
-                      ? 'bg-blue-50 text-blue-700' 
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/50' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                   {tab.label}
                 </button>
               );
@@ -304,13 +304,13 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
 
         {/* Settings Content */}
         <div className="flex-1">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 sm:p-8 min-h-[500px]">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 min-h-[500px]">
             
             {activeTab === 'general' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">Institution Details</h3>
-                  <p className="text-sm text-gray-500">Basic information about your campus or organization.</p>
+              <div className="space-y-5 animate-in fade-in duration-300">
+                <div className="mb-4">
+                  <h3 className="text-base font-black text-gray-800 tracking-tight">Institution Details</h3>
+                  <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">Campus information ledger.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
