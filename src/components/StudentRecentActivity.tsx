@@ -201,9 +201,9 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden h-full">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden h-full">
       {/* Header section */}
-      <div className="bg-gradient-to-r from-blue-50/50 to-white px-4 sm:px-6 py-4 flex flex-row justify-between items-center gap-2 border-b border-gray-100">
+      <div className="bg-gradient-to-r from-blue-50/50 to-white px-4 sm:px-5 py-3 flex flex-row justify-between items-center gap-2 border-b border-gray-100">
         <div className="min-w-0">
           <h3 className="text-sm sm:text-lg font-bold text-gray-800 flex items-center gap-2 sm:gap-3">
             <div className="bg-blue-600 p-1.5 sm:p-2 rounded-lg text-white shadow-sm shadow-blue-200 shrink-0">
@@ -296,18 +296,18 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       </div>
       
       {/* Table section */}
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex-1 p-3 sm:p-4">
         <div className="table-fixed-height bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Desktop View: Professional Table */}
-          <div className="hidden md:block overflow-y-auto max-h-[calc(100vh-400px)]">
+          <div className="hidden md:block overflow-y-auto max-h-[calc(100vh-500px)]">
             <table className="w-full text-left border-collapse table-responsive">
               <thead className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="py-3.5 px-5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="py-3.5 px-5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Check In</th>
-                  <th className="py-3.5 px-5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Check Out</th>
-                  <th className="py-3.5 px-5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="py-3.5 px-5 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                  <th className="py-2.5 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="py-2.5 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Check In</th>
+                  <th className="py-2.5 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Check Out</th>
+                  <th className="py-2.5 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="py-2.5 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -326,13 +326,13 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                       const isNew = log.in !== '--' && (Date.now() - new Date(log.rawInTime || 0).getTime() < 30000);
                       return (
                         <tr key={log.id} className={`transition-colors group ${isNew ? 'bg-blue-50/60' : 'hover:bg-blue-50/40'}`}>
-                          <td className="py-3.5 px-5 text-sm font-bold text-gray-800 whitespace-nowrap">
+                          <td className="py-2.5 px-5 text-sm font-bold text-gray-800 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               {log.date}
                               {isNew && <span className="bg-blue-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full animate-pulse shadow-sm shadow-blue-200">Just Now</span>}
                             </div>
                           </td>
-                          <td className="py-3.5 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.in !== '--' ? (
                               <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
                                 <Clock className="w-3.5 h-3.5 text-blue-500" /> 
@@ -340,7 +340,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                               </div>
                             ) : <span className="text-gray-400 font-medium ml-2">--</span>}
                           </td>
-                          <td className="py-3.5 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.out !== '--' ? (
                               <div className="flex items-center gap-2 bg-gray-50 w-fit px-2.5 py-1.5 rounded-md border border-gray-200 group-hover:bg-white transition-colors">
                                 <Clock className="w-3.5 h-3.5 text-purple-500" /> 
@@ -348,7 +348,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                               </div>
                             ) : <span className="text-gray-400 font-medium ml-2">--</span>}
                           </td>
-                          <td className="py-3.5 px-5 text-sm text-gray-600 whitespace-nowrap">
+                          <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.locationName ? (
                               <div className="flex items-center gap-2 relative" onMouseEnter={() => log.locationCoords && openTooltip(log.id)} onMouseLeave={closeTooltip}>
                                 <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
@@ -369,7 +369,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                               </div>
                             ) : <span className="text-gray-400 ml-3">--</span>}
                           </td>
-                          <td className="py-3.5 px-5 text-right whitespace-nowrap relative">
+                          <td className="py-2.5 px-5 text-right whitespace-nowrap relative">
                             <div className="flex justify-end items-center group/status">
                               <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center cursor-help transition-all duration-300 hover:scale-105 ${
                                 log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200' :

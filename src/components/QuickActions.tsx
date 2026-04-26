@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { CheckSquare, Bell, X, Loader2, Send, Filter, Users, Search } from 'lucide-react';
+import CustomDropdown from './CustomDropdown';
 import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications } from '../services/dbService';
 import toast from 'react-hot-toast';
 
 interface QuickActionsProps {
   students: any[];
   attendance: any[];
+  adminProfile?: any;
 }
 
-export default function QuickActions({ students, attendance }: QuickActionsProps) {
+export default function QuickActions({ students, attendance, adminProfile }: QuickActionsProps) {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,11 +93,20 @@ export default function QuickActions({ students, attendance }: QuickActionsProps
       if (reminderType === 'all') {
         // Use Global Broadcast (efficient: 1 row)
         await broadcastNotification({
-          title: reminderTitle,
-          message: reminderMessage,
-          type: 'warning'
-        });
-        toast.success('Broadcast sent to all students.');
+        title: reminderTitle,
+        message: reminderMessage || `Reminder for ${reminderType === 'course' ? reminderCourse : reminderType} students.`,
+        type: 'announcement',
+        sender_id: adminProfile?.id
+      });
+
+      toast.success('Announcement broadcasted successfully!', {
+        icon: '📢',
+        style: {
+          borderRadius: '12px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
       } else {
         let targets = [];
         if (reminderType === 'absent') {
@@ -208,13 +219,12 @@ export default function QuickActions({ students, attendance }: QuickActionsProps
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
-                <select 
+                <CustomDropdown
+                  options={uniqueCourses.map(c => ({ value: c, label: c }))}
                   value={bulkCourse}
-                  onChange={e => setBulkCourse(e.target.value)}
-                  className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none"
-                >
-                  {uniqueCourses.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                  onChange={setBulkCourse}
+                  className="w-full sm:w-48"
+                />
               </div>
 
               <div className="border border-gray-100 rounded-2xl overflow-hidden">
@@ -331,13 +341,12 @@ export default function QuickActions({ students, attendance }: QuickActionsProps
               {reminderType === 'course' && (
                 <div className="space-y-2 animate-in slide-in-from-top-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Select Course</label>
-                  <select 
+                  <CustomDropdown
+                    options={uniqueCourses.filter(c => c !== 'All').map(c => ({ value: c, label: c }))}
                     value={reminderCourse}
-                    onChange={e => setReminderCourse(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none"
-                  >
-                    {uniqueCourses.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={setReminderCourse}
+                    className="w-full"
+                  />
                 </div>
               )}
 

@@ -136,6 +136,7 @@ export function mapNotification(n: any) {
 }
 
 export function isScheduleActive(s: any): boolean {
+  if (!s) return false;
   // 1. Manual Global Override (-999 row)
   if (parseFloat(s.radius) === -999) {
     if (!s.isActive) return false;
@@ -730,10 +731,10 @@ export const addDocument = async (document: any): Promise<any> => {
 
       if (!uploadError) {
         storageKey = fileName;
-        const { data: urlData } = await supabase.storage
+        const { data: urlData } = supabase.storage
           .from('documents')
-          .createSignedUrl(fileName, 60 * 60 * 24 * 7);
-        publicUrl = urlData?.signedUrl || null;
+          .getPublicUrl(fileName);
+        publicUrl = urlData?.publicUrl || null;
       } else {
         console.warn('[dbService] Storage upload failed:', uploadError.message);
       }
@@ -762,7 +763,7 @@ export const addDocument = async (document: any): Promise<any> => {
           name: document.name,
           type: document.type || null,
           size: document.size || null,
-          size_bytes: document.sizeBytes || null,
+          size_bytes: document.size_bytes || document.sizeBytes || null,
           storage_key: storageKey || existing.storage_key,
           public_url: publicUrl || existing.public_url,
           uploader: document.uploader || null,
@@ -782,7 +783,7 @@ export const addDocument = async (document: any): Promise<any> => {
     name: document.name,
     type: document.type || null,
     size: document.size || null,
-    size_bytes: document.sizeBytes || null,
+    size_bytes: document.size_bytes || document.sizeBytes || null,
     storage_key: storageKey,
     public_url: publicUrl,
     uploader: document.uploader || null,
@@ -832,6 +833,34 @@ export const deleteDocument = async (id: string): Promise<void> => {
   const { error } = await supabase.from('documents').delete().eq('id', id);
   if (error) {
     console.error('[dbService] deleteDocument error:', error.message);
+    throw error;
+  }
+};
+
+export const removeDocumentRevision = async (docId: string, revisionIndex: number): Promise<void> => {
+  const { data: existing } = await supabase
+    .from('documents')
+    .select('revisions')
+    .eq('id', docId)
+    .single();
+
+  if (!existing || !existing.revisions) return;
+
+  const newRevisions = [...existing.revisions];
+  const removedRev = newRevisions.splice(revisionIndex, 1)[0];
+
+  // Optional: Delete from storage if storage_key exists
+  if (removedRev?.storage_key) {
+    await supabase.storage.from('documents').remove([removedRev.storage_key]);
+  }
+
+  const { error } = await supabase
+    .from('documents')
+    .update({ revisions: newRevisions })
+    .eq('id', docId);
+
+  if (error) {
+    console.error('[dbService] removeDocumentRevision error:', error.message);
     throw error;
   }
 };
@@ -966,7 +995,7 @@ export const toggleManualAttendanceWindow = async (
         end_time: endTime || '23:59', 
         time: currentTimeStr // Store as HH:mm so StudentCheckInWidget can parse it
       })
-      .or(`radius.eq.-999,location_name.eq."Manual Selection",location_name.eq."${locationName}"`)
+      .eq('auto_activate', false) // Use auto_activate=false as the stable sentinel identifier
       .select();
 
     if (error) throw error;
@@ -1011,7 +1040,7 @@ export const getManualWindowStatus = async (): Promise<boolean> => {
   const { data } = await supabase
     .from('attendance_windows')
     .select('is_active')
-    .or('radius.eq.-999,location_name.eq."Manual Selection"')
+    .eq('auto_activate', false)
     .maybeSingle();
   return data?.is_active ?? false;
 };
@@ -1124,12 +1153,21 @@ export const getLeaderboard = async (): Promise<any[]> => {
   const { data, error } = await supabase
     .from('leaderboard')
     .select('*, photo_url')
-    .limit(20);
+    .order('score', { ascending: false })
+    .order('attendance_pct', { ascending: false })
+    .order('name', { ascending: true })
+    .limit(50); // Increased limit for better "Full Rankings" scroll
+
   if (error) {
     console.error('[dbService] getLeaderboard error:', error.message);
     return [];
   }
-  return data || [];
+
+  // Explicitly assign rank based on sort order to ensure consistency
+  return (data || []).map((entry, index) => ({
+    ...entry,
+    rank: index + 1
+  }));
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

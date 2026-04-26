@@ -15,6 +15,7 @@ import {
   Trophy,
   Layout
 } from 'lucide-react';
+import CustomInput from '../components/CustomInput';
 
 interface SupportPageProps {
   role: 'admin' | 'student';
@@ -50,63 +51,68 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
       role: 'admin',
       category: 'admin-dashboard',
       title: 'How to monitor real-time activity?',
-      content: "The Admin Dashboard feature a 'Recent Activity' log that updates in real-time as students check-in or out. You can see their location, time, and any late reasons provided."
+      content: "The Admin Dashboard features 'Active Stat Cards' and a 'Recent Activity' log that updates in real-time. You can monitor active attendance windows and see exactly when students check-in with precise GPS coordinates."
     },
     {
       role: 'admin',
       category: 'geofencing',
-      title: 'Configurable Campus Boundaries',
-      content: "Navigate to the Geofencing page to set the Latitude, Longitude, and Radius (in meters) for your campus. You can also define an automated schedule for when the attendance window should open."
+      title: 'Managing Geofences & Active Alarms',
+      content: "Use the Geofencing page to define campus boundaries. The 'Active Alarms' map allows you to visualize the geofence in real-time, toggle automated schedules, and adjust the radius to ensure maximum attendance precision."
     },
     {
       role: 'admin',
       category: 'reports',
-      title: 'Exporting Attendance Data',
-      content: "Go to the Reports page to filter attendance by date or student. You can export the results as professional Excel spreadsheets or PDF documents for your records."
+      title: 'Advanced Data Exporting',
+      content: "The Reports module allows for deep filtering by date, student, or status. You can export professional-grade Excel spreadsheets or PDF reports that include detailed check-in timestamps and location verification."
     },
     {
       role: 'admin',
       category: 'access',
-      title: 'Granting Staff Permissions',
-      content: "Use the Access Control page to assign roles. 'Admins' have full access, while other roles can be restricted to specific modules like Attendance or Reports."
+      title: 'Hybrid Role & Permission Management',
+      content: "The Access Control system supports both desktop drag-and-drop and a mobile-first 'Role Picker'. You can move users between roles, configure granular module permissions, and manage the 'Unassigned Pool' with one-tap actions."
     },
-    
     {
       role: 'admin',
       category: 'documents',
-      title: 'Managing Documents & Revisions',
-      content: "As an admin, you can upload, replace, and delete shared documents. When you replace a file, the system preserves the previous one in a 'Track Record' (revision history), ensuring no data is ever lost during updates."
+      title: 'File Revision History (Track Records)',
+      content: "When updating shared documents, the system automatically preserves the previous version in a 'Track Record'. This ensures a full revision history is maintained, allowing you to audit or revert changes at any time."
+    },
+    {
+      role: 'admin',
+      category: 'leaves',
+      title: 'Responsive Leave Approval Workflow',
+      content: "Manage leave requests through a dual-view panel. On desktop, use the high-efficiency table; on mobile, use the 'Action Cards' to quickly approve or reject requests with touch-optimized buttons."
     },
     // Student specific
     {
       role: 'student',
       category: 'student-dashboard',
-      title: 'How do I check-in for the day?',
-      content: "On your dashboard, you will see a 'Check In' button. If you are within the campus geofence and the attendance window is open, simply click it to mark your presence."
+      title: 'Marking Your Presence',
+      content: "On your dashboard, the 'Check In' button activates only when you are within the verified campus geofence. The system uses high-precision GPS to ensure your attendance is logged accurately."
     },
     {
       role: 'student',
       category: 'attendance',
-      title: 'What happens if I am late?',
-      content: "If you check-in after the grace period, the system will prompt you for a reason. You can type your reason and even attach a photo (e.g., a medical slip) for admin review."
+      title: 'Late Arrivals & Photo Verification',
+      content: "If you arrive after the grace period, you can provide a reason for the delay and attach photo evidence. This information is instantly securely transmitted to the admin panel for review."
     },
     {
       role: 'student',
       category: 'leaderboard',
-      title: 'How is my rank calculated?',
-      content: "The leaderboard ranks students based on their attendance percentage and consistency. Checking in early and missing no days will boost your position on the campus leaderboard."
+      title: 'Campus Rankings & Consistency',
+      content: "Your rank is determined by your 'Consistency Score'. Regular, on-time check-ins boost your position. You can view top performers and your own standing relative to your peers."
     },
     {
       role: 'student',
       category: 'leaves',
-      title: 'Checking my Leave Status',
-      content: "Go to the Leave Requests page to see a history of all your applications. The status will update from 'Pending' to 'Approved' or 'Rejected' once viewed by an admin."
+      title: 'Mobile Leave Applications',
+      content: "Apply for leaves directly from your phone. You can track the status of your requests (Pending, Approved, or Rejected) and receive real-time notifications once a decision is made."
     },
     {
       role: 'student',
       category: 'profile',
-      title: 'Updating my Course Details',
-      content: "In the Settings page, you can update your Course name and other personal details. This ensures your attendance reports always show your correct academic information."
+      title: 'Personalized Settings & Course Sync',
+      content: "In your profile settings, you can update academic details and contact info. This ensures all generated attendance reports and documents reflect your current enrollment status."
     }
   ];
 
@@ -117,23 +123,23 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
   );
 
   return (
-    <div className="flex-1 bg-[#F8FAFC] min-h-screen relative overflow-y-auto">
-      {/* Header Section */}
-      <div className="bg-white border-b border-gray-100 mb-8 overflow-hidden pt-12 pb-16">
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-y-auto custom-scrollbar relative z-0">
+      {/* Header Section - Cleaned up white space and removed clipping */}
+      <div className="bg-white border-b border-gray-100 mb-12 sm:mb-16 pt-10 pb-16 sm:pt-16 sm:pb-24 relative">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl mb-6 shadow-xl shadow-blue-200">
-            <HelpCircle className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl sm:rounded-3xl mb-4 sm:mb-6 shadow-xl shadow-blue-200">
+            <HelpCircle className="w-6 h-6 sm:w-10 sm:h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-black text-gray-900 mb-3 tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-black text-gray-900 mb-2 sm:mb-3 tracking-tight">
             {role === 'admin' ? 'Admin Help Center' : 'Student Help Center'}
           </h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-[11px] max-w-lg mx-auto opacity-80">
-            Documentation and guides for the {role === 'admin' ? 'Administrative Suite' : 'Student Experience'}
+          <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px] sm:text-[11px] max-w-xs sm:max-w-lg mx-auto">
+            {role === 'admin' ? 'System Administration & Management Guides' : 'Attendance & Profile Assistance'}
           </p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-40">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Tabs - Horizontal Scroll on Mobile */}
           <div className="lg:col-span-1">
@@ -173,40 +179,52 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
           </div>
 
           {/* Content Area */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 sm:p-8 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <div className="lg:col-span-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-1 bg-blue-600 rounded-full" />
+                <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">
                   {categories.find(c => c.id === activeTab)?.label}
-                  <Info className="w-4 h-4 text-gray-400" />
                 </h2>
               </div>
-              
-              <div className="p-6 sm:p-8 divide-y divide-gray-50">
-                {filteredFaqs.length > 0 ? (
-                  filteredFaqs.map((faq, index) => (
-                    <div key={index} className="py-6 first:pt-0 last:pb-0 group">
-                      <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2 group-hover:text-blue-600 transition-colors">
-                        {faq.title}
-                      </h3>
-                      <p className="text-gray-600 leading-relaxed text-sm lg:text-base pl-4 border-l-2 border-blue-100">
+              <div className="w-full sm:w-64">
+                <CustomInput
+                  placeholder="Search articles..."
+                  icon={Search}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="py-2.5"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {filteredFaqs.length > 0 ? (
+                filteredFaqs.map((faq, index) => (
+                  <div key={index} className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm hover:shadow-md transition-all group border-l-4 border-l-transparent hover:border-l-blue-500">
+                    <h3 className="text-lg font-black text-gray-800 mb-4 group-hover:text-blue-600 transition-colors">
+                      {faq.title}
+                    </h3>
+                    <div className="flex gap-4">
+                      <div className="w-1 bg-gray-100 rounded-full group-hover:bg-blue-100 transition-colors shrink-0" />
+                      <p className="text-gray-600 leading-relaxed text-sm lg:text-base font-medium">
                         {faq.content}
                       </p>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-20">
-                    <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <Search className="w-10 h-10 text-gray-300" />
-                    </div>
-                    <p className="text-gray-500 font-bold">No documentation entries found.</p>
                   </div>
-                )}
-              </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center">
+                  <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-10 h-10 text-gray-300" />
+                  </div>
+                  <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No entries found</p>
+                </div>
+              )}
             </div>
 
             {/* Quick Contact Footer */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:border-blue-200 transition-all cursor-pointer group">
                 <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
                   <MessageSquare className="w-6 h-6" />

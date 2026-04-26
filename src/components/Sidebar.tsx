@@ -137,16 +137,16 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
           })}
         </nav>
         <div className="p-4 mt-auto">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-3xl p-5 text-center border border-blue-100/50 shadow-sm">
-            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-blue-100/50">
-              <HelpCircle className="w-5 h-5 text-blue-600" />
+          <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 rounded-[24px] p-4 text-center border border-indigo-100/50 shadow-sm relative group">
+            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center mx-auto mb-2 shadow-sm border border-indigo-50 group-hover:rotate-6 transition-transform">
+              <HelpCircle className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className="text-xs font-black text-gray-800 tracking-tight">Need help?</p>
-            <p className="text-[10px] text-gray-500/80 mb-4 leading-tight">Check our documentation</p>
+            <p className="text-[11px] font-bold text-slate-800 tracking-tight">Need help?</p>
+            <p className="text-[10px] text-slate-500 mb-3">Check our documentation</p>
             <Link 
               to={`${basePath}/support`}
               onClick={() => setIsOpen(false)}
-              className="bg-blue-600 text-white text-xs py-2.5 px-4 rounded-2xl w-full font-black inline-block shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all active:scale-95"
+              className="bg-indigo-600 text-white text-[10px] py-1.5 px-4 rounded-xl w-full font-bold inline-block shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition-all active:scale-95"
             >
               Get Support
             </Link>
@@ -155,18 +155,18 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
           {deferredPrompt && (
             <button 
               onClick={handleInstall}
-              className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white w-full flex items-center px-4 py-3 text-sm font-black rounded-lg transition-all shadow-md shadow-blue-100 hover:scale-[1.02] active:scale-[0.98]"
+              className="mt-3 bg-gradient-to-br from-indigo-600 to-blue-600 text-white w-full flex items-center justify-center px-4 py-2.5 text-[11px] font-bold rounded-xl transition-all shadow-md shadow-indigo-100 hover:shadow-indigo-200 active:scale-95"
             >
-              <Download className="mr-3 h-5 w-5" />
-              INSTALL APP
+              <Download className="mr-2 h-4 w-4" />
+              Install Application
             </button>
           )}
 
           <button 
             onClick={onLogout} 
-            className="mt-3 text-gray-500 hover:text-red-600 hover:bg-red-50/50 w-full flex items-center px-5 py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-95"
+            className="mt-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 w-full flex items-center px-5 py-2.5 text-[11px] font-bold rounded-xl transition-all active:scale-95"
           >
-            <LogOut className="mr-3 h-5 w-5" />
+            <LogOut className="mr-2.5 h-4 w-4" />
             Sign Out
           </button>
         </div>

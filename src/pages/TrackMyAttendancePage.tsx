@@ -6,6 +6,9 @@ import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { listenToCollection } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import CustomInput from '../components/CustomInput';
+import CustomDropdown from '../components/CustomDropdown';
+import { TrendingUp, CheckCircle, Clock as ClockIcon, XCircle } from 'lucide-react';
 
 export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
   const [showReasonModal, setShowReasonModal] = useState(false);
@@ -198,51 +201,31 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           </div>
 
           {/* Filters Area */}
-          <div className="mt-8 flex flex-col lg:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input 
-                type="text" 
+          <div className="mt-8 flex flex-col lg:flex-row gap-4 items-end">
+            <div className="flex-1 w-full">
+              <CustomInput
+                icon={Search}
                 placeholder="Search by date or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 transition-all"
+                label="Search Records"
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <input 
-                  type="date" 
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-[11px] font-black focus:ring-0 p-0 uppercase"
-                />
-                <span className="text-gray-300">|</span>
-                <input 
-                  type="date" 
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-[11px] font-black focus:ring-0 p-0 uppercase"
-                />
-              </div>
-
-              <div className="flex gap-1.5 bg-white p-1 rounded-lg border border-gray-100 shadow-sm overflow-x-auto scrollbar-hide">
-                {['All', 'Present', 'Late', 'Absent'].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-all ${
-                      statusFilter === status 
-                      ? 'bg-blue-600 text-white shadow-sm' 
-                      : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+              <CustomDropdown
+                label="Filter by Status"
+                icon={TrendingUp}
+                options={[
+                  { value: 'All', label: 'All Records', icon: ClipboardList },
+                  { value: 'Present', label: 'Present', icon: CheckCircle },
+                  { value: 'Late', label: 'Late', icon: ClockIcon },
+                  { value: 'Absent', label: 'Absent', icon: XCircle }
+                ]}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                className="w-full sm:w-56"
+              />
             </div>
           </div>
         </div>

@@ -197,7 +197,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
           )}
         </div>
         
-        <div className="flex items-center gap-1.5 w-full sm:w-auto flex-nowrap overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap pb-1 sm:pb-0">
           <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100/50 shrink-0">
             <button
               onClick={() => setViewMode('today')}

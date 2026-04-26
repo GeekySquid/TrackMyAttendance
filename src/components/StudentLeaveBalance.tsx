@@ -36,37 +36,38 @@ export default function StudentLeaveBalance({ userId }: { userId?: string }) {
   });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 h-full flex flex-col">
-      <h3 className="text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
-        <Umbrella className="w-5 h-5 text-gray-400" />
-        Leave Balance
-      </h3>
-      <div className="space-y-4 flex-1">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden h-full">
+      <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
+        <Umbrella className="w-4 h-4 text-gray-400" />
+        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Leave Balance</h3>
+      </div>
+      <div className="p-3 space-y-2 flex-1">
         {leaves.map((leave, i) => {
           const percentage = Math.min((leave.used / leave.total) * 100, 100);
           return (
-            <div key={i} className={`p-4 rounded-lg border ${leave.border} ${leave.bg}`}>
-              <div className="flex justify-between items-center mb-2">
-                <span className={`text-sm font-bold ${leave.color}`}>{leave.type}</span>
-                <span className="text-xs font-black text-gray-800">{leave.used} TAKEN</span>
+            <div key={i} className={`p-2.5 rounded-xl border ${leave.border} ${leave.bg}`}>
+              <div className="flex justify-between items-center mb-1.5">
+                <span className={`text-[11px] font-bold ${leave.color}`}>{leave.type}</span>
+                <span className="text-[10px] font-black text-gray-800">{leave.used} / {leave.total}</span>
               </div>
-              <div className="w-full bg-white/60 rounded-full h-2 overflow-hidden mb-1">
+              <div className="w-full bg-white/60 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className={`h-2 rounded-full transition-all duration-700 ${leave.bar}`}
+                  className={`h-1.5 rounded-full transition-all duration-700 ${leave.bar}`}
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{leave.type} history</p>
             </div>
           );
         })}
       </div>
-      <button
-        onClick={() => navigate('/leave-requests')}
-        className="w-full mt-6 py-2.5 border border-dashed border-gray-300 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-50 transition-colors"
-      >
-        Apply for Leave
-      </button>
+      <div className="p-3 mt-auto">
+        <button
+          onClick={() => navigate('/leave-requests')}
+          className="w-full py-2 border border-dashed border-gray-300 text-gray-600 text-[11px] font-bold rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Apply for Leave
+        </button>
+      </div>
     </div>
   );
 }

@@ -86,66 +86,61 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[120px]" />
       </div>
 
-      <div className="max-w-5xl mx-auto space-y-6 relative z-10">
-        {/* Header */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-6 sm:p-8 border border-white/50 shadow-xl shadow-blue-500/5 relative overflow-hidden">
+      <div className="max-w-5xl mx-auto space-y-4 relative z-10">
+        {/* Header - Compact */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-4 sm:p-5 border border-white/50 shadow-xl shadow-blue-500/5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 opacity-40" />
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center relative z-10 gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-blue-500/10 text-blue-700 text-xs font-black mb-3 border border-blue-200/50">
-                <Sparkles className="w-3.5 h-3.5" /> MONTHLY RANKING
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-700 text-[10px] font-black mb-2 sm:mb-3 border border-blue-200/50">
+                <Sparkles className="w-3 h-3" /> MONTHLY RANKING
               </div>
-              <h2 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+              <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                 Top Performers
-                <Trophy className="w-8 h-8 text-yellow-500 drop-shadow-sm" />
+                <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 drop-shadow-sm" />
               </h2>
-              <p className="text-sm text-gray-500 mt-2 max-w-md font-medium leading-relaxed">
-                Real-time rankings based on attendance consistency and punctuality.
+              <p className="text-xs sm:text-sm text-gray-400 mt-1 sm:mt-2 max-w-md font-bold leading-tight sm:leading-relaxed">
+                Rankings based on consistency and punctuality.
               </p>
             </div>
 
             {currentUserEntry ? (
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-[2rem] p-5 shadow-2xl shadow-gray-400/20 border border-gray-700/50 w-full sm:w-auto text-white flex gap-6 items-center group transition-transform hover:scale-105 duration-500">
-                <div className="relative">
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Your Rank</p>
-                  <div className="flex items-end gap-1">
-                    <span className="text-4xl font-black bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent leading-none">
+              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-2xl shadow-gray-400/20 border border-gray-700/50 w-full sm:w-auto text-white flex gap-4 sm:gap-6 items-center group transition-transform hover:scale-105 duration-500">
+                <div className="relative shrink-0">
+                  <p className="text-[8px] sm:text-[10px] text-gray-400 font-black uppercase tracking-widest mb-0.5 sm:mb-1">Rank</p>
+                  <div className="flex items-end gap-0.5 sm:gap-1">
+                    <span className="text-2xl sm:text-4xl font-black bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent leading-none">
                       {currentUserEntry.rank}
                     </span>
-                    <span className="text-sm text-gray-500 font-black mb-1">
+                    <span className="text-[10px] sm:text-sm text-gray-500 font-black mb-0.5 sm:mb-1">
                       {currentUserEntry.rank === 1 ? 'st' : currentUserEntry.rank === 2 ? 'nd' : currentUserEntry.rank === 3 ? 'rd' : 'th'}
                     </span>
                   </div>
-                  <div className="absolute -top-2 -left-2 w-4 h-4 bg-blue-500 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="h-12 w-px bg-white/10" />
-                <div>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Global Score</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-black text-blue-400 tracking-tight">
+                <div className="h-8 sm:h-12 w-px bg-white/10" />
+                <div className="flex-1">
+                  <p className="text-[8px] sm:text-[10px] text-gray-400 font-black uppercase tracking-widest mb-0.5 sm:mb-1">Score</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-xl sm:text-2xl font-black text-blue-400 tracking-tight">
                       {currentUserEntry.score}
                     </span>
-                    <div className="flex items-center gap-1 bg-green-500/20 text-green-400 px-2 py-0.5 rounded-lg text-[10px] font-black border border-green-500/20">
-                      <TrendingUp className="w-3 h-3" />
+                    <div className="flex items-center gap-1 bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-lg text-[8px] sm:text-[10px] font-black border border-green-500/10">
                       +{Math.round(currentUserEntry.score / 100)}
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1 font-bold">
-                    {currentUserEntry.attendance_pct}% consistency
-                  </p>
                 </div>
               </div>
             ) : null}
           </div>
         </div>
 
-        {/* Podium */}
+        {/* Podium - Efficient Layout */}
         {topThreeRaw.length >= 2 && (
-          <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-500/5 p-6 sm:p-10 relative">
+          <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-500/5 p-4 sm:p-6 relative">
             <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-transparent pointer-events-none rounded-[2.5rem]" />
             
-            <div className="flex justify-center items-end gap-2 sm:gap-10 min-h-[400px] mt-20 relative z-10">
+            <div className="flex justify-center items-end gap-1.5 sm:gap-12 min-h-[320px] sm:min-h-[350px] mt-16 sm:mt-12 relative z-10">
               {/* 2nd Place */}
               {topThree[0] ? (
                 <div className="flex flex-col items-center w-1/3 max-w-[140px] relative group transition-all duration-500">
@@ -162,8 +157,8 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                       2ND
                     </div>
                   </div>
-                  <div className="w-full h-36 bg-gradient-to-t from-gray-200/50 via-gray-100/30 to-white/10 backdrop-blur-sm border-x border-t border-gray-200/50 rounded-t-[2rem] flex flex-col items-center justify-end pb-5 transition-all duration-500 group-hover:from-gray-200/70 group-hover:translate-y-[-2px] z-10 px-2">
-                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1.5 line-clamp-2">
+                  <div className="w-full h-32 bg-gradient-to-t from-gray-200/50 via-gray-100/30 to-white/10 backdrop-blur-sm border-x border-t border-gray-200/50 rounded-t-[2rem] flex flex-col items-center justify-end pb-4 transition-all duration-500 group-hover:from-gray-200/70 group-hover:translate-y-[-2px] z-10 px-2">
+                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1 line-clamp-2">
                       {topThree[0].name}
                     </p>
                     <p className="text-[9px] font-black text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-lg">
@@ -192,7 +187,7 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                       CHAMPION
                     </div>
                   </div>
-                  <div className="w-full h-56 bg-gradient-to-t from-yellow-400/30 via-yellow-100/20 to-white/10 backdrop-blur-md border-x border-t border-yellow-400/30 rounded-t-[2.5rem] flex flex-col items-center justify-end pb-7 transition-all duration-500 group-hover:from-yellow-400/40 group-hover:translate-y-[-4px] z-10 px-3">
+                  <div className="w-full h-48 bg-gradient-to-t from-yellow-400/30 via-yellow-100/20 to-white/10 backdrop-blur-md border-x border-t border-yellow-400/30 rounded-t-[2.5rem] flex flex-col items-center justify-end pb-6 transition-all duration-500 group-hover:from-yellow-400/40 group-hover:translate-y-[-4px] z-10 px-3">
                     <p className="text-[13px] font-black text-gray-900 text-center leading-tight mb-2 line-clamp-2">
                       {topThree[1].name}
                     </p>
@@ -222,8 +217,8 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                       3RD
                     </div>
                   </div>
-                  <div className="w-full h-28 bg-gradient-to-t from-orange-200/40 via-orange-100/20 to-white/10 backdrop-blur-sm border-x border-t border-orange-200/40 rounded-t-[2rem] flex flex-col items-center justify-end pb-5 transition-all duration-500 group-hover:from-orange-200/60 group-hover:translate-y-[-2px] z-10 px-2">
-                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1.5 line-clamp-2">
+                  <div className="w-full h-24 bg-gradient-to-t from-orange-200/40 via-orange-100/20 to-white/10 backdrop-blur-sm border-x border-t border-orange-200/40 rounded-t-[2rem] flex flex-col items-center justify-end pb-4 transition-all duration-500 group-hover:from-orange-200/60 group-hover:translate-y-[-2px] z-10 px-2">
+                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1 line-clamp-2">
                       {topThree[2].name}
                     </p>
                     <p className="text-[9px] font-black text-orange-700 mt-1 bg-orange-200/50 px-2 py-0.5 rounded-lg">
@@ -272,37 +267,37 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
         {/* Rankings 4-20 */}
         {leaderData.length > 3 && (
           <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-500/5 overflow-hidden relative group">
-            <div className="px-8 py-6 border-b border-gray-100/50 bg-gray-50/30 flex justify-between items-center relative z-10">
+            <div className="px-5 py-4 sm:px-6 sm:py-4 border-b border-gray-100/50 bg-gray-50/30 flex justify-between items-center relative z-10">
               <h3 className="font-black text-gray-900 tracking-tight text-lg">Full Rankings</h3>
-              <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl border border-gray-100 shadow-sm">
                 <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
                   Positions 4–{leaderData.length}
                 </span>
               </div>
             </div>
-            <div className="relative z-10 px-4 sm:px-8 pb-8 space-y-3">
+            <div className="relative z-10 px-3 sm:px-6 pb-6 space-y-2">
               {/* Header - Desktop only */}
-              <div className="hidden sm:grid sm:grid-cols-[80px_1fr_180px_100px] gap-4 px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+              <div className="hidden sm:grid sm:grid-cols-[80px_1fr_180px_100px] gap-4 px-6 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                 <div className="text-center">Rank</div>
                 <div>Student</div>
                 <div>Performance</div>
                 <div className="text-right">Score</div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {rankItems.map((entry) => {
                   const isMe = entry.user_id === userId;
                   return (
                     <div
                       key={entry.user_id}
-                      className={`group/row relative bg-white rounded-[2rem] p-4 sm:p-5 border transition-all duration-500 hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/10 ${
+                      className={`group/row relative bg-white rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 border transition-all duration-500 hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/10 ${
                         isMe 
                           ? 'border-blue-500 bg-blue-50/30 z-10 ring-4 ring-blue-500/5' 
                           : 'border-gray-100 hover:border-blue-200'
                       }`}
                     >
-                      <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-3">
                         {/* Main Info Row */}
                         <div className="flex items-center gap-3 sm:gap-6">
                           {/* Rank */}

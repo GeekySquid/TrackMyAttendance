@@ -8,7 +8,7 @@ import QuickActions from '../components/QuickActions';
 import { listenToCollection } from '../services/dbService';
 import toast from 'react-hot-toast';
 
-export default function AttendancePage() {
+export default function AttendancePage({ user }: { user: any }) {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudentName, setSelectedStudentName] = useState('All Students');
@@ -110,7 +110,11 @@ export default function AttendancePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
         <AttendanceTable />
         <div className="flex flex-col gap-8">
-          <QuickActions students={students} attendance={attendanceData} />
+          <QuickActions 
+            students={students} 
+            attendance={attendanceData} 
+            adminProfile={user}
+          />
           <LateAppealsList />
         </div>
       </div>

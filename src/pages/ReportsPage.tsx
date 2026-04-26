@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import CustomDropdown from '../components/CustomDropdown';
+import CustomDateInput from '../components/CustomDateInput';
 
 export default function ReportsPage() {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
@@ -323,63 +325,47 @@ export default function ReportsPage() {
 
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Student</label>
-            <select 
-              value={selectedStudent} 
-              onChange={e => setSelectedStudent(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="All">All Students</option>
-              {students.map(s => (
-                <option key={s.uid || s.id} value={s.uid || s.id}>{s.name} ({s.rollNo})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Course</label>
-            <select 
-              value={selectedCourse} 
-              onChange={e => setSelectedCourse(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="All">All Courses</option>
-              {courses.map(c => (
-                <option key={c as string} value={c as string}>{c as string}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Status</label>
-            <select 
-              value={statusFilter} 
-              onChange={e => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Present">Present</option>
-              <option value="Absent">Absent</option>
-              <option value="Late">Late</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">From Date</label>
-            <input 
-              type="date" 
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">To Date</label>
-            <input 
-              type="date" 
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm font-bold text-gray-700"
-            />
-          </div>
+          <CustomDropdown
+            label="Student"
+            options={[
+              { value: "All", label: "All Students" },
+              ...students.map(s => ({ value: s.uid || s.id, label: `${s.name} (${s.rollNo})` }))
+            ]}
+            value={selectedStudent}
+            onChange={setSelectedStudent}
+          />
+
+          <CustomDropdown
+            label="Course"
+            options={[
+              { value: "All", label: "All Courses" },
+              ...courses.map(c => ({ value: c as string, label: c as string }))
+            ]}
+            value={selectedCourse}
+            onChange={setSelectedCourse}
+          />
+
+          <CustomDropdown
+            label="Status"
+            options={[
+              { value: "All", label: "All Statuses" },
+              { value: "Present", label: "Present" },
+              { value: "Absent", label: "Absent" },
+              { value: "Late", label: "Late" }
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <CustomDateInput
+            label="From Date"
+            value={startDate}
+            onChange={setStartDate}
+          />
+          <CustomDateInput
+            label="To Date"
+            value={endDate}
+            onChange={setEndDate}
+          />
         </div>
 
         {/* Table Container with Fixed Height & Infinite Scroll */}

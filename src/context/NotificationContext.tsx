@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { AnimatePresence } from 'motion/react';
-import NotificationStack from '../components/notifications/NotificationStack';
 
 export type NotificationType = 'leave_report' | 'task' | 'announcement' | 'attendance' | 'success' | 'error' | 'info';
 
@@ -39,7 +37,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   return (
     <NotificationContext.Provider value={{ notifications, role, setRole, addNotification, removeNotification }}>
       {children}
-      <NotificationStack />
     </NotificationContext.Provider>
   );
 };

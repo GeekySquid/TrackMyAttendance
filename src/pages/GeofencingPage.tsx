@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, CircleF, Autocomplete } from '@react-google-maps/api';
 const LIBRARIES: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
-import { MapPin, Clock, Plus, Trash2, Map, Crosshair, Navigation, Loader2, Pencil, X, AlertCircle } from 'lucide-react';
+import { MapPin, Clock, Plus, Trash2, Map, Crosshair, Navigation, Loader2, Pencil, X, AlertCircle, Search, Minus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   getGeofenceSchedules,
@@ -58,6 +58,8 @@ export default function GeofencingPage() {
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [newLocationName, setNewLocationName] = useState('Main Campus');
+  const [mapType, setMapType] = useState<string>('roadmap');
+  const [map, setMap] = useState<google.maps.Map | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   const onSearchLoad = (autocomplete: google.maps.places.Autocomplete) => {
@@ -462,21 +464,17 @@ export default function GeofencingPage() {
             <div className="w-full flex-1 rounded-lg overflow-hidden relative bg-gray-50">
               {isLoaded ? (
                 <GoogleMap
+                  onLoad={m => setMap(m)}
                   mapContainerStyle={{ width: '100%', height: '100%' }}
                   center={isValidLocation ? { lat: latNum, lng: lngNum } : { lat: 20.5937, lng: 78.9629 }}
                   zoom={isValidLocation ? 16 : 4}
+                  mapTypeId={mapType}
                   options={{ 
-                    disableDefaultUI: false,
-                    mapTypeControl: true,
-                    mapTypeControlOptions: {
-                      position: google.maps.ControlPosition.TOP_RIGHT
-                    },
-                    zoomControl: true,
-                    zoomControlOptions: {
-                      position: google.maps.ControlPosition.RIGHT_CENTER
-                    },
+                    disableDefaultUI: true,
+                    zoomControl: false,
                     streetViewControl: false,
-                    fullscreenControl: true
+                    mapTypeControl: false,
+                    fullscreenControl: false
                   }}
                   onClick={(e) => {
                     if (e.latLng) {
@@ -485,21 +483,59 @@ export default function GeofencingPage() {
                     }
                   }}
                 >
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] sm:w-2/3 z-10">
+                  {/* Dashboard-style Glassmorphic Search */}
+                  <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[90%] sm:w-2/3 z-10">
                     <Autocomplete
                       onLoad={onSearchLoad}
                       onPlaceChanged={onPlaceChanged}
                     >
                       <div className="relative group">
-                        <Map className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <div className="absolute inset-0 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-600 transition-colors z-10" />
                         <input
                           type="text"
                           placeholder="Search for a location or campus..."
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                          className="w-full pl-12 pr-12 py-3 bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 text-sm font-bold relative z-10"
                           onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
                         />
+                        <button
+                          type="button"
+                          onClick={handleTrackLocation}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-blue-600 hover:text-blue-700 transition-colors z-20"
+                          title="Pin My Current Location"
+                        >
+                          <Navigation className={`w-5 h-5 ${isLocating ? 'animate-pulse' : ''}`} />
+                        </button>
                       </div>
                     </Autocomplete>
+                  </div>
+
+                  {/* Dashboard-style Unified Map Controls */}
+                  <div className="absolute bottom-6 left-6 z-10 flex flex-col bg-white/90 backdrop-blur-md rounded-2xl border border-white/50 shadow-2xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => map?.setZoom((map.getZoom() || 16) + 1)}
+                      className="p-3 text-blue-600 hover:bg-white transition-colors border-b border-gray-100 active:scale-95"
+                      title="Zoom In"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => map?.setZoom((map.getZoom() || 16) - 1)}
+                      className="p-3 text-blue-600 hover:bg-white transition-colors border-b border-gray-100 active:scale-95"
+                      title="Zoom Out"
+                    >
+                      <Minus className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapType(mapType === 'roadmap' ? 'hybrid' : 'roadmap')}
+                      className="p-3 text-blue-600 hover:bg-white transition-colors active:scale-95"
+                      title="Toggle Satellite/Map View"
+                    >
+                      <Map className={`w-5 h-5 ${mapType === 'hybrid' ? 'text-blue-800' : 'text-blue-600'}`} />
+                    </button>
                   </div>
                   {isValidLocation && (
                     <>

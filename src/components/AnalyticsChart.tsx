@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { listenToCollection } from '../services/dbService';
+import CustomDropdown from './CustomDropdown';
 
 interface AnalyticsChartProps {
   // Admin mode: can switch between students
@@ -27,8 +28,7 @@ export default function AnalyticsChart({
     setLocalSelectedStudent(selectedStudent);
   }, [selectedStudent]);
 
-  const handleStudentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
+  const handleStudentChange = (val: string) => {
     setLocalSelectedStudent(val);
     if (onStudentSelect) onStudentSelect(val);
   };
@@ -228,21 +228,15 @@ export default function AnalyticsChart({
         </div>
         <div className="bg-gray-100 p-1 rounded-lg flex w-full sm:w-auto overflow-x-auto gap-2">
           {!isStudentMode && (
-            <div className="relative flex-1 sm:flex-none">
-              <select
-                value={localSelectedStudent}
-                onChange={handleStudentChange}
-                className="w-full appearance-none bg-gray-50 border border-gray-200 text-[10px] font-bold text-gray-600 py-1.5 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="All Students">All Students</option>
-                {students.map((s) => (
-                  <option key={s.uid || s.id} value={s.name}>{s.name}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                <ChevronDown className="h-3 w-3" />
-              </div>
-            </div>
+            <CustomDropdown
+              options={[
+                { value: "All Students", label: "All Students" },
+                ...students.map((s) => ({ value: s.name, label: s.name }))
+              ]}
+              value={localSelectedStudent}
+              onChange={handleStudentChange}
+              className="w-full sm:w-48"
+            />
           )}
           <div className="bg-gray-100 p-1 rounded-lg flex shrink-0">
             <button

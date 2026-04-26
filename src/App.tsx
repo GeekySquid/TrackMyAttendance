@@ -25,6 +25,7 @@ import LandingPage from './pages/LandingPage';
 import InstallPWA from './components/InstallPWA';
 import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
+import NotificationStack from './components/notifications/NotificationStack';
 import { saveUser, getUserById } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
@@ -313,9 +314,9 @@ function AppContent() {
           <Routes>
             {role === 'admin' ? (
               <>
-                <Route path="/admin" element={<Dashboard />} />
+                <Route path="/admin" element={<Dashboard user={profile} />} />
                 <Route path="/admin/students" element={<StudentsPage />} />
-                <Route path="/admin/attendance" element={<AttendancePage />} />
+                <Route path="/admin/attendance" element={<AttendancePage user={profile} />} />
                 <Route path="/admin/leave-requests" element={<LeaveRequestsPage role="admin" user={profile} />} />
                 <Route path="/admin/reports" element={<ReportsPage />} />
                 <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
@@ -350,6 +351,7 @@ function AppContent() {
 export default function App() {
   return (
     <NotificationProvider>
+      <NotificationStack />
       <Router>
         <Routes>
           {/* Clerk SSO callback — must be outside AppContent */}

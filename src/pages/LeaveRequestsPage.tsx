@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User } from 'lucide-react';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
 import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import CustomDropdown from '../components/CustomDropdown';
+import CustomDateInput from '../components/CustomDateInput';
+import CustomInput from '../components/CustomInput';
+import CustomTextarea from '../components/CustomTextarea';
+import { Mail, MessageSquare as MessageSquareIcon, Briefcase, Info } from 'lucide-react';
 
 function SkeletonLeaveRow({ cols }: { cols: number }) {
   return (
@@ -307,47 +312,39 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Leave Type</label>
-                  <select 
+                  <CustomDropdown
+                    label="Leave Type"
+                    icon={Briefcase}
+                    options={[
+                      { value: 'Casual Leave', label: 'Casual Leave', icon: Info },
+                      { value: 'Sick Leave', label: 'Sick Leave', icon: AlertTriangle },
+                      { value: 'Emergency', label: 'Emergency', icon: Clock },
+                      { value: 'Personal Leave', label: 'Personal Leave', icon: User }
+                    ]}
                     value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option>Casual Leave</option>
-                    <option>Sick Leave</option>
-                    <option>Emergency</option>
-                  </select>
+                    onChange={setLeaveType}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">From Date</label>
-                    <input 
-                      type="date" 
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">To Date</label>
-                    <input 
-                      type="date" 
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
+                  <CustomDateInput
+                    label="From Date"
+                    value={fromDate}
+                    onChange={setFromDate}
+                  />
+                  <CustomDateInput
+                    label="To Date"
+                    value={toDate}
+                    onChange={setToDate}
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Reason</label>
-                  <textarea 
-                    rows={3} 
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" 
-                    placeholder="Please specify the reason for your leave..."
-                  ></textarea>
-                </div>
+                <CustomTextarea
+                  label="Reason"
+                  icon={MessageSquare}
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Please specify the reason for your leave..."
+                />
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
                 <button onClick={() => setShowRequestModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
@@ -415,28 +412,32 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               Leave History
               {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
             </h3>
-            <select 
+            <CustomDropdown
+              options={[
+                { value: 'All Status', label: 'All Status' },
+                { value: 'Approved', label: 'Approved' },
+                { value: 'Pending', label: 'Pending' },
+                { value: 'Rejected', label: 'Rejected' }
+              ]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-600 font-medium"
-            >
-              <option>All Status</option>
-              <option>Approved</option>
-              <option>Pending</option>
-              <option>Rejected</option>
-            </select>
+              onChange={setStatusFilter}
+              className="w-40"
+            />
           </div>
-          <div className="table-fixed-height flex-1">
-            <table className="w-full text-left border-collapse table-responsive">
-              <thead className="sticky top-0 z-20 bg-gray-50/50 backdrop-blur-md">
-                <tr className="border-b border-gray-100">
-                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Student</th>
-                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Leave Dates</th>
-                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase">Reason</th>
-                  <th className="py-3 px-4 text-xs font-bold text-gray-500 uppercase text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+          
+          <div className="flex-1 overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block table-fixed-height overflow-y-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur-md">
+                  <tr className="border-b border-gray-100">
+                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
+                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Dates</th>
+                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Reason</th>
+                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Status</th>
+                  </tr>
+                </thead>
+              <tbody className="divide-y divide-gray-50">
                 {isLoading ? (
                   <>
                     <SkeletonLeaveRow cols={4} />
@@ -445,80 +446,149 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                   </>
                 ) : filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 px-4 text-center text-gray-500 text-sm">No leave requests found.</td>
+                    <td colSpan={4} className="py-12 px-6 text-center text-gray-400 text-sm italic font-medium">No leave requests found.</td>
                   </tr>
                 ) : (
                   adminItems.map((req, i) => (
-                  <tr key={req.id || i} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4" data-label="Student">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0 overflow-hidden border border-blue-50">
-                          {req.userPhoto ? (
-                            <img 
-                              src={req.userPhoto} 
-                              alt={req.userName} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(req.userName || 'S')}`;
-                              }}
-                            />
-                          ) : (
-                            <span>{req.userName?.charAt(0) || 'S'}</span>
-                          )}
+                    <tr key={req.id || i} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xs shrink-0 overflow-hidden border border-blue-100 shadow-sm">
+                            {req.userPhoto ? (
+                              <img 
+                                src={req.userPhoto} 
+                                alt={req.userName} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(req.userName || 'S')}`;
+                                }}
+                              />
+                            ) : (
+                              <span>{req.userName?.charAt(0) || 'S'}</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-gray-800">{req.userName}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{req.rollNo || 'N/A'}</p>
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold text-gray-800">{req.userName}</p>
-                          <p className="text-xs text-gray-500">{req.rollNo || 'N/A'}</p>
+                      </td>
+                      <td className="py-4 px-6 text-sm font-bold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                          {(() => {
+                            const f = new Date(req.fromDate + 'T00:00:00');
+                            const t = new Date(req.toDate + 'T00:00:00');
+                            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                          })()}
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600 font-medium whitespace-nowrap" data-label="Leave Dates">
-                      {(() => {
-                        const f = new Date(req.fromDate + 'T00:00:00');
-                        const t = new Date(req.toDate + 'T00:00:00');
-                        return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
-                      })()}
-                    </td>
-                    <td className="py-3 px-4" data-label="Reason">
-                      <p className="text-sm font-bold text-gray-800 text-left">{req.type}</p>
-                      <p className="text-xs text-gray-500 max-w-[200px] truncate text-left">{req.reason}</p>
-                    </td>
-                    <td className="py-3 px-4 text-right" data-label="Status">
-                      {req.status === 'Pending' ? (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleUpdateStatus(req.id, 'Approved')}
-                            disabled={processingIds.has(req.id)}
-                            className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 hover:bg-green-100 rounded text-xs font-bold transition-colors disabled:opacity-50"
-                          >
-                            {processingIds.has(req.id) && <Loader2 className="w-3 h-3 animate-spin" />}
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(req.id, 'Rejected')}
-                            disabled={processingIds.has(req.id)}
-                            className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-bold transition-colors disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                          req.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                          req.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {req.status}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="py-4 px-6">
+                        <p className="text-sm font-black text-gray-800">{req.type}</p>
+                        <p className="text-xs text-gray-500 max-w-[200px] truncate">{req.reason}</p>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        {req.status === 'Pending' ? (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleUpdateStatus(req.id, 'Approved')}
+                              disabled={processingIds.has(req.id)}
+                              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleUpdateStatus(req.id, 'Rejected')}
+                              disabled={processingIds.has(req.id)}
+                              className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                            req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                            'bg-red-50 text-red-700 border-red-100'
+                          }`}>
+                            {req.status}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
                   ))
                 )}
               </tbody>
             </table>
             <div ref={adminSentinel} className="h-4" />
           </div>
+
+          {/* Mobile Admin Request Cards */}
+          <div className="md:hidden p-4 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar bg-gray-50/50">
+            {filteredRequests.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 italic text-sm">No requests found.</div>
+            ) : (
+              adminItems.map((req, i) => (
+                <div key={req.id || i} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-sm border border-blue-100">
+                        {req.userName?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-gray-800 leading-tight">{req.userName}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{req.rollNo || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                      req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                      req.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                      'bg-red-50 text-red-700 border-red-100'
+                    }`}>
+                      {req.status}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center gap-2 text-gray-700 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span className="text-xs font-bold">
+                        {(() => {
+                          const f = new Date(req.fromDate + 'T00:00:00');
+                          const t = new Date(req.toDate + 'T00:00:00');
+                          return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                        })()}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-inner">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{req.type}</p>
+                      <p className="text-xs text-gray-600 italic leading-relaxed">"{req.reason}"</p>
+                    </div>
+                  </div>
+
+                  {req.status === 'Pending' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => handleUpdateStatus(req.id, 'Approved')}
+                        disabled={processingIds.has(req.id)}
+                        className="w-full py-3 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-100 active:scale-95 transition-all"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(req.id, 'Rejected')}
+                        disabled={processingIds.has(req.id)}
+                        className="w-full py-3 bg-white text-red-600 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            <div ref={adminSentinel} className="h-4" />
+          </div>
+        </div>
         </div>
       </div>
     </div>

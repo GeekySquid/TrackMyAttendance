@@ -27,6 +27,10 @@ import {
   updateSystemSettings
 } from '../services/dbService';
 import toast from 'react-hot-toast';
+import CustomInput from '../components/CustomInput';
+import CustomDropdown from '../components/CustomDropdown';
+import CustomToggle from '../components/CustomToggle';
+import { Phone, Globe, Calendar as CalendarIcon, Hash, BookOpen, Mail, MessageSquare as MessageSquareIcon, Activity } from 'lucide-react';
 
 export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?: 'admin' | 'student', user?: any, onUpdate?: (u: any) => void }) {
   const location = useLocation();
@@ -473,21 +477,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-800">Auto-Notify Parents</h4>
-                      <p className="text-xs text-gray-500 mt-1">Send automated SMS/Email to parents when thresholds are breached.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={localSettings.auto_notify_parents ?? true} 
-                        onChange={(e) => handleSettingsChange({ auto_notify_parents: e.target.checked })}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+                  <CustomToggle
+                    label="Auto-Notify Parents"
+                    description="Send automated SMS/Email to parents when thresholds are breached."
+                    checked={localSettings.auto_notify_parents ?? true}
+                    onChange={(val) => handleSettingsChange({ auto_notify_parents: val })}
+                  />
                 </div>
               </div>
             )}
@@ -500,25 +495,13 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <p className="text-sm text-gray-500">Configure criteria for "Best Student of the Month" and gamification.</p>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-xl mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-blue-900">Enable Monthly Awards</h4>
-                      <p className="text-xs text-blue-700">Automatically calculate and highlight top performers.</p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={localSettings.enable_monthly_awards ?? true} 
-                      onChange={(e) => handleSettingsChange({ enable_monthly_awards: e.target.checked })}
-                    />
-                    <div className="w-11 h-6 bg-blue-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
+                <div className="p-2 border border-blue-100 rounded-2xl bg-blue-50/30">
+                  <CustomToggle
+                    label="Enable Monthly Awards"
+                    description="Automatically calculate and highlight top performers."
+                    checked={localSettings.enable_monthly_awards ?? true}
+                    onChange={(val) => handleSettingsChange({ enable_monthly_awards: val })}
+                  />
                 </div>
 
                 <div className="space-y-4">
@@ -545,21 +528,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg mt-4">
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-800">Auto-Generate Certificates</h4>
-                      <p className="text-xs text-gray-500 mt-1">Create downloadable PDF certificates for winners.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={localSettings.auto_generate_certificates ?? true} 
-                        onChange={(e) => handleSettingsChange({ auto_generate_certificates: e.target.checked })}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+                  <CustomToggle
+                    label="Auto-Generate Certificates"
+                    description="Create downloadable PDF certificates for winners."
+                    checked={localSettings.auto_generate_certificates ?? true}
+                    onChange={(val) => handleSettingsChange({ auto_generate_certificates: val })}
+                  />
                 </div>
               </div>
             )}
@@ -573,39 +547,21 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg bg-gray-50/30">
-                    <div className="flex items-center gap-3">
-                      <UserCheck className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <h4 className="text-sm font-bold text-gray-800">Two-Factor Authentication (2FA)</h4>
-                        <p className="text-xs text-gray-500">Require 2FA for your account.</p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" disabled />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 opacity-50"></div>
-                    </label>
-                  </div>
+                  <CustomToggle
+                    label="Two-Factor Authentication (2FA)"
+                    description="Require 2FA for your account. (Enterprise Only)"
+                    checked={false}
+                    onChange={() => toast.error('Enterprise feature. Please contact support.')}
+                    disabled
+                  />
                   
                   {role === 'admin' && (
-                    <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-800">Strict Device Binding</h4>
-                          <p className="text-xs text-gray-500">Students can only mark attendance from registered devices.</p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only peer" 
-                          checked={localSettings.strict_device_binding ?? true} 
-                          onChange={(e) => handleSettingsChange({ strict_device_binding: e.target.checked })}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
+                    <CustomToggle
+                      label="Strict Device Binding"
+                      description="Students can only mark attendance from registered devices."
+                      checked={localSettings.strict_device_binding ?? true}
+                      onChange={(val) => handleSettingsChange({ strict_device_binding: val })}
+                    />
                   )}
                 </div>
               </div>
@@ -695,23 +651,22 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 <div className="bg-gray-50 border border-gray-100 rounded-xl p-6 mb-8">
                   <h4 className="text-sm font-bold text-gray-700 mb-4 px-1">Add New Mentor</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <input 
-                      type="text" 
-                      placeholder="Mentor Name" 
+                    <CustomInput
+                      icon={User}
+                      placeholder="Mentor Name"
                       value={newMentor.name}
                       onChange={(e) => setNewMentor({...newMentor, name: e.target.value})}
-                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
-                    <input 
-                      type="tel" 
-                      placeholder="Phone Number" 
+                    <CustomInput
+                      icon={Phone}
+                      type="tel"
+                      placeholder="Phone Number"
                       value={newMentor.phone}
                       onChange={(e) => setNewMentor({...newMentor, phone: e.target.value})}
-                      className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                     <button 
                       onClick={handleAddMentor}
-                      className="bg-blue-600 text-white text-sm font-bold py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
+                      className="bg-blue-600 text-white text-sm font-black py-3 px-6 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
                     >
                       Add Mentor
                     </button>
@@ -756,100 +711,95 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={user?.name || ''} 
+                    <CustomInput
+                      label="Full Name"
+                      icon={User}
+                      value={user?.name || ''}
                       onChange={(e) => handleProfileSave({ name: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
-                    <input 
-                      type="email" 
-                      value={user?.email || ''} 
+                    <CustomInput
+                      label="Email Address"
+                      icon={Mail}
+                      value={user?.email || ''}
                       disabled
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                     />
                   </div>
                   {user?.role === 'student' && (
                     <>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Roll Number</label>
-                        <input 
-                          type="text" 
-                          value={user?.rollNo || ''} 
+                        <CustomInput
+                          label="Roll Number"
+                          icon={Hash}
+                          value={user?.rollNo || ''}
                           disabled
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Course</label>
-                        <input 
-                          type="text" 
-                          value={user?.course || ''} 
+                        <CustomInput
+                          label="Course"
+                          icon={BookOpen}
+                          value={user?.course || ''}
                           disabled
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed opacity-70" 
                         />
                       </div>
                     </>
                   )}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
-                    <input 
-                      type="tel" 
+                    <CustomInput
+                      label="Phone Number"
+                      icon={Phone}
                       value={user?.phone || ''}
                       onChange={(e) => handleProfileSave({ phone: e.target.value })}
-                      placeholder="+1 (555) 123-4567" 
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm" 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Assigned Mentor</label>
-                    <select 
+                    <CustomDropdown
+                      label="Assigned Mentor"
+                      icon={Users}
+                      options={[
+                        { value: '', label: 'No Mentor Assigned', icon: User },
+                        ...mentors.map(m => ({ value: m.id, label: m.name, icon: User }))
+                      ]}
                       value={user?.mentorId || ''}
-                      onChange={(e) => handleProfileSave({ mentorId: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
-                    >
-                      <option value="">No Mentor Assigned</option>
-                      {mentors.map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => handleProfileSave({ mentorId: val })}
+                    />
                   </div>
                   {user?.role === 'student' && (
                     <>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Gender</label>
-                        <select 
+                        <CustomDropdown
+                          label="Gender"
+                          icon={UserCheck}
+                          options={[
+                            { value: '', label: 'Select' },
+                            { value: 'Male', label: 'Male' },
+                            { value: 'Female', label: 'Female' },
+                            { value: 'Other', label: 'Other' }
+                          ]}
                           value={user?.gender || ''}
-                          onChange={(e) => handleProfileSave({ gender: e.target.value })}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
-                        >
-                          <option value="">Select</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
+                          onChange={(val) => handleProfileSave({ gender: val })}
+                        />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Blood Group</label>
-                        <select 
+                        <CustomDropdown
+                          label="Blood Group"
+                          icon={Activity}
+                          options={[
+                            { value: '', label: 'Select' },
+                            { value: 'A+', label: 'A+' },
+                            { value: 'A-', label: 'A-' },
+                            { value: 'B+', label: 'B+' },
+                            { value: 'B-', label: 'B-' },
+                            { value: 'O+', label: 'O+' },
+                            { value: 'O-', label: 'O-' },
+                            { value: 'AB+', label: 'AB+' },
+                            { value: 'AB-', label: 'AB-' }
+                          ]}
                           value={user?.bloodGroup || ''}
-                          onChange={(e) => handleProfileSave({ bloodGroup: e.target.value })}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
-                        >
-                          <option value="">Select</option>
-                          <option value="A+">A+</option>
-                          <option value="A-">A-</option>
-                          <option value="B+">B+</option>
-                          <option value="B-">B-</option>
-                          <option value="O+">O+</option>
-                          <option value="O-">O-</option>
-                          <option value="AB+">AB+</option>
-                          <option value="AB-">AB-</option>
-                        </select>
+                          onChange={(val) => handleProfileSave({ bloodGroup: val })}
+                        />
                       </div>
                     </>
                   )}
@@ -863,16 +813,12 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <h3 className="text-lg font-bold text-gray-800">Preferences</h3>
                   <p className="text-sm text-gray-500">Customize your app experience.</p>
                 </div>
-                <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-800">Push Notifications</h4>
-                    <p className="text-xs text-gray-500 mt-1">Receive alerts for attendance and leave updates.</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
+                <CustomToggle
+                  label="Push Notifications"
+                  description="Receive alerts for attendance and leave updates."
+                  checked={true}
+                  onChange={() => {}}
+                />
               </div>
             )}
 

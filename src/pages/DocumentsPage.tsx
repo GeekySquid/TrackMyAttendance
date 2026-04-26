@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Folder, File, Download, MoreVertical, Search, Plus, Trash2, X, FileText, FileSpreadsheet, FileIcon as FilePdf, Image as ImageIcon, History, Clock, User, Eye } from 'lucide-react';
-import { listenToCollection, addDocument, deleteDocument } from '../services/dbService';
+import { Folder, File, Download, MoreVertical, Search, Plus, Trash2, X, FileText, FileSpreadsheet, FileIcon as FilePdf, Image as ImageIcon, History, Clock, User, Eye, Share2 } from 'lucide-react';
+import { listenToCollection, addDocument, deleteDocument, removeDocumentRevision } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export default function DocumentsPage({ user }: { user?: any }) {
@@ -191,6 +191,39 @@ export default function DocumentsPage({ user }: { user?: any }) {
       URL.revokeObjectURL(url);
     }
   };
+ 
+  const handleShare = async (doc: any) => {
+    const shareData = {
+      title: doc.name,
+      text: `Check out this document: ${doc.name}`,
+      url: doc.fileData || window.location.href
+    };
+ 
+    if (navigator.share && doc.fileData) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.warn("Share failed, copying to clipboard instead");
+        copyToClipboard(doc.fileData);
+      }
+    } else {
+      copyToClipboard(doc.fileData || window.location.href);
+    }
+  };
+ 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showNotification("Link copied to clipboard!");
+  };
+ 
+  const handleRemoveRevision = async (docId: string, idx: number) => {
+    try {
+      await removeDocumentRevision(docId, idx);
+      showNotification("Revision removed successfully!");
+    } catch (error) {
+      showNotification("Failed to remove revision.", "error");
+    }
+  };
   const filteredDocuments = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (doc.uploader || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -334,8 +367,18 @@ export default function DocumentsPage({ user }: { user?: any }) {
                         </button>
                       )}
 
-                      {/* Revealed Actions on Hover (Dynamic Reveal) */}
-                      <div className="hidden group-hover:flex items-center gap-1.5 animate-in slide-in-from-right-1 duration-200">
+                      {/* Revealed Actions on Mobile (Always) / Hover on Desktop */}
+                      <div className="flex items-center gap-1.5 animate-in slide-in-from-right-1 duration-200">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(doc);
+                          }}
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Share"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -431,13 +474,29 @@ export default function DocumentsPage({ user }: { user?: any }) {
                         <div className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-all group">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">v.{selectedDoc.revisions.length - idx}</span>
-                            <button 
-                              onClick={() => handleDownload({ ...rev, name: `v${selectedDoc.revisions.length - idx}_${selectedDoc.name}` })}
-                              className="p-1 text-gray-400 hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
-                              title="Download this version"
-                            >
-                              <Download className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => handleShare(rev)}
+                                className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                                title="Share"
+                              >
+                                <Share2 className="w-3 h-3" />
+                              </button>
+                              <button 
+                                onClick={() => handleDownload({ ...rev, name: `v${selectedDoc.revisions.length - idx}_${selectedDoc.name}` })}
+                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="Download this version"
+                              >
+                                <Download className="w-3 h-3" />
+                              </button>
+                              <button 
+                                onClick={() => handleRemoveRevision(selectedDoc.id, idx)}
+                                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Remove version"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                           <p className="text-[11px] font-bold text-gray-800 line-clamp-1">{rev.name}</p>
                           <div className="mt-2 space-y-1">

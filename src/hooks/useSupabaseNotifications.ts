@@ -88,6 +88,9 @@ export function useSupabaseNotifications(profile: any) {
           const isBroadcast = !payload.new.user_id;
 
           if (isTargeted || isBroadcast) {
+            // Skip if the current user is the one who sent it
+            if (payload.new.sender_id === profile.id) return;
+
             const personality = formatPersonalityMessage('announcement', {
               userName: profile.name,
               actionType: payload.new.title,

@@ -118,9 +118,13 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-8 shrink-0 relative z-40">
       <div className="flex items-center flex-1">
-        <button className="mr-4 lg:hidden text-gray-500 hover:text-gray-700" onClick={toggleSidebar}>
-          <Menu className="h-6 w-6" />
-        </button>
+        {/* Application Branding (Mobile) */}
+        <div className="flex lg:hidden items-center gap-2.5 mr-4">
+          <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-sm" />
+          <h1 className="text-sm font-black text-gray-900 tracking-tighter">
+            Track<span className="text-blue-600">MY</span>Device
+          </h1>
+        </div>
         
         {/* Interactive Search Bar */}
         <div className="w-full max-w-md relative hidden sm:block">
