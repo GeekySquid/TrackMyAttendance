@@ -142,31 +142,31 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
 
         {/* Podium */}
         {topThreeRaw.length >= 2 && (
-          <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-500/5 p-6 sm:p-10 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-transparent pointer-events-none" />
+          <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-500/5 p-6 sm:p-10 relative">
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-50/20 to-transparent pointer-events-none rounded-[2.5rem]" />
             
-            <div className="flex justify-center items-end gap-2 sm:gap-10 h-72 mt-12 relative z-10">
+            <div className="flex justify-center items-end gap-2 sm:gap-10 min-h-[400px] mt-20 relative z-10">
               {/* 2nd Place */}
               {topThree[0] ? (
-                <div className="flex flex-col items-center w-1/3 max-w-[130px] relative group">
-                  <div className="absolute -top-16 flex flex-col items-center transition-transform duration-500 group-hover:-translate-y-2">
+                <div className="flex flex-col items-center w-1/3 max-w-[140px] relative group transition-all duration-500">
+                  <div className="absolute -top-16 flex flex-col items-center transition-all duration-500 group-hover:-translate-y-6 z-20">
                     <div className="relative">
                       <img
                         src={avatarUrl(topThree[0].name, topThree[0].photo_url)}
                         alt={topThree[0].name}
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-gray-300 bg-white shadow-xl object-cover z-10"
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-gray-300 bg-white shadow-xl object-cover"
                       />
                       <div className="absolute inset-0 rounded-full ring-4 ring-gray-400/20 animate-ping opacity-20" />
                     </div>
-                    <div className="absolute -bottom-3 bg-gray-300 text-gray-800 text-[10px] font-black px-3 py-1 rounded-xl border-2 border-white z-20 shadow-lg">
+                    <div className="absolute -bottom-3 bg-gray-300 text-gray-800 text-[10px] font-black px-3 py-1 rounded-xl border-2 border-white shadow-lg whitespace-nowrap z-30">
                       2ND
                     </div>
                   </div>
-                  <div className="w-full h-36 bg-gradient-to-t from-gray-200/50 via-gray-100/30 to-white/10 backdrop-blur-sm border-x border-t border-gray-200/50 rounded-t-[2rem] flex flex-col items-center justify-end pb-6 transition-all duration-500 group-hover:h-40 group-hover:from-gray-200/70">
-                    <p className="text-xs font-black text-gray-800 text-center truncate w-full px-3">
+                  <div className="w-full h-36 bg-gradient-to-t from-gray-200/50 via-gray-100/30 to-white/10 backdrop-blur-sm border-x border-t border-gray-200/50 rounded-t-[2rem] flex flex-col items-center justify-end pb-5 transition-all duration-500 group-hover:from-gray-200/70 group-hover:translate-y-[-2px] z-10 px-2">
+                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1.5 line-clamp-2">
                       {topThree[0].name}
                     </p>
-                    <p className="text-[10px] font-black text-gray-500 mt-1 bg-gray-200/50 px-2 py-0.5 rounded-lg">
+                    <p className="text-[9px] font-black text-gray-500 bg-gray-200/50 px-2 py-0.5 rounded-lg">
                       {topThree[0].score} PTS
                     </p>
                   </div>
@@ -175,30 +175,30 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
 
               {/* 1st Place */}
               {topThree[1] ? (
-                <div className="flex flex-col items-center w-1/3 max-w-[160px] relative z-10 group">
-                  <div className="absolute -top-24 flex flex-col items-center transition-transform duration-700 group-hover:-translate-y-4">
+                <div className="flex flex-col items-center w-1/3 max-w-[180px] relative z-30 group transition-all duration-500">
+                  <div className="absolute -top-24 flex flex-col items-center transition-all duration-700 group-hover:-translate-y-10 z-20">
                     <div className="relative">
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-yellow-500 animate-bounce">
-                        <Crown className="w-10 h-10 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-yellow-500 animate-bounce">
+                        <Crown className="w-12 h-12 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]" />
                       </div>
                       <img
                         src={avatarUrl(topThree[1].name, topThree[1].photo_url)}
                         alt={topThree[1].name}
-                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[6px] border-yellow-400 bg-yellow-50 shadow-2xl shadow-yellow-400/40 object-cover z-10"
+                        className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-[6px] border-yellow-400 bg-yellow-50 shadow-2xl shadow-yellow-400/40 object-cover"
                       />
                       <div className="absolute inset-0 rounded-full ring-[8px] ring-yellow-400/30 animate-pulse" />
                     </div>
-                    <div className="absolute -bottom-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 text-xs font-black px-4 py-1.5 rounded-2xl border-2 border-white z-20 shadow-xl">
+                    <div className="absolute -bottom-5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 text-xs font-black px-5 py-2 rounded-2xl border-2 border-white shadow-xl whitespace-nowrap z-30">
                       CHAMPION
                     </div>
                   </div>
-                  <div className="w-full h-52 bg-gradient-to-t from-yellow-400/30 via-yellow-100/20 to-white/10 backdrop-blur-md border-x border-t border-yellow-400/30 rounded-t-[2.5rem] flex flex-col items-center justify-end pb-8 transition-all duration-500 group-hover:h-56 group-hover:from-yellow-400/40">
-                    <p className="text-sm font-black text-gray-900 text-center truncate w-full px-4 mb-1">
+                  <div className="w-full h-56 bg-gradient-to-t from-yellow-400/30 via-yellow-100/20 to-white/10 backdrop-blur-md border-x border-t border-yellow-400/30 rounded-t-[2.5rem] flex flex-col items-center justify-end pb-7 transition-all duration-500 group-hover:from-yellow-400/40 group-hover:translate-y-[-4px] z-10 px-3">
+                    <p className="text-[13px] font-black text-gray-900 text-center leading-tight mb-2 line-clamp-2">
                       {topThree[1].name}
                     </p>
-                    <div className="flex items-center gap-2 bg-yellow-400/20 px-3 py-1 rounded-xl border border-yellow-400/30">
-                      <Sparkles className="w-3.5 h-3.5 text-yellow-600" />
-                      <span className="text-[11px] font-black text-yellow-700">
+                    <div className="flex items-center gap-1.5 bg-yellow-400/20 px-3 py-1 rounded-xl border border-yellow-400/30">
+                      <Sparkles className="w-3 h-3 text-yellow-600" />
+                      <span className="text-[10px] font-black text-yellow-700">
                         {topThree[1].score} PTS
                       </span>
                     </div>
@@ -208,25 +208,25 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
 
               {/* 3rd Place */}
               {topThree[2] ? (
-                <div className="flex flex-col items-center w-1/3 max-w-[130px] relative group">
-                  <div className="absolute -top-16 flex flex-col items-center transition-transform duration-500 group-hover:-translate-y-2">
+                <div className="flex flex-col items-center w-1/3 max-w-[140px] relative group transition-all duration-500 z-10">
+                  <div className="absolute -top-16 flex flex-col items-center transition-all duration-500 group-hover:-translate-y-6 z-20">
                     <div className="relative">
                       <img
                         src={avatarUrl(topThree[2].name, topThree[2].photo_url)}
                         alt={topThree[2].name}
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-orange-300 bg-white shadow-xl object-cover z-10"
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-orange-300 bg-white shadow-xl object-cover"
                       />
                       <div className="absolute inset-0 rounded-full ring-4 ring-orange-400/20 animate-ping opacity-20" />
                     </div>
-                    <div className="absolute -bottom-3 bg-orange-200 text-orange-900 text-[10px] font-black px-3 py-1 rounded-xl border-2 border-white z-20 shadow-lg">
+                    <div className="absolute -bottom-3 bg-orange-200 text-orange-900 text-[10px] font-black px-3 py-1 rounded-xl border-2 border-white shadow-lg whitespace-nowrap z-30">
                       3RD
                     </div>
                   </div>
-                  <div className="w-full h-28 bg-gradient-to-t from-orange-200/40 via-orange-100/20 to-white/10 backdrop-blur-sm border-x border-t border-orange-200/40 rounded-t-[2rem] flex flex-col items-center justify-end pb-6 transition-all duration-500 group-hover:h-32 group-hover:from-orange-200/60">
-                    <p className="text-xs font-black text-gray-800 text-center truncate w-full px-3">
+                  <div className="w-full h-28 bg-gradient-to-t from-orange-200/40 via-orange-100/20 to-white/10 backdrop-blur-sm border-x border-t border-orange-200/40 rounded-t-[2rem] flex flex-col items-center justify-end pb-5 transition-all duration-500 group-hover:from-orange-200/60 group-hover:translate-y-[-2px] z-10 px-2">
+                    <p className="text-[11px] font-black text-gray-800 text-center leading-tight mb-1.5 line-clamp-2">
                       {topThree[2].name}
                     </p>
-                    <p className="text-[10px] font-black text-orange-700 mt-1 bg-orange-200/50 px-2 py-0.5 rounded-lg">
+                    <p className="text-[9px] font-black text-orange-700 mt-1 bg-orange-200/50 px-2 py-0.5 rounded-lg">
                       {topThree[2].score} PTS
                     </p>
                   </div>
@@ -281,37 +281,43 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                 </span>
               </div>
             </div>
-            <div className="table-fixed-height relative z-10 px-2 pb-2">
-              <table className="w-full text-left border-separate border-spacing-y-2">
-                <thead className="sticky top-0 z-20 bg-gray-50/50 backdrop-blur-md">
-                  <tr>
-                    <th className="py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center">Rank</th>
-                    <th className="py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Student</th>
-                    <th className="py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Performance</th>
-                    <th className="py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Score</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-0">
-                  {rankItems.map((entry) => {
-                    const isMe = entry.user_id === userId;
-                    return (
-                      <tr
-                        key={entry.user_id}
-                        className={`transition-all duration-300 group/row relative ${isMe ? 'z-10' : 'z-0'}`}
-                      >
-                        <td className="py-4 px-6 text-center">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm transition-all duration-300 ${
+            <div className="relative z-10 px-4 sm:px-8 pb-8 space-y-3">
+              {/* Header - Desktop only */}
+              <div className="hidden sm:grid sm:grid-cols-[80px_1fr_180px_100px] gap-4 px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                <div className="text-center">Rank</div>
+                <div>Student</div>
+                <div>Performance</div>
+                <div className="text-right">Score</div>
+              </div>
+
+              <div className="space-y-4">
+                {rankItems.map((entry) => {
+                  const isMe = entry.user_id === userId;
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className={`group/row relative bg-white rounded-[2rem] p-4 sm:p-5 border transition-all duration-500 hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/10 ${
+                        isMe 
+                          ? 'border-blue-500 bg-blue-50/30 z-10 ring-4 ring-blue-500/5' 
+                          : 'border-gray-100 hover:border-blue-200'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-4">
+                        {/* Main Info Row */}
+                        <div className="flex items-center gap-3 sm:gap-6">
+                          {/* Rank */}
+                          <div className={`shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base transition-all duration-300 ${
                             isMe ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-50 text-gray-400 group-hover/row:bg-blue-50 group-hover/row:text-blue-600'
                           }`}>
                             {entry.rank}
                           </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-4">
-                            <div className="relative">
+
+                          {/* Student Avatar & Name */}
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                            <div className="relative shrink-0">
                               <img
                                 src={avatarUrl(entry.name, entry.photo_url)}
-                                className={`w-10 h-10 rounded-full border-2 transition-transform duration-300 group-hover/row:scale-110 ${
+                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 transition-transform duration-300 group-hover/row:scale-110 ${
                                   isMe ? 'border-blue-500 shadow-md' : 'border-gray-100 group-hover/row:border-blue-200'
                                 }`}
                                 alt={entry.name}
@@ -320,17 +326,43 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white" />
                               )}
                             </div>
-                            <div className="text-left">
-                              <span className={`font-black text-[15px] tracking-tight block ${isMe ? 'text-blue-700' : 'text-gray-800'}`}>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-black text-[15px] sm:text-base tracking-tight truncate ${isMe ? 'text-blue-700' : 'text-gray-800'}`}>
                                 {entry.name} {isMe && '⭐'}
-                              </span>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{entry.roll_no || 'CS-S1'}</p>
+                              </h4>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{entry.roll_no || 'CS-S1'}</p>
                             </div>
                           </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden p-[2px]">
+
+                          {/* Score (Right Aligned) */}
+                          <div className="shrink-0 text-right">
+                            <div className="flex flex-col items-end">
+                              <span className={`font-black text-lg sm:text-xl tabular-nums tracking-tighter leading-none ${isMe ? 'text-blue-700' : 'text-gray-900'}`}>
+                                {entry.score}
+                              </span>
+                              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Points</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Divider - Mobile Only */}
+                        <div className="h-px bg-gray-50 sm:hidden" />
+
+                        {/* Performance Section */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-8 bg-gray-50/50 sm:bg-transparent p-3 sm:p-0 rounded-2xl">
+                          <div className="flex justify-between items-center sm:hidden mb-0.5">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Attendance</span>
+                            <span className={`text-[10px] font-black tracking-widest ${
+                              entry.attendance_pct >= 90 ? 'text-blue-600' : 
+                              entry.attendance_pct >= 75 ? 'text-indigo-600' : 
+                              'text-orange-600'
+                            }`}>
+                              {entry.attendance_pct}%
+                            </span>
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="w-full sm:w-48 h-1.5 sm:h-1.5 bg-gray-200/50 sm:bg-gray-100 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all duration-1000 ${
                                   entry.attendance_pct >= 90 ? 'bg-gradient-to-r from-blue-400 to-blue-600' : 
@@ -340,28 +372,21 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
                                 style={{ width: `${entry.attendance_pct}%` }}
                               />
                             </div>
-                            <span className={`text-[10px] font-black tracking-widest ${
-                              entry.attendance_pct >= 90 ? 'text-blue-600' : 
-                              entry.attendance_pct >= 75 ? 'text-indigo-600' : 
-                              'text-orange-600'
-                            }`}>
-                              {entry.attendance_pct}% ACCURACY
-                            </span>
                           </div>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="flex flex-col items-end">
-                            <span className={`font-black text-lg tabular-nums tracking-tight ${isMe ? 'text-blue-700' : 'text-gray-900'}`}>
-                              {entry.score}
-                            </span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Points</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+                          <span className={`hidden sm:block text-[10px] font-black tracking-widest shrink-0 ${
+                            entry.attendance_pct >= 90 ? 'text-blue-600' : 
+                            entry.attendance_pct >= 75 ? 'text-indigo-600' : 
+                            'text-orange-600'
+                          }`}>
+                            {entry.attendance_pct}% ACCURACY
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               <div ref={rankSentinel} className="h-4" />
             </div>
 
