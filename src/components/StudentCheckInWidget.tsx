@@ -43,10 +43,10 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
     const syncAttendance = async () => {
       const todayLogs = await getAttendance(userId);
       const today = new Date().toISOString().split('T')[0];
-      const activeLog = todayLogs.find((log: any) => log.date === today && log.status !== 'Absent');
+      const activeLog = todayLogs.slice().reverse().find((log: any) => log.date === today && log.status !== 'Absent');
       if (activeLog) {
-        setIsCheckedIn(activeLog.outTime === '--');
-        setLastCheckOut(activeLog.outTime !== '--' ? activeLog.outTime : null);
+        setIsCheckedIn(!activeLog.checkOutTime);
+        setLastCheckOut(activeLog.checkOutTime || null);
       }
     };
     syncAttendance();
@@ -56,8 +56,11 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
       const myLogs = logs.filter((l: any) => l.userId === userId && l.date === today);
       const activeLog = myLogs[myLogs.length - 1];
       if (activeLog) {
-        setIsCheckedIn(activeLog.outTime === '--');
-        setLastCheckOut(activeLog.outTime !== '--' ? activeLog.outTime : null);
+        setIsCheckedIn(!activeLog.checkOutTime);
+        setLastCheckOut(activeLog.checkOutTime || null);
+      } else {
+        setIsCheckedIn(false);
+        setLastCheckOut(null);
       }
     }, userId);
     return () => unsub();
@@ -117,7 +120,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
           const dist = getDistance(latitude, longitude, parseFloat(sched.lat), parseFloat(sched.lng));
           if (dist <= parseFloat(sched.radius)) {
             setIsOutsideZone(false);
-            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            const now = new Date().toISOString();
             const settings = await getSystemSettings();
             const startParts = sched.time.split(':');
             const windowStart = new Date();
@@ -127,7 +130,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
             const isLate = new Date() > graceEnd;
             await addAttendance({
               userId, userName: user.name, rollNo: user.rollNo, course: user.course,
-              date: new Date().toISOString().split('T')[0], inTime: now, outTime: '--',
+              date: new Date().toISOString().split('T')[0], checkInTime: now, checkOutTime: null,
               status: isLate ? 'Late' : 'Present', locationName: sched.locationName,
               locationCoords: `${latitude}, ${longitude}`, lateReason: '', lateReasonImage: ''
             });
@@ -153,12 +156,12 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
     try {
       const today = new Date().toISOString().split('T')[0];
       const logs = await getAttendance(userId);
-      const activeLog = logs.find((l: any) => l.date === today && l.outTime === '--');
+      const activeLog = logs.find((l: any) => l.date === today && !l.checkOutTime);
       if (activeLog) {
         const finalReason = checkoutReason === 'Other' ? otherReason : checkoutReason;
-        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-        await updateAttendance(activeLog.id, { outTime: now, checkoutReason: finalReason });
-        setIsCheckedIn(false); setLastCheckOut(now); setShowCheckoutModal(false);
+        const now = new Date().toISOString();
+        await updateAttendance(activeLog.id, { checkOutTime: now, checkoutReason: finalReason });
+        setIsCheckedIn(false); setLastCheckOut(new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })); setShowCheckoutModal(false);
         toast.success('Checked out successfully!');
       }
     } catch (e) { toast.error('DB error.'); } finally { setIsProcessing(false); }

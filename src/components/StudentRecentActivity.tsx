@@ -458,7 +458,14 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Location</span>
                       <div className="flex items-center gap-2 text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
                         <MapPin className="w-3.5 h-3.5 text-red-500" />
-                        <span className="text-xs font-bold truncate">{log.locationName || 'Campus'}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold break-words">{log.locationName || 'Campus'}</span>
+                          {log.locationCoords && (
+                            <span className="text-[9px] text-gray-400 font-mono tracking-tighter truncate">
+                              {log.locationCoords}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

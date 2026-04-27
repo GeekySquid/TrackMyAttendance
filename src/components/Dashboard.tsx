@@ -82,7 +82,11 @@ export default function Dashboard({ user }: { user: any }) {
   const [manualRadius, setManualRadius] = useState('500');
   const [manualLocationName, setManualLocationName] = useState('Manual Selection');
   const [manualGracePeriod, setManualGracePeriod] = useState(15);
-  const [manualEndTime, setManualEndTime] = useState('17:00');
+  const [manualEndTime, setManualEndTime] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1);
+    return `${String(d.getHours()).padStart(2, '0')}:00`;
+  });
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid' | 'terrain'>('roadmap');
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -212,6 +216,17 @@ export default function Dashboard({ user }: { user: any }) {
   const handleStartManualSession = async () => {
     setIsToggling(true);
     setShowConfigModal(false);
+    // Validation: Ensure end time is in the future
+    const [eh, em] = manualEndTime.split(':').map(Number);
+    const now = new Date();
+    const end = new Date();
+    end.setHours(eh, em, 0, 0);
+    if (end < now) {
+      toast.error('End time must be in the future');
+      setIsToggling(false);
+      return;
+    }
+
     try {
       // Optimistic UI for instant feedback
       setIsWindowActive(true);

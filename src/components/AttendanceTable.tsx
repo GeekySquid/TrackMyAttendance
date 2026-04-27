@@ -423,9 +423,16 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                               }`}>
                               <MapPin className={`w-2.5 h-2.5 ${isNew ? 'text-white' : 'text-blue-500'}`} />
                             </div>
-                            <span className="font-semibold text-gray-700 truncate max-w-[80px] sm:max-w-[100px]" title={cleanName}>
-                              {cleanName}
-                            </span>
+                            <div className="flex flex-col text-right sm:text-left min-w-0">
+                              <span className="font-semibold text-gray-700 truncate sm:whitespace-normal max-w-[100px] sm:max-w-none" title={cleanName}>
+                                {cleanName}
+                              </span>
+                              {locationCoords && (
+                                <span className="text-[9px] text-gray-400 font-mono tracking-tighter sm:hidden truncate">
+                                  {locationCoords}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })()}

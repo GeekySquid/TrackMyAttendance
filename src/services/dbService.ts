@@ -137,65 +137,43 @@ export function mapNotification(n: any) {
 
 export function isScheduleActive(s: any): boolean {
   if (!s) return false;
-  // 1. Manual Global Override (-999 row)
-  if (parseFloat(s.radius) === -999) {
-    if (!s.isActive) return false;
+  // 1. Manual Global Override Row
+  if (!s.isActive) return false;
 
-    // Check if it has an end time and if we are past it
-    if (s.endTime) {
-      const [eh, em] = s.endTime.split(':').map(Number);
-      if (!isNaN(eh)) {
-        const now = new Date();
-        const schedEnd = new Date();
-        schedEnd.setHours(eh, em, 0, 0);
-        // If we are past the end time, it's effectively closed
-        if (now > schedEnd) return false;
-      }
+  // Check Time Range if specified (for both manual and auto)
+  if (s.endTime || s.time) {
+    const now = new Date();
+    const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+    
+    // Day check (only for auto schedules with days array)
+    if (s.autoActivate && s.days?.length && !s.days.includes(currentDay)) {
+      return false;
     }
-    return true;
-  }
 
-  // 2. Master Kill Switch
-  // If isActive is explicitly false, the window is CLOSED regardless of auto-activation.
-  if (s.isActive === false) return false;
-
-  // 3. Auto-Activation Logic
-  if (s.autoActivate && s.time && s.days?.length) {
-    const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
-    if (!s.days.includes(currentDay)) return false;
-
-    const [h, m] = s.time.split(':').map(Number);
+    const [h, m] = (s.time || '00:00').split(':').map(Number);
     const [eh, em] = (s.endTime || '23:59').split(':').map(Number);
 
-    if (isNaN(h) || isNaN(m)) return false;
-
-    const now = new Date();
     const schedStart = new Date();
     schedStart.setHours(h, m, 0, 0);
 
     const schedEnd = new Date();
     schedEnd.setHours(eh, em, 0, 0);
 
-    // If endTime is earlier than startTime, assume it spans to the next day
+    // Span to next day if end < start
     if (schedEnd < schedStart) {
       schedEnd.setDate(schedEnd.getDate() + 1);
     }
 
-    const isWithinTimeRange = now >= schedStart && now <= schedEnd;
-
-    if (isWithinTimeRange) {
-      const lat = parseFloat(s.lat), lng = parseFloat(s.lng), r = parseFloat(s.radius);
-      return !isNaN(lat) && !isNaN(lng) && !isNaN(r) && r > 0;
-    }
-
-    // If we are outside the auto-activation time window, it's CLOSED 
-    // (unless isActive was used as a manual "Force Open" override, 
-    // but here we treat it as an "Enable" flag for the schedule).
-    return false;
+    if (now < schedStart || now > schedEnd) return false;
   }
 
-  // 4. Manual Specific Switch (Fallback for non-auto schedules)
-  return !!s.isActive;
+  // 2. Auto-Activation Location Check
+  if (s.autoActivate) {
+    const lat = parseFloat(s.lat), lng = parseFloat(s.lng), r = parseFloat(s.radius);
+    return !isNaN(lat) && !isNaN(lng) && !isNaN(r) && r > 0;
+  }
+
+  return true;
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -393,6 +371,9 @@ export const getAttendance = async (userId?: string): Promise<any[]> => {
 
 export const addAttendance = async (record: any): Promise<any> => {
   try {
+    // Construct combined location string if components provided
+    const combinedLocation = record.location || (record.locationName ? `${record.locationName}${record.locationCoords ? ` | ${record.locationCoords}` : ''}` : null);
+
     const params = {
       p_user_id: record.userId,
       p_user_name: record.userName || null,
@@ -401,7 +382,7 @@ export const addAttendance = async (record: any): Promise<any> => {
       p_date: record.date,
       p_check_in: record.checkInTime || null,
       p_status: record.status,
-      p_location: record.location || null,
+      p_location: combinedLocation,
       p_late_reason: record.lateReason || null,
       p_late_reason_image: record.lateReasonImage || null
     };
@@ -433,7 +414,7 @@ export const addAttendance = async (record: any): Promise<any> => {
         date: record.date,
         check_in_time: record.checkInTime || null,
         status: record.status,
-        location: record.location || null,
+        location: combinedLocation,
       };
 
       const { data: directData, error: directError } = await supabase
@@ -481,7 +462,13 @@ export const updateAttendance = async (
   const row: Record<string, any> = {};
   if (updates.checkOutTime !== undefined) row.check_out_time = updates.checkOutTime;
   if (updates.status !== undefined) row.status = updates.status;
-  if (updates.location !== undefined) row.location = updates.location;
+  
+  if (updates.location !== undefined) {
+    row.location = updates.location;
+  } else if (updates.locationName !== undefined) {
+    row.location = updates.locationName + (updates.locationCoords ? ` | ${updates.locationCoords}` : '');
+  }
+  
   if (updates.lateReason !== undefined) row.late_reason = updates.lateReason;
   if (updates.lateReasonStatus !== undefined) row.late_reason_status = updates.lateReasonStatus;
   if (updates.lateReasonImage !== undefined) row.late_reason_image = updates.lateReasonImage;
@@ -982,6 +969,8 @@ export const toggleManualAttendanceWindow = async (
   try {
     const now = new Date();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    console.log('[dbService] toggleManualAttendanceWindow:', { active, lat, lng, radius, locationName, endTime });
 
     const { data, error } = await supabase
       .from('attendance_windows')
@@ -993,15 +982,20 @@ export const toggleManualAttendanceWindow = async (
         location_name: locationName,
         grace_period: gracePeriod,
         end_time: endTime || '23:59',
-        time: currentTimeStr // Store as HH:mm so StudentCheckInWidget can parse it
+        time: currentTimeStr
       })
-      .eq('auto_activate', false) // Use auto_activate=false as the stable sentinel identifier
+      .eq('auto_activate', false)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[dbService] Update error:', error.message);
+      throw error;
+    }
 
-    // Automated Trigger: Mark Bulk Check-out when window is closed
-    if (!active) {
+    if (active) {
+      console.log('[dbService] Manual window ACTIVATED');
+    } else {
+      console.log('[dbService] Manual window CLOSED');
       try {
         await markBulkCheckOut();
       } catch (e) {
@@ -1010,6 +1004,7 @@ export const toggleManualAttendanceWindow = async (
     }
 
     if (!data || data.length === 0) {
+      console.log('[dbService] No manual record found, inserting new sentinel...');
       const { data: insData, error: insError } = await supabase
         .from('attendance_windows')
         .insert({
@@ -1039,10 +1034,12 @@ export const toggleManualAttendanceWindow = async (
 export const getManualWindowStatus = async (): Promise<boolean> => {
   const { data } = await supabase
     .from('attendance_windows')
-    .select('is_active')
+    .select('*')
     .eq('auto_activate', false)
     .maybeSingle();
-  return data?.is_active ?? false;
+  
+  if (!data) return false;
+  return isScheduleActive(mapGeofence(data));
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -45,7 +45,8 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           hours: hoursDisplay,
           location: r.locationName || r.location || 'Campus',
-          rawLocation: r.location || 'Campus',
+          locationName: r.location?.split('|')[0]?.trim() || r.locationName || 'Campus',
+          locationCoords: r.location?.split('|')[1]?.trim() || null,
           status: r.status,
           lateReason: r.lateReason,
           lateReasonStatus: r.lateReasonStatus,
@@ -270,10 +271,17 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                       <td className="py-4 px-5 text-sm font-black text-gray-700" data-label="Hours">{log.hours}</td>
                       <td className="py-4 px-5" data-label="Location">
                         <div className="flex items-center gap-2 text-sm font-bold text-gray-600">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="truncate max-w-[150px]">
-                            {log.location.replace(/ \(Auto\)$/i, '').replace(/ \(Manual\)$/i, '')}
-                          </span>
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <div className="flex flex-col text-right sm:text-left">
+                            <span className="truncate sm:whitespace-normal max-w-[120px] sm:max-w-none">
+                              {log.locationName.replace(/ \(Auto\)$/i, '').replace(/ \(Manual\)$/i, '')}
+                            </span>
+                            {log.locationCoords && (
+                              <span className="text-[9px] text-gray-400 font-mono tracking-tight sm:hidden">
+                                {log.locationCoords}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-5" data-label="Status">
