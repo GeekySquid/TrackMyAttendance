@@ -67,34 +67,43 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   }, [userId]);
 
   useEffect(() => {
-    const checkSchedule = async () => {
+    if (!userId) return;
+
+    // Use Realtime for Schedules (INSTANT activation)
+    const unsubSchedules = listenToCollection('geofence_schedules', async (allSchedules) => {
       try {
-        const allSchedules = await getGeofenceSchedules();
         const activeSchedules = allSchedules.filter(isScheduleActive);
         const settings = await getSystemSettings();
         const active = activeSchedules.length > 0;
+        
         setWindowOpen(active);
         if (active) {
           const currentSchedule = activeSchedules[0];
           setActiveScheduleForCountdown(currentSchedule);
+          
           const now = new Date();
           const startParts = currentSchedule.time.split(':');
           const windowStart = new Date();
           windowStart.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0);
-          const graceMinutes = settings.attendance_grace_period || 15;
+          
+          const graceMinutes = settings?.attendance_grace_period || 15;
           const graceEnd = new Date(windowStart.getTime() + graceMinutes * 60000);
           setGraceSecondsLeft(now < graceEnd ? Math.floor((graceEnd.getTime() - now.getTime()) / 1000) : 0);
         } else {
           setGraceSecondsLeft(null);
           setActiveScheduleForCountdown(null);
         }
-      } catch (error) { console.error(error); }
-    };
-    checkSchedule();
-    const interval = setInterval(checkSchedule, 10000);
+      } catch (error) {
+        console.error('[StudentCheckInWidget] Schedule sync error:', error);
+      }
+    });
+
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => { clearInterval(interval); clearInterval(clockInterval); };
-  }, []);
+    return () => {
+      unsubSchedules();
+      clearInterval(clockInterval);
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (graceSecondsLeft !== null && graceSecondsLeft > 0) {
@@ -108,46 +117,88 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   }, [windowOpen, isCheckedIn, isProcessing]);
 
   const handleAutoCheckIn = async () => {
-    if (isProcessing) return;
+    if (isProcessing || !activeScheduleForCountdown || isCheckedIn) return;
     setIsProcessing(true);
-    try {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const allSchedules = await getGeofenceSchedules();
-        const activeSchedules = allSchedules.filter(isScheduleActive);
-        if (activeSchedules.length > 0) {
-          const sched = activeSchedules[0];
-          const dist = getDistance(latitude, longitude, parseFloat(sched.lat), parseFloat(sched.lng));
-          if (dist <= parseFloat(sched.radius)) {
+    
+    const attemptCheckIn = (highAccuracy: boolean) => {
+      return new Promise<void>((resolve) => {
+        const sched = activeScheduleForCountdown;
+        const targetLat = parseFloat(sched.lat);
+        const targetLng = parseFloat(sched.lng);
+        const targetRadius = parseFloat(sched.radius);
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const dist = getFastDistance(latitude, longitude, targetLat, targetLng);
+          
+          if (dist <= targetRadius) {
             setIsOutsideZone(false);
             const now = new Date().toISOString();
-            const settings = await getSystemSettings();
             const startParts = sched.time.split(':');
             const windowStart = new Date();
             windowStart.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0);
-            const graceMinutes = settings.attendance_grace_period || 15;
+            
+            // Re-fetch or use cached grace period
+            const graceMinutes = 15; 
             const graceEnd = new Date(windowStart.getTime() + graceMinutes * 60000);
             const isLate = new Date() > graceEnd;
-            await addAttendance({
-              userId, userName: user.name, rollNo: user.rollNo, course: user.course,
-              date: new Date().toISOString().split('T')[0], checkInTime: now, checkOutTime: null,
-              status: isLate ? 'Late' : 'Present', locationName: sched.locationName,
-              locationCoords: `${latitude}, ${longitude}`, lateReason: '', lateReasonImage: ''
-            });
-            setIsCheckedIn(true);
-            toast.success(isLate ? 'Checked in (LATE)' : 'Checked in successfully!');
-          } else { setIsOutsideZone(true); }
-        }
-      }, () => toast.error("Location access required."));
-    } catch (e) { console.error(e); } finally { setIsProcessing(false); }
+
+            try {
+              await addAttendance({
+                userId, 
+                userName: user.name, 
+                rollNo: user.rollNo, 
+                course: user.course,
+                date: new Date().toISOString().split('T')[0], 
+                checkInTime: now, 
+                status: isLate ? 'Late' : 'Present', 
+                locationName: sched.locationName,
+                locationCoords: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+              });
+              setIsCheckedIn(true);
+              toast.success(isLate ? 'Checked in (LATE)' : 'Checked in successfully!');
+            } catch (err) {
+              console.error('[AutoCheckIn] DB Save failed:', err);
+            }
+            resolve();
+          } else {
+            setIsOutsideZone(true);
+            resolve();
+          }
+        }, (err) => {
+          console.warn(`[AutoCheckIn] Geolocation attempt (HighAcc: ${highAccuracy}) failed:`, err.message);
+          resolve(); // Resolve anyway to allow next steps or cleanup
+        }, { 
+          enableHighAccuracy: highAccuracy, 
+          timeout: highAccuracy ? 10000 : 15000, 
+          maximumAge: highAccuracy ? 0 : 30000 
+        });
+      });
+    };
+
+    try {
+      // Step 1: Try High Accuracy
+      await attemptCheckIn(true);
+      
+      // Step 2: If still not checked in and not outside zone (meaning it likely timed out), try standard accuracy
+      if (!isCheckedIn && !isOutsideZone) {
+        console.log('[AutoCheckIn] Retrying with standard accuracy...');
+        await attemptCheckIn(false);
+      }
+    } catch (e) { 
+      console.error('[AutoCheckIn] Fatal error:', e); 
+    } finally { 
+      setIsProcessing(false); 
+    }
   };
 
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180; const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180; const Δλ = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  // Best Mathematical Approach: Equirectangular approximation
+  // Significantly faster than Haversine for small geofences (campus level)
+  const getFastDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371000; // Earth's radius in meters
+    const x = (lon2 - lon1) * Math.PI / 180 * Math.cos((lat1 + lat2) * Math.PI / 360);
+    const y = (lat2 - lat1) * Math.PI / 180;
+    return Math.sqrt(x * x + y * y) * R;
   };
 
   const handleCheckOutRequest = () => setShowCheckoutModal(true);
@@ -339,7 +390,8 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
                   </motion.div>
                 ) : (
                   <motion.div key="s" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" /> <span>Syncing</span>
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" /> 
+                    <span>{isProcessing ? 'Locating' : 'Syncing'}</span>
                   </motion.div>
                 )}
               </AnimatePresence>

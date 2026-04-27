@@ -36,6 +36,10 @@ const PermissionGate: React.FC<PermissionGateProps> = ({ children }) => {
     };
 
     checkPermissions();
+
+    // Re-check when user returns to the tab (e.g. after changing settings)
+    window.addEventListener('focus', checkPermissions);
+    return () => window.removeEventListener('focus', checkPermissions);
   }, []);
 
   useEffect(() => {
@@ -109,6 +113,8 @@ const PermissionGate: React.FC<PermissionGateProps> = ({ children }) => {
                 </div>
                 {locationStatus === 'granted' ? (
                   <CheckCircle2 className="w-6 h-6 text-green-500" />
+                ) : locationStatus === 'denied' ? (
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">Blocked</span>
                 ) : (
                   <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
                 )}
@@ -125,11 +131,41 @@ const PermissionGate: React.FC<PermissionGateProps> = ({ children }) => {
                 </div>
                 {notificationStatus === 'granted' ? (
                   <CheckCircle2 className="w-6 h-6 text-green-500" />
+                ) : notificationStatus === 'denied' ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">Blocked</span>
+                    <button 
+                      onClick={() => setNotificationStatus('granted')} // Soft skip
+                      className="text-[9px] font-bold text-blue-600 underline"
+                    >
+                      Skip
+                    </button>
+                  </div>
                 ) : (
                   <div className="w-2 h-2 rounded-full bg-orange-600 animate-ping" />
                 )}
               </div>
             </div>
+
+            {/* Blocked Instructions */}
+            {(locationStatus === 'denied' || notificationStatus === 'denied') && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mb-8 p-4 bg-red-50 rounded-2xl border border-red-100 text-left"
+              >
+                <div className="flex gap-3">
+                  <Settings className="w-5 h-5 text-red-500 shrink-0" />
+                  <div>
+                    <p className="text-[11px] font-black text-red-900 uppercase tracking-tight mb-1">Permissions are blocked</p>
+                    <p className="text-[10px] font-bold text-red-700 leading-relaxed">
+                      Click the <span className="inline-flex items-center bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-600 mx-0.5"><Settings className="w-3 h-3 mr-1" /> icon</span> 
+                      next to the URL address bar and reset permissions to allow access.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             <button
               onClick={requestPermissions}
