@@ -1089,18 +1089,28 @@ export const addNotification = async (notification: any): Promise<void> => {
 
   // 2. Database Guard: Prevent "Daily" duplicates (e.g., Attendance marked twice)
   if (notification.type === 'success' || notification.type === 'attendance') {
-    const today = new Date().toISOString().split('T')[0];
-    const { data: existing } = await supabase
-      .from('notifications')
-      .select('id')
-      .eq('user_id', notification.userId || null)
-      .eq('title', notification.title)
-      .gte('created_at', today)
-      .limit(1);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let query = supabase
+        .from('notifications')
+        .select('id')
+        .eq('title', notification.title)
+        .gte('created_at', today);
 
-    if (existing && existing.length > 0 && !notification.allowDuplicates) {
-      console.log('[dbService] Skipping daily duplicate notification:', notification.title);
-      return;
+      if (notification.userId) {
+        query = query.eq('user_id', notification.userId);
+      } else {
+        query = query.is('user_id', null);
+      }
+
+      const { data: existing, error: checkError } = await query.limit(1);
+
+      if (!checkError && existing && existing.length > 0 && !notification.allowDuplicates) {
+        console.log('[dbService] Skipping daily duplicate notification:', notification.title);
+        return;
+      }
+    } catch (e) {
+      console.warn('[dbService] Deduplication check failed, proceeding anyway:', e);
     }
   }
 

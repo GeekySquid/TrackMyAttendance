@@ -113,7 +113,7 @@ export default function QuickActions({ students, attendance, adminProfile, sched
         // Use Global Broadcast (efficient: 1 row)
         await broadcastNotification({
           title: reminderTitle,
-          message: reminderMessage || `Reminder for ${reminderType === 'course' ? reminderCourse : reminderType} students.`,
+          message: reminderMessage.trim() || `Reminder for all students.`,
           type: 'announcement',
           sender_id: adminProfile?.id
         });
@@ -127,12 +127,15 @@ export default function QuickActions({ students, attendance, adminProfile, sched
           },
         });
       } else {
-        let targets = [];
+        let rawTargets = [];
         if (reminderType === 'absent') {
-          targets = absentStudentsToday;
+          rawTargets = absentStudentsToday;
         } else {
-          targets = students.filter(s => s.course === reminderCourse);
+          rawTargets = students.filter(s => s.course === reminderCourse);
         }
+
+        // Filter out any students without valid IDs to prevent DB errors
+        const targets = rawTargets.filter(s => (s.uid || s.id));
 
         if (targets.length === 0) {
           toast.error('No students found for selected target.');
@@ -145,9 +148,9 @@ export default function QuickActions({ students, attendance, adminProfile, sched
           userId: s.uid || s.id,
           type: 'warning',
           title: reminderTitle,
-          message: reminderMessage,
+          message: reminderMessage.trim(),
           senderId: adminProfile?.id,
-          data: { sentAt: new Date().toISOString() }
+          data: { sentAt: new Date().toISOString(), reminderType }
         }));
 
         await bulkAddNotifications(notifications);
@@ -156,9 +159,10 @@ export default function QuickActions({ students, attendance, adminProfile, sched
 
       setShowReminderModal(false);
       setReminderMessage('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[QuickActions] handleSendReminder error:', err);
-      toast.error('Failed to send reminders.');
+      const errorMsg = err.message || 'Database connection error';
+      toast.error(`Failed to send reminders: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
     }
