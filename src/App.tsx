@@ -26,6 +26,7 @@ import InstallPWA from './components/InstallPWA';
 import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
 import NotificationStack from './components/notifications/NotificationStack';
+import PermissionGate from './components/PermissionGate';
 import { saveUser, getUserById } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
@@ -365,19 +366,19 @@ function AppContent() {
                 <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
                 <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
                 <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} onUpdate={setProfile} />} />
-                <Route path="/admin/geofencing" element={<GeofencingPage />} />
+                <Route path="/admin/geofencing" element={<PermissionGate><GeofencingPage /></PermissionGate>} />
                 <Route path="/admin/access-control" element={<AccessControlPage />} />
                 <Route path="/admin/support" element={<SupportPage role="admin" />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </>
             ) : (
               <>
-                <Route path="/" element={<StudentDashboard user={profile} />} />
+                <Route path="/" element={<PermissionGate><StudentDashboard user={profile} /></PermissionGate>} />
                 <Route path="/leave-requests" element={<LeaveRequestsPage role="student" user={profile} />} />
-                <Route path="/track-my-attendance" element={<TrackMyAttendancePage userId={profile?.id} />} />
+                <Route path="/track-my-attendance" element={<PermissionGate><TrackMyAttendancePage userId={profile?.id} /></PermissionGate>} />
                 <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
                 <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
-                <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
+                <Route path="/notifications" element={<PermissionGate><NotificationsPage userId={profile?.id} /></PermissionGate>} />
                 <Route path="/support" element={<SupportPage role="student" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>

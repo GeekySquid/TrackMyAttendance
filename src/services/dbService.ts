@@ -194,7 +194,7 @@ function mapRow(table: string, row: any): any {
     case 'attendance': return mapAttendance(row);
     case 'leave_requests':
     case 'leaveRequests': return mapLeaveRequest(row);
-    case 'attendance_windows': return mapGeofence(row);
+    case 'geofence_schedules': return mapGeofence(row);
     case 'notifications': return mapNotification(row);
     case 'mentors': return mapMentor(row);
     case 'documents': return {
@@ -225,7 +225,7 @@ function resolveTable(collectionName: string): string {
     documents: 'documents',
     notifications: 'notifications',
     mentors: 'mentors',
-    geofence_schedules: 'attendance_windows',
+    geofence_schedules: 'geofence_schedules',
     app_settings: 'app_settings',
   };
   return tableMap[collectionName] || collectionName;
@@ -860,7 +860,7 @@ export const removeDocumentRevision = async (docId: string, revisionIndex: numbe
 
 export const getGeofenceSchedules = async (): Promise<any[]> => {
   const { data, error } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .select('*')
     .order('created_at');
   if (error) {
@@ -885,7 +885,7 @@ export const addGeofenceSchedule = async (schedule: any): Promise<any> => {
   };
 
   const { data, error } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .insert(row)
     .select()
     .single();
@@ -914,7 +914,7 @@ export const updateGeofenceSchedule = async (
   if (updates.gracePeriod !== undefined) row.grace_period = updates.gracePeriod;
 
   const { error } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .update(row)
     .eq('id', id);
   if (error)
@@ -931,7 +931,7 @@ export const bulkUpdateGeofenceSchedules = async (
   if (typeof updates.autoActivate === 'boolean') row.auto_activate = updates.autoActivate;
 
   const { error } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .update(row)
     .in('id', ids);
   if (error)
@@ -940,7 +940,7 @@ export const bulkUpdateGeofenceSchedules = async (
 
 export const deleteGeofenceSchedule = async (id: string): Promise<void> => {
   const { error } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .delete()
     .eq('id', id);
   if (error)
@@ -975,7 +975,7 @@ export const toggleManualAttendanceWindow = async (
     console.log('[dbService] toggleManualAttendanceWindow:', { active, lat, lng, radius, locationName, endTime });
 
     const { data, error } = await supabase
-      .from('attendance_windows')
+      .from('geofence_schedules')
       .update({
         is_active: active,
         lat: String(lat),
@@ -1008,7 +1008,7 @@ export const toggleManualAttendanceWindow = async (
     if (!data || data.length === 0) {
       console.log('[dbService] No manual record found, inserting new sentinel...');
       const { data: insData, error: insError } = await supabase
-        .from('attendance_windows')
+        .from('geofence_schedules')
         .insert({
           lat: String(lat),
           lng: String(lng),
@@ -1038,7 +1038,7 @@ export const toggleManualAttendanceWindow = async (
 /** Returns true if the admin has manually activated the window. */
 export const getManualWindowStatus = async (): Promise<boolean> => {
   const { data } = await supabase
-    .from('attendance_windows')
+    .from('geofence_schedules')
     .select('*')
     .eq('auto_activate', false)
     .maybeSingle();
@@ -1293,7 +1293,7 @@ export const listenToCollection = (
         const { eventType, new: newRow, old: oldRow } = payload;
 
         // ── Scope filter ──────────────────────────────────────────────────
-        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'attendance_windows' && table !== 'app_settings') {
+        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules' && table !== 'app_settings') {
           const rowUserId = newRow?.user_id ?? oldRow?.user_id;
           if (rowUserId && rowUserId !== userId) return;
         }
