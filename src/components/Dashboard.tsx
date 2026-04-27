@@ -216,23 +216,46 @@ export default function Dashboard({ user }: { user: any }) {
   const handleStartManualSession = async () => {
     setIsToggling(true);
     setShowConfigModal(false);
-    // Validation: Ensure end time is in the future
+
+    // 1. Validation: Ensure coordinates and radius are valid numbers
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+    const rad = parseInt(manualRadius);
+
+    if (isNaN(lat) || isNaN(lng) || isNaN(rad)) {
+      toast.error('Invalid coordinates or radius values');
+      setIsToggling(false);
+      return;
+    }
+
+    // 2. Validation: Ensure end time is in the future
     const [eh, em] = manualEndTime.split(':').map(Number);
     const now = new Date();
     const end = new Date();
     end.setHours(eh, em, 0, 0);
+    
+    // If end time is earlier than now, assume it's for tomorrow (e.g. current 23:00, end 01:00)
     if (end < now) {
-      toast.error('End time must be in the future');
-      setIsToggling(false);
-      return;
+      end.setDate(end.getDate() + 1);
     }
+
+    // Capture previous state for rollback
+    const prevSchedules = [...schedules];
+    const prevWindowState = isWindowActive;
 
     try {
       // Optimistic UI for instant feedback
       setIsWindowActive(true);
       setSchedules(prev => prev.map(s => {
         if (s.autoActivate === false) {
-          return { ...s, isActive: true, locationName: manualLocationName, radius: manualRadius, gracePeriod: manualGracePeriod };
+          return { 
+            ...s, 
+            isActive: true, 
+            locationName: manualLocationName, 
+            radius: rad, // Fixed: use number
+            gracePeriod: manualGracePeriod,
+            endTime: manualEndTime 
+          };
         }
         return s;
       }));
@@ -245,22 +268,25 @@ export default function Dashboard({ user }: { user: any }) {
       if (idsToReset.length > 0) {
         await bulkUpdateGeofenceSchedules(idsToReset, { isActive: true });
       }
+
       // 2. Open the manual window (with grace period)
-      // Note: toggleManualAttendanceWindow updates the row, which triggers 
-      // the DB's updated_at column to refresh to "Now".
       await toggleManualAttendanceWindow(
         true,
-        parseFloat(manualLat),
-        parseFloat(manualLng),
-        parseInt(manualRadius),
+        lat,
+        lng,
+        rad,
         manualLocationName,
         manualGracePeriod,
         manualEndTime
       );
-      setShowConfigModal(false);
-      toast.success(`Session started at ${manualLocationName} until ${manualEndTime} (Grace: ${manualGracePeriod} min)`);
+      
+      toast.success(`Session started at ${manualLocationName} until ${manualEndTime}`);
     } catch (err: any) {
-      toast.error('Failed to start session');
+      console.error('[Dashboard] Failed to start session:', err);
+      // Rollback optimistic UI
+      setSchedules(prevSchedules);
+      setIsWindowActive(prevWindowState);
+      toast.error(`Failed to start session: ${err.message || 'Unknown error'}`);
     } finally {
       setIsToggling(false);
     }

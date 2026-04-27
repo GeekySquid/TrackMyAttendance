@@ -153,18 +153,17 @@ export function isScheduleActive(s: any): boolean {
     const [h, m] = (s.time || '00:00').split(':').map(Number);
     const [eh, em] = (s.endTime || '23:59').split(':').map(Number);
 
-    const schedStart = new Date();
-    schedStart.setHours(h, m, 0, 0);
+    const startTotal = h * 60 + m;
+    const endTotal = eh * 60 + em;
+    const nowTotal = now.getHours() * 60 + now.getMinutes();
 
-    const schedEnd = new Date();
-    schedEnd.setHours(eh, em, 0, 0);
-
-    // Span to next day if end < start
-    if (schedEnd < schedStart) {
-      schedEnd.setDate(schedEnd.getDate() + 1);
+    if (endTotal < startTotal) {
+      // Spans midnight: active if now is after start OR before end
+      if (nowTotal < startTotal && nowTotal > endTotal) return false;
+    } else {
+      // Normal range: active if now is between start and end
+      if (nowTotal < startTotal || nowTotal > endTotal) return false;
     }
-
-    if (now < schedStart || now > schedEnd) return false;
   }
 
   // 2. Auto-Activation Location Check
@@ -1013,7 +1012,7 @@ export const toggleManualAttendanceWindow = async (
         .insert({
           lat: String(lat),
           lng: String(lng),
-          radius: -999,
+          radius: radius, // Fixed: Use the passed radius instead of hardcoded -999
           is_active: active,
           time: '00:00',
           end_time: endTime || '23:59',
@@ -1023,7 +1022,10 @@ export const toggleManualAttendanceWindow = async (
           grace_period: gracePeriod
         })
         .select();
-      if (insError) throw insError;
+      if (insError) {
+        console.error('[dbService] toggleManualAttendanceWindow insert error:', insError.message);
+        throw insError;
+      }
       return insData?.[0];
     }
     return data?.[0];
