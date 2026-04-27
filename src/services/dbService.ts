@@ -515,6 +515,8 @@ export const bulkMarkAttendance = async (records: any[]): Promise<void> => {
     date: r.date,
     status: r.status,
     check_in_time: r.checkInTime || new Date().toISOString(),
+    location: r.location || null,
+    location_name: r.locationName || null
   }));
 
   const { error } = await supabase.from('attendance').insert(rows);
@@ -1069,40 +1071,90 @@ export const getNotifications = async (userId?: string): Promise<any[]> => {
   return (data || []).map(mapNotification);
 };
 
+// ── Notification Deduplication Cache ──
+const notificationCache = new Map<string, number>();
+const CLEANUP_INTERVAL = 30000; // 30 seconds
+
 export const addNotification = async (notification: any): Promise<void> => {
+  const userId = notification.userId || 'broadcast';
+  const cacheKey = `${userId}-${notification.type || 'info'}-${notification.title}`;
+  const now = Date.now();
+
+  // 1. In-Memory Guard: Prevent exact same notification within 30s (UI double-clicks, rapid GPS bounces)
+  const lastSent = notificationCache.get(cacheKey);
+  if (lastSent && now - lastSent < CLEANUP_INTERVAL && !notification.allowDuplicates) {
+    console.log('[dbService] Blocking rapid-fire duplicate notification:', notification.title);
+    return;
+  }
+
+  // 2. Database Guard: Prevent "Daily" duplicates (e.g., Attendance marked twice)
+  if (notification.type === 'success' || notification.type === 'attendance') {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: existing } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', notification.userId || null)
+      .eq('title', notification.title)
+      .gte('created_at', today)
+      .limit(1);
+
+    if (existing && existing.length > 0 && !notification.allowDuplicates) {
+      console.log('[dbService] Skipping daily duplicate notification:', notification.title);
+      return;
+    }
+  }
+
   const row = {
     user_id: notification.userId || null,
     type: notification.type || 'info',
     title: notification.title,
     message: notification.message,
-    data: notification.data || [],
+    data: notification.data || {},
+    sender_id: notification.senderId || notification.sender_id || null,
     is_read: false,
     created_at: new Date().toISOString()
   };
+
   const { error } = await supabase.from('notifications').insert(row);
   if (error) {
     console.error('[dbService] addNotification error:', error.message);
     throw error;
   }
+
+  // Update cache
+  notificationCache.set(cacheKey, now);
 };
 
-export const broadcastNotification = async (notification: { title: string, message: string, type?: string }): Promise<void> => {
+export const broadcastNotification = async (notification: { title: string, message: string, type?: string, sender_id?: string }): Promise<void> => {
   await addNotification({
     userId: null, // This triggers broadcast logic in listenToCollection
-    type: notification.type || 'info',
+    type: notification.type || 'announcement',
     title: notification.title,
     message: notification.message,
+    senderId: notification.sender_id,
     data: { isBroadcast: true }
   });
 };
 
 export const bulkAddNotifications = async (notifications: any[]): Promise<void> => {
-  const rows = notifications.map(n => ({
+  if (!notifications.length) return;
+
+  // Pre-filter duplicates from this batch itself (if any)
+  const uniqueInBatch = notifications.reduce((acc, current) => {
+    const key = `${current.userId}-${current.title}`;
+    if (!acc.has(key)) acc.set(key, current);
+    return acc;
+  }, new Map()).values();
+
+  const filteredNotifications = Array.from(uniqueInBatch);
+
+  const rows = filteredNotifications.map(n => ({
     user_id: n.userId || null,
     type: n.type || 'info',
     title: n.title,
     message: n.message,
-    data: n.data || [],
+    data: n.data || {},
+    sender_id: n.senderId || n.sender_id || null,
     is_read: false,
     created_at: new Date().toISOString()
   }));

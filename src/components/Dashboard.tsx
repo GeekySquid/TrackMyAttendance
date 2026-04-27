@@ -839,6 +839,7 @@ export default function Dashboard({ user }: { user: any }) {
               students={students}
               attendance={attendance}
               adminProfile={user}
+              schedules={schedules}
             />
             <LeaveReports />
           </div>
