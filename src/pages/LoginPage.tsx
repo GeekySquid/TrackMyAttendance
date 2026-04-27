@@ -64,10 +64,10 @@ export default function LoginPage({
             </button>
           )}
           <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30 overflow-hidden">
-            <img src="/logo.png" alt="TrackMyAttendance Logo" className="w-full h-full object-cover p-2" />
+            <img src="/logo.png" alt="TrackMYAttendance Logo" className="w-full h-full object-cover p-2" />
           </div>
           <h1 className="text-2xl font-black text-white mb-1 tracking-tight">
-            TrackMyAttendance
+            Track<span className="text-blue-300">MY</span>Attendance
           </h1>
           <p className="text-blue-100 text-sm font-medium">
             {authMode === 'admin' ? 'Administrative Control Panel' : 'Student Attendance Portal'}

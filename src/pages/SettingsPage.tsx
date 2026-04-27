@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { renderStyledBranding } from '../utils/branding';
 import {
   Settings as SettingsIcon,
   Bell,
@@ -361,14 +362,67 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">Campus information ledger.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Institution Name</label>
-                    <input
-                      type="text"
-                      value={localSettings.institution_name || ''}
-                      onChange={(e) => handleSettingsChange({ institution_name: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Institution Name</label>
+                      <input
+                        type="text"
+                        value={localSettings.institution_name || ''}
+                        onChange={(e) => handleSettingsChange({ institution_name: e.target.value })}
+                        placeholder="e.g. TrackMYAttendance Academy"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 bg-white transition-all shadow-sm font-medium"
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-1">
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Word to Highlight</label>
+                        <input
+                          type="text"
+                          value={localSettings.brand_color_word || ''}
+                          onChange={(e) => handleSettingsChange({ brand_color_word: e.target.value })}
+                          placeholder="e.g. MY"
+                          className="w-full border border-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-300 bg-gray-50/50 transition-all font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Pick Brand Color</label>
+                        <div className="flex items-center gap-3 h-10">
+                          {[
+                            { id: 'primary', bg: 'bg-blue-600', ring: 'ring-blue-200' },
+                            { id: 'success', bg: 'bg-emerald-500', ring: 'ring-emerald-100' },
+                            { id: 'alert', bg: 'bg-red-500', ring: 'ring-red-100' },
+                            { id: 'warning', bg: 'bg-amber-500', ring: 'ring-amber-100' },
+                          ].map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => handleSettingsChange({ brand_color_type: c.id })}
+                              className={`w-7 h-7 rounded-full ${c.bg} transition-all relative ${localSettings.brand_color_type === c.id ? `ring-4 ${c.ring} scale-110 shadow-lg` : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
+                            >
+                              {localSettings.brand_color_type === c.id && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Real-time Header Preview</p>
+                      <div className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1.5">
+                          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+                        </div>
+                        {renderStyledBranding(
+                          localSettings.institution_name || 'TrackMYAttendance',
+                          localSettings.brand_color_word,
+                          localSettings.brand_color_type
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Academic Year</label>

@@ -64,7 +64,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <img src="/logo.png" alt="Logo" className="w-7 h-7 object-contain brightness-0 invert" />
             </div>
-            <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">TrackMyAttendance</span>
+            <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Track<span className="text-blue-400">MY</span>Attendance</span>
           </div>
 
           {/* Desktop Nav */}
@@ -401,7 +401,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
                   <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" />
                 </div>
-                <span className="text-xl font-black tracking-tight text-white">TrackMyAttendance</span>
+                <span className="text-xl font-black tracking-tight text-white">Track<span className="text-blue-400">MY</span>Attendance</span>
               </div>
               <p className="text-slate-500 text-sm font-medium leading-relaxed">
                 Reimagining campus administration through intelligent automation and geofencing technology.

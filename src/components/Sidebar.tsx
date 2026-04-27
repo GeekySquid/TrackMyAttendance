@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getSystemSettings } from '../services/dbService';
+import { renderStyledBranding } from '../utils/branding';
+import { getSystemSettings, listenToCollection } from '../services/dbService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -58,9 +59,12 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
   const [sysSettings, setSysSettings] = useState<any>(null);
 
   useEffect(() => {
-    getSystemSettings().then(data => {
-      if (data) setSysSettings(data);
+    const unsubscribe = listenToCollection('app_settings', (data) => {
+      if (data && data.length > 0) {
+        setSysSettings(data[0]);
+      }
     });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -100,8 +104,12 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
               <img src="/logo.png" alt="TrackMyAttendance Logo" className="w-full h-full object-contain p-1.5" />
             </div>
             <div className="text-center px-1">
-              <h1 className="font-black text-gray-900 text-sm tracking-tight leading-tight truncate max-w-[180px] uppercase">
-                {sysSettings?.institution_name || 'TrackMyAttendance'}
+              <h1 className="font-black text-gray-900 text-sm tracking-tight leading-tight truncate max-w-[180px]">
+                {renderStyledBranding(
+                  sysSettings?.institution_name || 'TrackMYAttendance',
+                  sysSettings?.brand_color_word,
+                  sysSettings?.brand_color_type
+                )}
               </h1>
               <p className="text-[9px] uppercase font-black text-blue-600 tracking-[0.2em] mt-0.5">
                 {role === 'admin' ? 'Admin Suite' : 'Student Portal'}

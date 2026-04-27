@@ -227,6 +227,7 @@ function resolveTable(collectionName: string): string {
     notifications: 'notifications',
     mentors: 'mentors',
     geofence_schedules: 'attendance_windows',
+    app_settings: 'app_settings',
   };
   return tableMap[collectionName] || collectionName;
 }
@@ -1230,6 +1231,8 @@ export const listenToCollection = (
       query = (query as any).order('date', { ascending: false });
     } else if (table === 'profiles') {
       query = (query as any).order('created_at', { ascending: true });
+    } else if (table === 'app_settings') {
+      query = (query as any).limit(1);
     }
 
     return query;
@@ -1286,7 +1289,7 @@ export const listenToCollection = (
         const { eventType, new: newRow, old: oldRow } = payload;
 
         // ── Scope filter ──────────────────────────────────────────────────
-        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'attendance_windows') {
+        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'attendance_windows' && table !== 'app_settings') {
           const rowUserId = newRow?.user_id ?? oldRow?.user_id;
           if (rowUserId && rowUserId !== userId) return;
         }

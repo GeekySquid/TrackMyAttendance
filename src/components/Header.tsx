@@ -6,6 +6,7 @@ import { UserButton, useUser } from '@clerk/clerk-react';
 import { listenToCollection, markAllNotificationsRead, deleteNotification } from '../services/dbService';
 import SwipeableNotificationItem from './SwipeableNotificationItem';
 import { AnimatePresence, motion } from 'framer-motion';
+import { renderStyledBranding } from '../utils/branding';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -66,6 +67,16 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   );
 
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [sysSettings, setSysSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = listenToCollection('app_settings', (data) => {
+      if (data && data.length > 0) {
+        setSysSettings(data[0]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     let isFirstLoad = true;
@@ -116,13 +127,17 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-8 shrink-0 relative z-40">
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-8 shrink-0 relative z-40">
       <div className="flex items-center flex-1">
         {/* Application Branding (Mobile) */}
-        <div className="flex lg:hidden items-center gap-2.5 mr-4">
-          <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-sm" />
-          <h1 className="text-sm font-black text-gray-900 tracking-tighter">
-            Track<span className="text-blue-600">MY</span>Device
+        <div className="flex lg:hidden items-center gap-2 mr-2">
+          <img src="/logo.png" alt="Logo" className="w-7 h-7 rounded-lg shadow-sm" />
+          <h1 className="text-xs font-black text-gray-900 tracking-tighter">
+            {renderStyledBranding(
+              sysSettings?.institution_name || 'TrackMYAttendance',
+              sysSettings?.brand_color_word,
+              sysSettings?.brand_color_type
+            )}
           </h1>
         </div>
 
@@ -170,8 +185,8 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
         </div>
       </div>
 
-      <div className="flex items-center space-x-2.5 sm:space-x-6 relative z-50">
-        <div className="text-right">
+      <div className="flex items-center space-x-3 sm:space-x-6 relative z-50">
+        <div className="text-right hidden sm:block">
           <p className="text-[8px] sm:text-[10px] text-gray-400 font-black tracking-widest uppercase">Today</p>
           <p className="text-[10px] sm:text-xs font-black text-gray-800 whitespace-nowrap">{today}</p>
         </div>
