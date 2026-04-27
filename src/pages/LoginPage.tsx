@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
-import { SignIn } from '@clerk/clerk-react';
+import { SignIn, SignUp } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export default function LoginPage({
   onLogin,
   onBack,
+  initialTab = 'login',
 }: {
   onLogin: (role: 'admin' | 'student', userData?: any) => void;
   onBack?: () => void;
+  initialTab?: 'login' | 'signup';
 }) {
   const navigate = useNavigate();
   const [isDemoLoading, setIsDemoLoading] = useState<'admin' | 'student' | null>(null);
   const [error, setError] = useState('');
+  const [authMode, setAuthMode] = useState<'student' | 'admin'>('student');
+  const [authTab, setAuthTab] = useState<'login' | 'signup'>(initialTab);
+
+  // Sync authTab with initialTab prop if it changes
+  useEffect(() => {
+    setAuthTab(initialTab);
+  }, [initialTab]);
+
+  const handleTabChange = (tab: 'login' | 'signup') => {
+    setAuthTab(tab);
+    navigate(tab === 'login' ? '/login' : '/register');
+  };
 
   // --- Demo login (no Clerk session, uses mock data) ---
   const handleDemoLogin = async (isAdmin = false) => {
@@ -47,7 +61,6 @@ export default function LoginPage({
     }
   };
 
-  const [authMode, setAuthMode] = useState<'student' | 'admin'>('student');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
@@ -90,6 +103,22 @@ export default function LoginPage({
           </button>
         </div>
 
+        {/* Auth Type Toggle (Login/Signup) */}
+        <div className="flex p-1 bg-blue-50 mx-8 mt-4 rounded-xl border border-blue-100">
+          <button 
+            onClick={() => handleTabChange('login')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authTab === 'login' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-400 hover:text-blue-600'}`}
+          >
+            Login
+          </button>
+          <button 
+            onClick={() => handleTabChange('signup')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authTab === 'signup' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-400 hover:text-blue-600'}`}
+          >
+            Register
+          </button>
+        </div>
+
         {/* Body */}
         <div className="p-6 sm:p-8 flex flex-col items-center pt-4">
           {error && (
@@ -107,9 +136,77 @@ export default function LoginPage({
             </div>
           )}
 
-          {/* Clerk Universal SignIn Widget */}
-          <div className="w-full flex justify-center mb-4 clerk-container-override">
-            <SignIn routing="hash" />
+          {/* Clerk Universal Auth Widget */}
+          <div className="w-full flex justify-center mb-4 clerk-container-override overflow-visible min-h-[500px]">
+            {authTab === 'login' ? (
+              <SignIn 
+                routing="hash" 
+                signUpUrl="/register" 
+                appearance={{
+                  elements: {
+                    rootBox: "w-full shadow-none",
+                    card: "shadow-none border-none p-0 w-full bg-transparent mx-auto",
+                    headerTitle: "text-2xl font-black text-slate-800",
+                    headerSubtitle: "text-slate-500 font-medium",
+                    socialButtonsBlockButton: "rounded-2xl border-slate-200 hover:bg-slate-50 font-bold transition-all h-12",
+                    formButtonPrimary: "bg-[#2563EB] hover:bg-blue-700 rounded-2xl text-sm font-black shadow-xl shadow-blue-200 py-4 transition-all active:scale-95 mt-4",
+                    formFieldInput: "rounded-2xl border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 h-12 px-4 transition-all",
+                    formFieldLabel: "text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1",
+                    footerAction: "hidden", // We use our own tabs
+                    identityPreviewText: "font-bold text-slate-700",
+                    identityPreviewEditButton: "text-blue-600 font-bold",
+                    dividerLine: "bg-slate-100",
+                    dividerText: "text-[10px] font-black text-slate-400 uppercase tracking-widest px-4",
+                    formFieldAction: "text-blue-600 font-bold text-xs hover:text-blue-700",
+                    formFieldInputShowPasswordButton: "text-slate-400"
+                  },
+                  layout: {
+                    shimmer: true,
+                    socialButtonsPlacement: "top",
+                    showOptionalFields: true
+                  },
+                  variables: {
+                    colorPrimary: '#2563EB',
+                    colorText: '#1E293B',
+                    colorTextSecondary: '#64748B',
+                    colorBackground: '#ffffff',
+                    fontFamily: "'Inter', sans-serif"
+                  }
+                }}
+              />
+            ) : (
+              <SignUp 
+                routing="hash" 
+                signInUrl="/login" 
+                appearance={{
+                  elements: {
+                    rootBox: "w-full shadow-none",
+                    card: "shadow-none border-none p-0 w-full bg-transparent mx-auto",
+                    headerTitle: "text-2xl font-black text-slate-800",
+                    headerSubtitle: "text-slate-500 font-medium",
+                    socialButtonsBlockButton: "rounded-2xl border-slate-200 hover:bg-slate-50 font-bold transition-all h-12",
+                    formButtonPrimary: "bg-[#2563EB] hover:bg-blue-700 rounded-2xl text-sm font-black shadow-xl shadow-blue-200 py-4 transition-all active:scale-95 mt-4",
+                    formFieldInput: "rounded-2xl border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 h-12 px-4 transition-all",
+                    formFieldLabel: "text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1",
+                    footerAction: "hidden", // We use our own tabs
+                    dividerLine: "bg-slate-100",
+                    dividerText: "text-[10px] font-black text-slate-400 uppercase tracking-widest px-4",
+                    formFieldAction: "text-blue-600 font-bold text-xs hover:text-blue-700",
+                  },
+                  layout: {
+                    shimmer: true,
+                    socialButtonsPlacement: "top"
+                  },
+                  variables: {
+                    colorPrimary: '#2563EB',
+                    colorText: '#1E293B',
+                    colorTextSecondary: '#64748B',
+                    colorBackground: '#ffffff',
+                    fontFamily: "'Inter', sans-serif"
+                  }
+                }}
+              />
+            )}
           </div>
 
           {/* Demo Divider */}

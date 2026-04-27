@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -39,12 +39,14 @@ function AppContent() {
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [profile, setProfile] = useState<any>(null);
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('tm_onboarded') === 'true');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [showLogin, setShowLogin] = useState(false);
+
+  const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
 
   // ─── Persistence Logic ────────────────────────────────────────────────────
   useEffect(() => {
@@ -84,34 +86,63 @@ function AppContent() {
     }
 
     const syncProfile = async () => {
+      // Don't re-sync if we're already loading or already have the right profile
+      if (profile && profile.id === user.id) {
+        setProfileLoading(false);
+        return;
+      }
+
+      console.log('[App] Starting syncProfile for:', user.id);
       setProfileLoading(true);
+      
+      const toastId = toast.loading('Synchronizing account...', { id: 'sync-status' });
+
+      const syncTimeout = setTimeout(() => {
+        setProfileLoading(false);
+        toast.error('Sync timed out. Retrying...', { id: 'sync-status' });
+        console.warn('[App] syncProfile timed out after 10s');
+      }, 10000);
+
       try {
         const clerkId = user.id;
+        console.log('[App] Checking for existing profile in Supabase...');
         let existing = await getUserById(clerkId);
 
         if (!existing) {
+          toast.loading('Creating your profile...', { id: 'sync-status' });
+          console.log('[App] No existing profile found. Creating one...');
           const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
-          const role = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '') ? 'admin' : 'student';
+          const userEmail = user.primaryEmailAddress?.emailAddress || '';
+          const role = adminEmails.includes(userEmail) ? 'admin' : 'student';
 
-          await saveUser({
+          const newUserData = {
             id: clerkId,
             uid: clerkId,
-            name: user.fullName || user.firstName || '',
-            email: user.primaryEmailAddress?.emailAddress || '',
+            name: user.fullName || user.firstName || 'New User',
+            email: userEmail,
             photoURL: user.imageUrl || '',
             role: role,
-          });
-          existing = await getUserById(clerkId);
-        }
+          };
 
-        if (existing) {
+          const saveSuccess = await saveUser(newUserData);
+          if (!saveSuccess) {
+            throw new Error('Failed to create initial profile in database');
+          }
+          
+          console.log('[App] Profile created, fetching fresh copy...');
+          existing = await getUserById(clerkId);
+          if (!existing) throw new Error('Profile created but could not be retrieved');
+          
+          toast.success('Account created and synced!', { id: 'sync-status' });
+        } else {
+          console.log('[App] Existing profile found:', existing.id);
           const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
           const shouldBeAdmin = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '');
-
-          // Sync photo if different or missing from Gmail profile
           const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
 
           if ((shouldBeAdmin && existing.role !== 'admin') || photoDiffers) {
+            toast.loading('Updating profile details...', { id: 'sync-status' });
+            console.log('[App] Syncing updates for existing profile...');
             await saveUser({
               ...existing,
               role: shouldBeAdmin ? 'admin' : existing.role,
@@ -119,20 +150,23 @@ function AppContent() {
             });
             existing = await getUserById(clerkId);
           }
+          toast.success('Welcome back!', { id: 'sync-status' });
+        }
 
+        if (existing) {
           setProfile(existing);
           if (existing.onboarded) {
             setOnboarded(true);
             localStorage.setItem('tm_onboarded', 'true');
           }
         } else {
-          console.error('[App] Profile creation failed. Signing out.');
-          await signOut();
-          localStorage.removeItem('tm_onboarded');
+          throw new Error('Profile synchronization failed to produce a valid record');
         }
       } catch (err) {
         console.error('[App] syncProfile error:', err);
+        toast.error('Sync failed: ' + (err instanceof Error ? err.message : 'Database error'), { id: 'sync-status' });
       } finally {
+        clearTimeout(syncTimeout);
         setProfileLoading(false);
       }
     };
@@ -159,6 +193,7 @@ function AppContent() {
 
   // ─── Onboarding complete ──────────────────────────────────────────────────
   const handleOnboardingComplete = async (onboardingData: any) => {
+    console.log('[App] handleOnboardingComplete started:', onboardingData);
     try {
       const updatedData = {
         ...profile,
@@ -167,7 +202,9 @@ function AppContent() {
         profileCompleted: true
       };
 
+      console.log('[App] Saving updated profile:', updatedData);
       const success = await saveUser(updatedData);
+      console.log('[App] saveUser result:', success);
 
       if (success) {
         setProfile(updatedData);
@@ -276,10 +313,16 @@ function AppContent() {
   // ─── Auth gates ───────────────────────────────────────────────────────────
   // If not signed in to Clerk, show Landing Page or Login Page
   if (!isSignedIn && !profile) {
-    if (showLogin) {
-      return <LoginPage onLogin={handleDemoLogin} onBack={() => setShowLogin(false)} />;
+    if (isAuthPath) {
+      return (
+        <LoginPage 
+          onLogin={handleDemoLogin} 
+          onBack={() => navigate('/')} 
+          initialTab={location.pathname === '/register' ? 'signup' : 'login'}
+        />
+      );
     }
-    return <LandingPage onGetStarted={() => setShowLogin(true)} />;
+    return <LandingPage onGetStarted={() => navigate('/login')} />;
   }
 
   // If signed in but no profile yet, we show login (which handles demo)
@@ -351,6 +394,7 @@ function AppContent() {
 export default function App() {
   return (
     <NotificationProvider>
+      <Toaster position="top-right" />
       <NotificationStack />
       <Router>
         <Routes>

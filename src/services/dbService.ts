@@ -293,11 +293,13 @@ export const saveUser = async (user: any): Promise<boolean> => {
     if (user.mentorId !== undefined) row.mentor_id = user.mentorId || null;
     if (user.profileCompleted !== undefined) row.profile_completed = user.profileCompleted;
 
+    console.log('[dbService] Upserting row to profiles:', row);
     const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
       console.error('[dbService] saveUser upsert error:', error.message);
       return false;
     }
+    console.log('[dbService] saveUser upsert success');
     return true;
   } catch (err) {
     console.error('[dbService] saveUser exception:', err instanceof Error ? err.message : err);

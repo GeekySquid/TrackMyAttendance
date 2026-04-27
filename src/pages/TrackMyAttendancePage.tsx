@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ClipboardList, Download, FileText, FileSpreadsheet, FileIcon as FilePdf, Calendar, Clock, MapPin, Search, Info, MessageSquare, X, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  ClipboardList, Download, FileText, FileSpreadsheet, File as FilePdf, 
+  Calendar, Clock, MapPin, Search, Info, MessageSquare, X, Copy,
+  TrendingUp, CheckCircle, XCircle
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -8,7 +12,6 @@ import { listenToCollection } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import CustomInput from '../components/CustomInput';
 import CustomDropdown from '../components/CustomDropdown';
-import { TrendingUp, CheckCircle, Clock as ClockIcon, XCircle } from 'lucide-react';
 
 export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
   const [showReasonModal, setShowReasonModal] = useState(false);
@@ -31,23 +34,31 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
         // Calculate hours for mapped display
         let hoursDisplay = '--';
         if (r.checkInTime && r.checkOutTime) {
-          const diffMs = new Date(r.checkOutTime).getTime() - new Date(r.checkInTime).getTime();
-          const h = Math.floor(diffMs / 3600000);
-          const m = Math.floor((diffMs % 3600000) / 60000);
-          hoursDisplay = `${h}h ${m}m`;
+          const checkIn = new Date(r.checkInTime);
+          const checkOut = new Date(r.checkOutTime);
+          
+          if (!isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+            const diffMs = checkOut.getTime() - checkIn.getTime();
+            const h = Math.floor(diffMs / 3600000);
+            const m = Math.floor((diffMs % 3600000) / 60000);
+            hoursDisplay = `${h}h ${m}m`;
+          }
         }
+
+        const dateStr = r.date || '--';
+        const locationStr = r.location || r.locationName || 'Campus';
 
         return {
           id: r.id,
-          date: r.date,
-          rawDate: r.date,
+          date: dateStr,
+          rawDate: r.date || '',
           in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           hours: hoursDisplay,
-          location: r.locationName || r.location || 'Campus',
-          locationName: r.location?.split('|')[0]?.trim() || r.locationName || 'Campus',
-          locationCoords: r.location?.split('|')[1]?.trim() || null,
-          status: r.status,
+          location: locationStr,
+          locationName: (locationStr.split('|')[0] || 'Campus').trim(),
+          locationCoords: locationStr.includes('|') ? locationStr.split('|')[1].trim() : null,
+          status: r.status || 'Present',
           lateReason: r.lateReason,
           lateReasonStatus: r.lateReasonStatus,
           lateReasonImage: r.lateReasonImage
@@ -62,11 +73,13 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
 
   const filteredLogs = allLogs.filter(log => {
     const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
-    const matchesSearch = log.date.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = (log.date || '').toLowerCase().includes(searchLower) ||
+      (log.location || '').toLowerCase().includes(searchLower);
 
     // Date Range Filter
-    const logTime = new Date(log.rawDate).getTime();
+    const logDate = log.rawDate ? new Date(log.rawDate) : null;
+    const logTime = logDate && !isNaN(logDate.getTime()) ? logDate.getTime() : 0;
     const start = startDate ? new Date(startDate).getTime() : 0;
     const end = endDate ? new Date(endDate).getTime() : Infinity;
     const matchesDate = logTime >= start && logTime <= end;
@@ -220,7 +233,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                 options={[
                   { value: 'All', label: 'All Records', icon: ClipboardList },
                   { value: 'Present', label: 'Present', icon: CheckCircle },
-                  { value: 'Late', label: 'Late', icon: ClockIcon },
+                  { value: 'Late', label: 'Late', icon: Clock },
                   { value: 'Absent', label: 'Absent', icon: XCircle }
                 ]}
                 value={statusFilter}

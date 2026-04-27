@@ -11,9 +11,20 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
     bloodGroup: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete(formData);
+    console.log('[OnboardingPage] Form submitted:', formData);
+    setIsSubmitting(true);
+    try {
+      await onComplete(formData);
+      console.log('[OnboardingPage] onComplete finished');
+    } catch (error) {
+      console.error('[OnboardingPage] Submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -125,8 +136,18 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
           </div>
 
           <div className="pt-6 border-t border-gray-100">
-            <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-              Complete Setup <CheckCircle className="w-5 h-5" />
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className={`w-full text-white py-3 rounded-lg font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
+                isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'
+              }`}
+            >
+              {isSubmitting ? (
+                <>Saving Profile...</>
+              ) : (
+                <>Complete Setup <CheckCircle className="w-5 h-5" /></>
+              )}
             </button>
           </div>
         </form>
