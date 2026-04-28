@@ -1123,7 +1123,6 @@ export const addNotification = async (notification: any): Promise<void> => {
     type: notification.type || 'info',
     title: notification.title,
     message: notification.message,
-    data: notification.data || {},
     sender_id: notification.senderId || notification.sender_id || null,
     is_read: false,
     created_at: new Date().toISOString()
@@ -1167,7 +1166,6 @@ export const bulkAddNotifications = async (notifications: any[]): Promise<void> 
     type: n.type || 'info',
     title: n.title,
     message: n.message,
-    data: n.data || {},
     sender_id: n.senderId || n.sender_id || null,
     is_read: false,
     created_at: new Date().toISOString()
