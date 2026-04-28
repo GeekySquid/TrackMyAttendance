@@ -222,11 +222,11 @@ function AppContent() {
 
         toast.success('Profile created successfully!');
       } else {
-        toast.error('Failed to save profile. Please try again.');
+        toast.error('Failed to save profile. Please check if ID is present.');
       }
     } catch (err) {
       console.error('[App] handleOnboardingComplete error:', err);
-      toast.error('An unexpected error occurred.');
+      toast.error('Error saving profile: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 

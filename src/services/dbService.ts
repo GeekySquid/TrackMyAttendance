@@ -299,14 +299,14 @@ export const saveUser = async (user: any): Promise<boolean> => {
       const { error: updateError } = await supabase.from('profiles').update(row).eq('id', userId);
       if (updateError) {
         console.error('[dbService] saveUser update fallback error:', updateError.message);
-        return false;
+        throw new Error(`Database error: ${updateError.message}`);
       }
     }
     console.log('[dbService] saveUser success');
     return true;
   } catch (err) {
     console.error('[dbService] saveUser exception:', err instanceof Error ? err.message : err);
-    return false;
+    throw err;
   }
 };
 
