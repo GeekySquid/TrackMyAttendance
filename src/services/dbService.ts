@@ -295,10 +295,14 @@ export const saveUser = async (user: any): Promise<boolean> => {
     console.log('[dbService] Upserting row to profiles:', row);
     const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
-      console.error('[dbService] saveUser upsert error:', error.message);
-      return false;
+      console.warn('[dbService] saveUser upsert error:', error.message, 'Attempting update fallback...');
+      const { error: updateError } = await supabase.from('profiles').update(row).eq('id', userId);
+      if (updateError) {
+        console.error('[dbService] saveUser update fallback error:', updateError.message);
+        return false;
+      }
     }
-    console.log('[dbService] saveUser upsert success');
+    console.log('[dbService] saveUser success');
     return true;
   } catch (err) {
     console.error('[dbService] saveUser exception:', err instanceof Error ? err.message : err);
