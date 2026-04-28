@@ -86,17 +86,49 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
         setNotifications(prev => {
           const newItems = data.filter(n => !prev.some(p => p.id === n.id));
           newItems.forEach(n => {
-            toast(n.message || n.title, {
-              icon: n.type === 'success' ? '✅' : n.type === 'alert' ? '⚠️' : '🔔',
-              duration: 4000,
-              style: {
-                borderRadius: '1rem',
-                background: '#fff',
-                color: '#333',
-                fontWeight: 'bold',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-            });
+            toast.custom((t) => (
+              <div
+                className={`${
+                  t.visible ? 'animate-in slide-in-from-top-5 fade-in duration-300' : 'animate-out slide-out-to-top-5 fade-out duration-300'
+                } max-w-sm w-full bg-white/90 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[24px] pointer-events-auto flex border border-white/60 overflow-hidden`}
+              >
+                <div className="flex-1 w-0 p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 pt-0.5">
+                      {n.type === 'success' ? (
+                        <div className="h-10 w-10 rounded-[14px] bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200/50">
+                          <CheckCircle2 className="h-5 w-5 text-white" />
+                        </div>
+                      ) : n.type === 'alert' ? (
+                        <div className="h-10 w-10 rounded-[14px] bg-gradient-to-br from-rose-400 to-red-500 flex items-center justify-center shadow-lg shadow-rose-200/50">
+                          <AlertCircle className="h-5 w-5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="h-10 w-10 rounded-[14px] bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-200/50">
+                          <Bell className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-[13px] font-black text-gray-800 uppercase tracking-widest mb-0.5">
+                        {n.title || 'New Update'}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500 leading-relaxed line-clamp-2">
+                        {n.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex border-l border-gray-100/60 bg-gray-50/30 hover:bg-gray-100/50 transition-colors">
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="w-full border border-transparent rounded-none px-4 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ), { duration: 5000, position: 'top-center' });
           });
           return data;
         });

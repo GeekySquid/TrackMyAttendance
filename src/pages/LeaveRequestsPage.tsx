@@ -339,7 +339,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                 </div>
                 <CustomTextarea
                   label="Reason"
-                  icon={MessageSquare}
+                  icon={MessageSquareIcon}
                   rows={3}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}

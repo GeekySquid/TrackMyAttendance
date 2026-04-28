@@ -226,7 +226,7 @@ export default function AnalyticsChart({
             {isStudentMode ? 'Your personal attendance trend' : 'Track attendance trends over time'}
           </p>
         </div>
-        <div className="bg-gray-100 p-1 rounded-lg flex w-full sm:w-auto overflow-x-auto gap-2">
+        <div className="bg-gray-100 p-1 rounded-lg flex w-full sm:w-auto flex-wrap sm:flex-nowrap gap-2">
           {!isStudentMode && (
             <CustomDropdown
               options={[

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckSquare, Bell, X, Loader2, Send, Filter, Users, Search } from 'lucide-react';
 import CustomDropdown from './CustomDropdown';
 import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications, isScheduleActive } from '../services/dbService';
@@ -215,7 +216,7 @@ export default function QuickActions({ students, attendance, adminProfile, sched
       </div>
 
       {/* Bulk Attendance Modal */}
-      {showBulkModal && (
+      {showBulkModal && createPortal(
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
@@ -371,10 +372,10 @@ export default function QuickActions({ students, attendance, adminProfile, sched
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Reminder Modal */}
-      {showReminderModal && (
+      {showReminderModal && createPortal(
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
             <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
@@ -458,7 +459,7 @@ export default function QuickActions({ students, attendance, adminProfile, sched
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

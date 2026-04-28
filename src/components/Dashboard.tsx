@@ -830,11 +830,9 @@ export default function Dashboard({ user }: { user: any }) {
         </div>
 
         {/* Layout Grid (Attendance & Leave Reports) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
-          <div className="lg:col-span-2">
-            <AttendanceTable />
-          </div>
-          <div className="flex flex-col gap-6 sm:gap-8">
+        <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
+          <AttendanceTable />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <QuickActions
               students={students}
               attendance={attendance}

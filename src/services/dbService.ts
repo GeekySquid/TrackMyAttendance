@@ -1325,9 +1325,12 @@ export const listenToCollection = (
         return;
       }
 
+      let processedData = data || [];
+      if (table === 'notifications' && userId) {
+        processedData = processedData.filter(row => row.sender_id !== userId);
+      }
 
-      const mapped = (data || []).map((row) => mapRow(table, row));
-
+      const mapped = processedData.map((row) => mapRow(table, row));
       // OPTIMIZATION: Only trigger callback if data actually changed to prevent re-render loops
       // EXCEPTION: First load must always trigger callback to unblock UI loading states
       if (JSON.stringify(mapped) !== JSON.stringify(cache) || !hasInitialLoaded) {
@@ -1364,6 +1367,10 @@ export const listenToCollection = (
           if (rowUserId && rowUserId !== userId) return;
         }
 
+        if (table === 'notifications' && userId && newRow) {
+          if (newRow.sender_id === userId) return;
+          if (newRow.user_id !== null && newRow.user_id !== userId) return;
+        }
 
         // ── Optimistic local diff (With Deep Merge) ───────────────────────
         if (eventType === 'INSERT' && newRow) {

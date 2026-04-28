@@ -215,6 +215,104 @@ export default function ReportsPage() {
     }
   };
 
+  const handleQuickReport = (title: string, action: 'view' | 'download') => {
+    if (action === 'view') {
+      if (title === 'Monthly Attendance Summary') {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        setStartDate(firstDay);
+        setEndDate(new Date().toISOString().split('T')[0]);
+        setStatusFilter('All');
+        setSelectedStudent('All');
+        setSelectedCourse('All');
+        toast.success("Filters applied for Monthly Summary! Scroll up to view the table.");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      } else if (title === 'Defaulters List') {
+         toast.success(`Please download the CSV to view the full ${title}.`);
+         return;
+      } else {
+         toast.success(`${title} functionality will be available in the next update. Please use Download for now.`);
+         return;
+      }
+    }
+
+    let csvContent = "";
+    const dateToday = new Date().toISOString().split('T')[0];
+
+    if (title === 'Monthly Attendance Summary') {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const monthData = attendanceData.filter(r => r.date >= firstDay);
+      
+      const headers = ['Student Name', 'Roll No', 'Course', 'Date', 'Check In', 'Check Out', 'Status'];
+      csvContent = [
+        headers.join(','),
+        ...monthData.map(r => `"${r.userName || r.name || ''}","${r.rollNo || ''}","${r.course || ''}","${r.date || ''}","${r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}","${r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}","${r.status || ''}"`)
+      ].join('\n');
+    } else if (title === 'Defaulters List') {
+      const studentStats: Record<string, { name: string, roll: string, course: string, total: number, present: number }> = {};
+      
+      attendanceData.forEach(r => {
+        const id = r.userId || r.id;
+        if (!studentStats[id]) {
+          studentStats[id] = { name: r.userName || r.name || '', roll: r.rollNo || '', course: r.course || '', total: 0, present: 0 };
+        }
+        studentStats[id].total++;
+        if (r.status === 'Present' || r.status === 'Late') studentStats[id].present++;
+      });
+
+      const defaulters = Object.values(studentStats)
+        .map(s => ({ ...s, percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0 }))
+        .filter(s => s.percentage < 75);
+
+      const headers = ['Student Name', 'Roll No', 'Course', 'Total Classes', 'Classes Attended', 'Attendance %'];
+      csvContent = [
+        headers.join(','),
+        ...defaulters.map(s => `"${s.name}","${s.roll}","${s.course}","${s.total}","${s.present}","${s.percentage}%"`)
+      ].join('\n');
+    } else if (title === 'Leave Analysis') {
+      const headers = ['Student Name', 'Roll No', 'Course', 'Date', 'Status'];
+      const absentData = attendanceData.filter(r => r.status === 'Absent');
+      csvContent = [
+        headers.join(','),
+        ...absentData.map(r => `"${r.userName || r.name || ''}","${r.rollNo || ''}","${r.course || ''}","${r.date || ''}","Absent"`)
+      ].join('\n');
+    } else if (title === 'Performance Correlation') {
+        const headers = ['Student Name', 'Roll No', 'Course', 'Attendance %', 'Status'];
+        const studentStats: Record<string, { name: string, roll: string, course: string, total: number, present: number }> = {};
+        attendanceData.forEach(r => {
+          const id = r.userId || r.id;
+          if (!studentStats[id]) {
+            studentStats[id] = { name: r.userName || r.name || '', roll: r.rollNo || '', course: r.course || '', total: 0, present: 0 };
+          }
+          studentStats[id].total++;
+          if (r.status === 'Present' || r.status === 'Late') studentStats[id].present++;
+        });
+        const perfData = Object.values(studentStats)
+          .map(s => ({ ...s, percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0 }));
+        csvContent = [
+          headers.join(','),
+          ...perfData.map(s => `"${s.name}","${s.roll}","${s.course}","${s.percentage}%","${s.percentage >= 75 ? 'Good Standing' : 'At Risk'}"`)
+        ].join('\n');
+    } else {
+      toast.error('This report is under construction.');
+      return;
+    }
+
+    if (!csvContent || csvContent.split('\n').length <= 1) {
+      toast.error("No data available for this report.");
+      return;
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title.replace(/\s+/g, '_').toLowerCase()}_${dateToday}.csv`;
+    link.click();
+    toast.success(`${title} exported successfully!`);
+  };
+
   const reports = [
     { title: 'Monthly Attendance Summary', description: 'Overview of attendance across all courses for the current month.', icon: BarChart2, color: 'text-blue-600', bg: 'bg-blue-50' },
     { title: 'Defaulters List', description: 'List of students with attendance below the required 75% threshold.', icon: Users, color: 'text-red-600', bg: 'bg-red-50' },
@@ -449,11 +547,17 @@ export default function ReportsPage() {
               </div>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-50 flex gap-3">
-              <button className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold rounded-lg transition-colors">
+              <button 
+                onClick={() => handleQuickReport(report.title, 'view')}
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold rounded-lg transition-colors"
+              >
                 <FileText className="w-4 h-4" />
                 View
               </button>
-              <button className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold rounded-lg transition-colors">
+              <button 
+                onClick={() => handleQuickReport(report.title, 'download')}
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold rounded-lg transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Download CSV
               </button>
