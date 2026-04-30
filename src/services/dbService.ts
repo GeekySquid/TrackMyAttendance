@@ -229,7 +229,7 @@ function resolveTable(collectionName: string): string {
     notifications: 'notifications',
     mentors: 'mentors',
     geofence_schedules: 'geofence_schedules',
-    app_settings: 'app_settings',
+    app_settings: 'system_configuration',
   };
   return tableMap[collectionName] || collectionName;
 }
@@ -1317,7 +1317,7 @@ export const listenToCollection = (
       query = (query as any).order('date', { ascending: false });
     } else if (table === 'profiles') {
       query = (query as any).order('created_at', { ascending: true });
-    } else if (table === 'app_settings') {
+    } else if (table === 'system_configuration') {
       query = (query as any).limit(1);
     }
 
@@ -1378,7 +1378,7 @@ export const listenToCollection = (
         const { eventType, new: newRow, old: oldRow } = payload;
 
         // ── Scope filter ──────────────────────────────────────────────────
-        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules' && table !== 'app_settings') {
+        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules' && table !== 'system_configuration') {
           const rowUserId = newRow?.user_id ?? oldRow?.user_id;
           if (rowUserId && rowUserId !== userId) return;
         }
@@ -1468,17 +1468,26 @@ export const getMentors = async (): Promise<any[]> => {
   }
 };
 
-export const saveMentor = async (mentor: any): Promise<void> => {
-  const row: Record<string, any> = {
-    name: mentor.name,
-    phone: mentor.phone,
-  };
-  if (mentor.id) row.id = mentor.id;
+export const saveMentor = async (mentor: any): Promise<boolean> => {
+  try {
+    const row: Record<string, any> = {
+      name: mentor.name,
+      phone: mentor.phone,
+    };
+    if (mentor.id) row.id = mentor.id;
 
-  const { error } = await supabase
-    .from('mentors')
-    .upsert(row);
-  if (error) console.error('[dbService] saveMentor error:', error.message);
+    const { error } = await supabase
+      .from('mentors')
+      .upsert(row);
+    if (error) {
+      console.error('[dbService] saveMentor error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[dbService] saveMentor exception:', err);
+    return false;
+  }
 };
 
 export const deleteMentor = async (id: string): Promise<void> => {
@@ -1533,7 +1542,7 @@ export const clearDatabase = async (): Promise<boolean> => {
 
 export const getSystemSettings = async (): Promise<any> => {
   const { data, error } = await supabase
-    .from('app_settings')
+    .from('system_configuration')
     .select('*')
     .maybeSingle();
   if (error) {
@@ -1549,7 +1558,7 @@ export const updateSystemSettings = async (updates: any): Promise<boolean> => {
 
   console.log('[dbService] updateSystemSettings payload:', payload);
   const { error } = await supabase
-    .from('app_settings')
+    .from('system_configuration')
     .upsert({
       id: '00000000-0000-0000-0000-000000000001',
       ...payload,
@@ -1577,7 +1586,7 @@ export const getBackupData = async (): Promise<any> => {
     supabase.from('users').select('*'),
     supabase.from('leave_requests').select('*'),
     supabase.from('mentors').select('*'),
-    supabase.from('app_settings').select('*'),
+    supabase.from('system_configuration').select('*'),
     supabase.from('geofence_schedules').select('*')
   ]);
   

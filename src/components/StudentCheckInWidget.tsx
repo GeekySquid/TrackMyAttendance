@@ -456,87 +456,46 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   return (
     <>
       <style>{`
-        @keyframes steady-glow { 0%, 100% { opacity: 0.8; filter: brightness(1.2); } 50% { opacity: 1; filter: brightness(1.5); } }
-        @keyframes sonar-pulse {
-          0% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(1.6); opacity: 0; }
-        }
-        @keyframes float-lock {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-        @keyframes scan-line {
-          0% { left: -100%; }
-          100% { left: 100%; }
-        }
-        @keyframes color-shift {
-          0% { filter: hue-rotate(0deg); }
-          100% { filter: hue-rotate(15deg); }
-        }
-        
-        .static-ring-system {
-          position: absolute;
-          inset: -6px;
-          border-radius: 16px;
-          padding: 2px;
-          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          mask-composite: exclude;
-          pointer-events: none;
-          z-index: 5;
+        /* UNIFIED PREMIUM WHITE GRADIENT UI */
+        .widget-card-responsive {
+          background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+          border-radius: 32px;
+          padding: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.9);
+          transition: all 0.4s ease;
+          min-height: 200px;
         }
 
-        .sonar-wave {
-          position: absolute;
-          inset: 0;
-          border-radius: 16px;
-          border: 4px solid currentColor;
-          animation: sonar-pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-          pointer-events: none;
-          z-index: 4;
-        }
-        
-        .static-offline { 
-          background: rgba(0, 0, 0, 0.04); 
-          box-shadow: none;
-          opacity: 0.3;
-        }
-        
-        .static-active { 
-          background: linear-gradient(135deg, #3b82f6, #8b5cf6, #3b82f6); 
-          background-size: 200% 200%;
-          box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.2);
-          animation: steady-glow 2s ease-in-out infinite, color-shift 4s linear infinite alternate;
+        .time-display-responsive {
+          font-weight: 900;
+          letter-spacing: -0.05em;
+          color: #0f172a;
+          line-height: 1;
+          margin-bottom: 0.25rem;
+          font-size: 2.5rem;
         }
 
-        .action-dial-static::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          height: 100%;
-          width: 50%;
-          background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
-          transform: skewX(-25deg);
-          animation: scan-line 4s linear infinite;
-          pointer-events: none;
+        .status-label-responsive {
+          font-weight: 900;
+          letter-spacing: 0.4em;
+          text-transform: uppercase;
+          color: #64748b;
+          font-size: 9px;
+          margin-bottom: 1.5rem;
         }
-        
-        .static-success { 
-          background: linear-gradient(135deg, #10b981, #34d399); 
-          box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), 0 0 60px rgba(52, 211, 153, 0.2);
-          animation: steady-glow 3s ease-in-out infinite;
-        }
-        
-        .static-alert { 
-          background: linear-gradient(135deg, #ef4444, #f87171); 
-          box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
-          animation: steady-glow 1s ease-in-out infinite;
-        }
-        
-        .action-dial-static {
+
+        .btn-responsive {
           width: 100%;
-          max-width: 190px;
-          height: 60px;
-          border-radius: 12px;
+          max-width: 240px;
+          height: 56px;
+          border-radius: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -544,180 +503,84 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
           font-weight: 900;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-          background: white;
-          border: 1px solid rgba(0,0,0,0.05);
-          z-index: 10;
-          overflow: hidden;
-        }
-        .text-black-force { color: #000000 !important; font-weight: 900; }
-        .vivid-status-pill {
-          background: #2563eb;
-          box-shadow: 0 0 20px rgba(37, 99, 235, 0.5);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .liquid-glass-final {
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(35px) saturate(210%);
-          border: 1px solid rgba(255, 255, 255, 0.95);
-          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
-          position: relative;
-          overflow: hidden;
+          font-size: 11px;
+          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 10;
         }
-        .float-anim { animation: float-lock 3s ease-in-out infinite; }
-        
-        .dynamic-aura {
+
+        .btn-primary { background: #0f172a; color: #ffffff; box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15); }
+        .btn-primary:hover { transform: translateY(-4px); box-shadow: 0 18px 35px rgba(0, 0, 0, 0.2); }
+        .btn-secondary { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
+        .btn-disabled { background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; }
+
+        .desktop-aura {
           position: absolute;
-          width: 150%;
-          height: 150%;
-          top: -25%;
-          left: -25%;
-          filter: blur(80px);
-          opacity: 0.15;
+          inset: 0;
+          filter: blur(100px);
+          opacity: 0.1;
           z-index: 0;
-          transition: background 1s ease;
           pointer-events: none;
+          background: radial-gradient(circle at 50% 50%, #3b82f6, #8b5cf6, transparent 70%);
+        }
+
+        @media (min-width: 1025px) {
+          .widget-card-responsive { padding: 2.5rem; min-height: 260px; border-radius: 40px; }
+          .time-display-responsive { font-size: 3.5rem; margin-bottom: 0.5rem; }
+          .status-label-responsive { font-size: 12px; margin-bottom: 2rem; }
+          .btn-responsive { height: 68px; border-radius: 20px; font-size: 13px; max-width: 280px; }
+        }
+
+        @keyframes pulse-dot {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.5); opacity: 0.5; }
         }
       `}</style>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="liquid-glass-final rounded-[32px] p-6 lg:p-8 flex flex-col items-center justify-center gap-6 min-h-[240px] lg:min-h-[260px] w-full relative overflow-hidden"
-      >
-        <div className={`dynamic-aura ${
-          !windowOpen ? 'bg-gray-400' :
-          isCheckedIn ? 'bg-emerald-400' :
-          isOutsideZone ? 'bg-red-400' :
-          'bg-blue-400'
-        }`} />
+      <motion.div className="widget-card-responsive group">
+        <div className="desktop-aura" />
         
-        {/* Top Section: Time & System Status */}
-        <div className="flex flex-col items-center text-center w-full z-10">
-          <div className="text-black-force text-3xl lg:text-4xl tracking-tighter flex items-baseline justify-center w-full">
-            <span className="font-mono">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
+        {/* Unified Content Container */}
+        <div className="relative z-10 flex flex-col items-center w-full text-center">
+          <div className="time-display-responsive">
+            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </div>
-          <span className="text-black-force opacity-40 uppercase text-[9px] lg:text-[10px] tracking-[0.4em] mt-1 lg:mt-2 mb-3">Precision System Status</span>
           
+          <div className="status-label-responsive flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${windowOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+            Precision System Status
+          </div>
+
           <AnimatePresence mode="wait">
-            {activeScheduleForCountdown && windowOpen && !isCheckedIn && (
-              <motion.div
-                key="schedule"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm"
-              >
-                <Clock className="w-3 h-3 text-blue-500" />
-                <span>
-                  {new Date(`2000/01/01 ${activeScheduleForCountdown.time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(`2000/01/01 ${activeScheduleForCountdown.endTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+            {!windowOpen ? (
+              <motion.div key="off" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-disabled">
+                <Lock className="w-5 h-5 opacity-40" /> SYSTEM OFFLINE
               </motion.div>
-            )}
-            {isCheckedIn && windowOpen && lastCheckIn && (
-              <motion.div
+            ) : isCheckedIn ? (
+              <motion.div key="verified" onClick={handleCheckOutRequest} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-secondary cursor-pointer hover:bg-emerald-100 transition-colors">
+                <CheckCircle className="w-5 h-5" /> VERIFIED ACCESS
+              </motion.div>
+            ) : (lastCheckOut && !checkoutReasonState?.startsWith('Classes Over')) ? (
+              <motion.button key="rejoin" onClick={handleReJoinClick} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-primary">
+                <RefreshCw className="w-5 h-5" /> RE-JOIN SESSION
+              </motion.button>
+            ) : (
+              <motion.button 
                 key="checkin"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50/50 px-4 py-1.5 rounded-full border border-emerald-100 shadow-sm"
+                onClick={() => { if (verificationState === 'READY') performFinalCheckIn(); }} 
+                initial={{ opacity: 0, scale: 0.9 }} 
+                animate={{ opacity: 1, scale: 1 }}
+                className={`btn-responsive ${verificationState === 'READY' ? 'btn-primary' : 'btn-disabled'}`}
               >
-                <CheckCircle className="w-3 h-3 text-emerald-500" />
-                <span>IN: {new Date(lastCheckIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              </motion.div>
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
+                {verificationState === 'READY' ? 'INITIALIZE CHECK-IN' : 'LOCATING ZONE...'}
+              </motion.button>
             )}
           </AnimatePresence>
-        </div>
 
-        {/* Middle Section: Action Dial */}
-        <div className="w-full flex justify-center relative z-10">
-          <div className="relative w-full max-w-[200px]">
-            {windowOpen && !isCheckedIn && <div className="sonar-wave text-blue-400/30" />}
-            {isCheckedIn && windowOpen && <div className="sonar-wave text-emerald-400/20" />}
-
-            <div className={`static-ring-system ${
-              !windowOpen ? 'static-offline' :
-              isCheckedIn ? 'static-success' :
-              isOutsideZone ? 'static-alert' :
-              'static-active'
-            }`} />
-
-            <div
-              className={`action-dial-static ${
-                !windowOpen ? 'text-slate-400' :
-                isCheckedIn ? (checkedInStatus === 'Late' ? 'text-orange-500' : 'text-[#064e3b]') :
-                lastCheckOut && checkoutReasonState?.startsWith('Classes Over') ? 'text-emerald-600 cursor-default' :
-                lastCheckOut ? 'text-blue-600' :
-                'text-[#1e40af]'
-              }`}
-              onClick={(!windowOpen) ? undefined : isCheckedIn ? handleCheckOutRequest : (lastCheckOut && !checkoutReasonState?.startsWith('Classes Over')) ? handleReJoinClick : undefined}
-            >
-              <AnimatePresence mode="wait">
-                {!windowOpen ? (
-                  <motion.div key="o" initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} className="flex items-center gap-2 float-anim">
-                    <Lock className="w-6 h-6 opacity-40" /> <span>OFFLINE</span>
-                  </motion.div>
-                ) : isCheckedIn ? (
-                  <motion.div key="v" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
-                    {checkedInStatus === 'Late' ? (
-                      <>
-                        <AlertCircle className="w-6 h-6 text-orange-500" /> <span>Late Verified</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-6 h-6 text-emerald-500" /> <span>Verified</span>
-                      </>
-                    )}
-                  </motion.div>
-                ) : !windowOpen ? (
-                  <motion.div key="o" initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} className="flex items-center gap-2 float-anim">
-                    <Lock className="w-6 h-6 opacity-40" /> <span>OFFLINE</span>
-                  </motion.div>
-                ) : (lastCheckOut && !checkoutReasonState?.startsWith('Classes Over')) ? (
-                  <motion.div key="co" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5 text-blue-500" /> <span className="text-blue-600 font-bold tracking-widest text-[11px] hover:scale-105 transition-transform">RE-JOIN</span>
-                  </motion.div>
-                ) : (lastCheckOut && checkoutReasonState?.startsWith('Classes Over')) ? (
-                  <motion.div key="cdone" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
-                    <CheckCircle className="w-6 h-6 text-emerald-500" /> <span>Verified</span>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="s" 
-                    initial={{ opacity: 0, scale: 0.8 }} 
-                    animate={{ opacity: 1, scale: 1 }} 
-                    className="flex flex-col items-center gap-1"
-                    onClick={() => {
-                      if (verificationState === 'READY' && !isProcessing) {
-                        performFinalCheckIn();
-                      }
-                    }}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    ) : verificationState === 'READY' ? (
-                      <RefreshCw className="w-7 h-7 text-blue-600 animate-pulse" />
-                    ) : (
-                      <Navigation className="w-6 h-6 text-blue-400" />
-                    )}
-                    <span className="text-[10px] font-black uppercase tracking-tighter">
-                      {isProcessing ? 'Verifying...' : 
-                       verificationState === 'READY' ? 'REJOIN SESSION' : 
-                       'Searching Zone...'}
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          <div className="w-full flex justify-between mt-6 px-2 opacity-20 text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] text-slate-900">
+            <span>{activeScheduleForCountdown?.locationName || 'Global'}</span>
+            <span>{windowOpen ? 'Verified' : 'Standby'}</span>
           </div>
-        </div>
-
-        {/* Bottom Section: Footer Pill */}
-        <div className="vivid-status-pill flex items-center gap-2 px-6 py-2 rounded-full z-10 transition-transform hover:scale-105 shadow-lg">
-          <Navigation className="w-4 h-4 text-white animate-pulse" />
-          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Geo-Synced Terminal</span>
         </div>
       </motion.div>
 
