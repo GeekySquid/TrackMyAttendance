@@ -109,31 +109,54 @@ function AppContent() {
         let existing = await getUserById(clerkId);
 
         if (!existing) {
-          toast.loading('Creating your profile...', { id: 'sync-status' });
-          console.log('[App] No existing profile found. Creating one...');
-          const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
           const userEmail = user.primaryEmailAddress?.emailAddress || '';
-          const role = adminEmails.includes(userEmail) ? 'admin' : 'student';
-
-          const newUserData = {
-            id: clerkId,
-            uid: clerkId,
-            name: user.fullName || user.firstName || 'New User',
-            email: userEmail,
-            photoURL: user.imageUrl || '',
-            role: role,
-          };
-
-          const saveSuccess = await saveUser(newUserData);
-          if (!saveSuccess) {
-            throw new Error('Failed to create initial profile in database');
+          
+          // Check if admin pre-registered this student by email
+          if (userEmail) {
+            const { data: byEmail } = await supabase.from('profiles').select('*').eq('email', userEmail).maybeSingle();
+            if (byEmail && byEmail.id !== clerkId) {
+              console.log('[App] Found pre-registered profile by email. Merging to Clerk ID...');
+              const mapped = await mapProfile(byEmail);
+              const mergedData = {
+                ...mapped,
+                id: clerkId,
+                uid: clerkId,
+                photoURL: user.imageUrl || mapped.photoURL,
+              };
+              await saveUser(mergedData);
+              // Clean up the old pre-registered profile to prevent duplicates
+              await supabase.from('profiles').delete().eq('id', byEmail.id);
+              existing = await getUserById(clerkId);
+            }
           }
-          
-          console.log('[App] Profile created, fetching fresh copy...');
-          existing = await getUserById(clerkId);
-          if (!existing) throw new Error('Profile created but could not be retrieved');
-          
-          toast.success('Account created and synced!', { id: 'sync-status' });
+
+          if (!existing) {
+            toast.loading('Creating your profile...', { id: 'sync-status' });
+            console.log('[App] No existing profile found. Creating one...');
+            const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
+            const userEmail = user.primaryEmailAddress?.emailAddress || '';
+            const role = adminEmails.includes(userEmail) ? 'admin' : 'student';
+
+            const newUserData = {
+              id: clerkId,
+              uid: clerkId,
+              name: user.fullName || user.firstName || 'New User',
+              email: userEmail,
+              photoURL: user.imageUrl || '',
+              role: role,
+            };
+
+            const saveSuccess = await saveUser(newUserData);
+            if (!saveSuccess) {
+              throw new Error('Failed to create initial profile in database');
+            }
+            
+            console.log('[App] Profile created, fetching fresh copy...');
+            existing = await getUserById(clerkId);
+            if (!existing) throw new Error('Profile created but could not be retrieved');
+            
+            toast.success('Account created and synced!', { id: 'sync-status' });
+          }
         } else {
           console.log('[App] Existing profile found:', existing.id);
           const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];

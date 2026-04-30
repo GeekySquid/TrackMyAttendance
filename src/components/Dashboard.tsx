@@ -23,11 +23,13 @@ import AttendanceTable from './AttendanceTable';
 import LeaveReports from './LeaveReports';
 import AnalyticsChart from './AnalyticsChart';
 import QuickActions from './QuickActions';
+import { supabase } from '../lib/supabase';
 import {
   listenToCollection,
   toggleManualAttendanceWindow,
   getManualWindowStatus,
   isScheduleActive,
+  mapGeofence,
   updateGeofenceSchedule,
   bulkUpdateGeofenceSchedules
 } from '../services/dbService';
@@ -123,18 +125,48 @@ export default function Dashboard({ user }: { user: any }) {
     });
   }, []);
 
+  const schedulesRef = useRef<any[]>([]);
+
   // Listen to geofence_schedules for realtime window changes
   useEffect(() => {
     const unsub = listenToCollection('geofence_schedules', (data) => {
       setSchedules(data);
+      schedulesRef.current = data;
       const manualRecord = data.find((s: any) => s.autoActivate === false);
-      if (manualRecord) {
-        setIsWindowActive(manualRecord.isActive);
+      if (manualRecord && manualRecord.isActive) {
+        setIsWindowActive(isScheduleActive(manualRecord));
+      } else {
+        setIsWindowActive(false);
       }
-      // Always unblock the UI once we have data from the DB
       setWindowStatusLoaded(true);
     });
-    return () => unsub();
+
+    // Periodically re-check session status (e.g. if time passes 17:00 while dashboard is open)
+    const checkInterval = setInterval(async () => {
+      // Use the latest schedules from the subscription
+      const manualRecord = schedulesRef.current.find((s: any) => s.autoActivate === false);
+      if (manualRecord && manualRecord.isActive) {
+        const active = isScheduleActive(manualRecord);
+        if (!active) {
+          console.log('[Dashboard] Auto-closing manual window due to time expiration:', manualRecord.endTime);
+          await toggleManualAttendanceWindow(
+            false,
+            manualRecord.lat,
+            manualRecord.lng,
+            manualRecord.radius,
+            manualRecord.locationName,
+            manualRecord.gracePeriod,
+            manualRecord.endTime
+          );
+          toast.success('Session automatically closed at ' + manualRecord.endTime);
+        }
+      }
+    }, 10000); // Check every 10s for better responsiveness
+
+    return () => {
+      unsub();
+      clearInterval(checkInterval);
+    };
   }, []);
 
 
@@ -408,12 +440,12 @@ export default function Dashboard({ user }: { user: any }) {
   };
 
   // ── Computed states ────────────────────────────────────────────────────────
-  const currentlyAnyWindowOpen = schedules.some(isScheduleActive);
-  const autoActiveSchedules = schedules.filter(s => parseFloat(s.radius) !== -999 && isScheduleActive(s));
+  const currentlyAnyWindowOpen = (schedules || []).some(s => isScheduleActive(s));
+  const autoActiveSchedules = (schedules || []).filter(s => parseFloat(s.radius) !== -999 && isScheduleActive(s));
   const isAutoActive = autoActiveSchedules.length > 0;
 
   const totalStudents = students.length || 1; // Prevent division by zero
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = new Date().toISOString().split('T')[0];
 
   // Get unique student records for today to prevent duplicates (no 400% logic)
   const todayRecords = attendance.filter(a => a.date === today);
@@ -430,6 +462,8 @@ export default function Dashboard({ user }: { user: any }) {
   const onLeaveCount = leaveRequests.filter(lr => {
     return lr.status === 'Approved' && lr.fromDate <= today && lr.toDate >= today;
   }).length;
+
+  const pendingLeaveCount = leaveRequests.filter(lr => lr.status === 'Pending').length;
 
   const absentCount = Math.max(0, totalStudents - presentCount - onLeaveCount);
 
@@ -699,9 +733,22 @@ export default function Dashboard({ user }: { user: any }) {
                   </div>
 
                   <div className="space-y-1.5 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session End Time (Auto-Close)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session End Time (Auto-Close)</label>
+                      </div>
+                      {manualEndTime && (
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 tracking-wider">
+                          {(() => {
+                            const [h, m] = manualEndTime.split(':');
+                            let hour = parseInt(h, 10);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            hour = hour % 12 || 12;
+                            return `${hour}:${m} ${ampm}`;
+                          })()}
+                        </span>
+                      )}
                     </div>
                     <input
                       type="time"
@@ -832,14 +879,14 @@ export default function Dashboard({ user }: { user: any }) {
         {/* Layout Grid (Attendance & Leave Reports) */}
         <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
           <AttendanceTable />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${pendingLeaveCount > 0 ? 'lg:grid-cols-2' : ''}`}>
             <QuickActions
               students={students}
               attendance={attendance}
               adminProfile={user}
               schedules={schedules}
             />
-            <LeaveReports />
+            {pendingLeaveCount > 0 && <LeaveReports />}
           </div>
         </div>
 

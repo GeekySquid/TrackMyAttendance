@@ -3,7 +3,7 @@
  * based on the context of the action and the user.
  */
 
-export type PersonalityType = 'success' | 'alert' | 'info' | 'attendance' | 'announcement';
+export type PersonalityType = 'success' | 'alert' | 'info' | 'attendance_student' | 'attendance_admin' | 'announcement';
 
 interface PersonalityParams {
   userName?: string;
@@ -30,10 +30,16 @@ export const formatPersonalityMessage = (type: PersonalityType, params: Personal
         message: `We couldn't process that ${actionType} just yet. ${metadata?.reason || "Don't worry, just double-check the details and try again! 🛡️"}`
       };
 
-    case 'attendance':
+    case 'attendance_student':
       return {
         title: `Welcome, ${name}! 📍`,
         message: `You're all set! ${sender} confirmed your check-in at ${metadata?.location || 'Campus'}. Have a great session! 🚀`
+      };
+
+    case 'attendance_admin':
+      return {
+        title: `New Check-in 📍`,
+        message: `${sender} just checked in at ${metadata?.location || 'Campus'}.`
       };
 
     case 'announcement':

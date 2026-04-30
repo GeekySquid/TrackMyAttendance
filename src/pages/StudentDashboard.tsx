@@ -16,11 +16,11 @@ export default function StudentDashboard({ user }: { user?: any }) {
       </div>
 
       {/* Top Row: Check-in & Gamification Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 mb-4 sm:mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-4 sm:mb-6">
         <div className="col-span-1">
           <StudentCheckInWidget user={user} />
         </div>
-        <div className="col-span-1 lg:col-span-2">
+        <div className="col-span-1">
           <StudentStatsGrid user={user} />
         </div>
       </div>

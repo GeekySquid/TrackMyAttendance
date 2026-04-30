@@ -518,8 +518,7 @@ export default function StudentsPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Assign Mentor</label>
+              <div className="pt-2">
                 <CustomDropdown
                   label="Assign Mentor"
                   options={[

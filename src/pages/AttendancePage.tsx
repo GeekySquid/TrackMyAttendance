@@ -33,6 +33,8 @@ export default function AttendancePage({ user }: { user: any }) {
     ? undefined 
     : students.find(s => s.name === selectedStudentName);
 
+  const pendingAppealsCount = attendanceData.filter(r => r.status === 'Late' && r.lateReason && r.lateReasonStatus === 'Pending').length;
+
   const calculateInsights = () => {
     if (attendanceData.length === 0) return "Not enough data to generate insights yet.";
     
@@ -213,11 +215,15 @@ export default function AttendancePage({ user }: { user: any }) {
         <StudentProfile student={selectedStudentData} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
-        <AttendanceTable />
-        <div className="flex flex-col gap-8">
-          <LateAppealsList />
+      <div className={`grid grid-cols-1 gap-4 sm:gap-8 mb-8 ${pendingAppealsCount > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
+        <div className={pendingAppealsCount > 0 ? 'lg:col-span-2' : ''}>
+          <AttendanceTable />
         </div>
+        {pendingAppealsCount > 0 && (
+          <div className="flex flex-col gap-8 lg:col-span-1">
+            <LateAppealsList />
+          </div>
+        )}
       </div>
     </div>
   );

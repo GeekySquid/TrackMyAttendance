@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-const TODAY = new Date().toLocaleDateString('en-CA');
+const TODAY = new Date().toISOString().split('T')[0];
 
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 function SkeletonRow() {
@@ -82,7 +82,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
       (record.userName || '').toLowerCase().includes(searchLower) ||
       (record.rollNo || '').toLowerCase().includes(searchLower) ||
       (record.course || '').toLowerCase().includes(searchLower);
-    const matchesStatus = statusFilter === 'All' || record.status === statusFilter;
+    const matchesStatus = statusFilter === 'All' || record.status === statusFilter || (statusFilter === 'Present' && record.status === 'Late');
     return matchesToday && matchesSearch && matchesStatus;
   });
 
@@ -177,7 +177,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <div className="col-span-1 lg:col-span-2 bg-white rounded-3xl border border-gray-100/80 shadow-sm p-2 sm:p-5">
+    <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm p-2 sm:p-5 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 sm:mb-3 gap-2">
         <div className="flex items-center justify-between w-full sm:w-auto">
@@ -396,13 +396,17 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                     <td className="py-2.5 px-1 sm:py-3 sm:px-2 text-gray-600" data-label="Location">
                       {(() => {
                         const rawLoc = record.location || '';
-                        const pipeIdx = rawLoc.indexOf('|');
-                        let cleanName: string;
+                        const parts = rawLoc.split('|').map(s => s.trim());
+                        let cleanName: string = 'Campus';
                         let locationCoords: string | null = null;
+                        let sessionEndTime: string | null = null;
 
-                        if (pipeIdx >= 0) {
-                          cleanName = rawLoc.substring(0, pipeIdx).trim() || 'Location';
-                          locationCoords = rawLoc.substring(pipeIdx + 1).trim() || null;
+                        if (parts.length >= 2) {
+                          cleanName = parts[0] || 'Location';
+                          locationCoords = parts[1] || null;
+                          if (parts.length >= 3) {
+                            sessionEndTime = parts[2] === 'N/A' ? null : parts[2];
+                          }
                         } else {
                           cleanName = rawLoc
                             .replace(/ \(Auto\)$/i, '')
@@ -426,6 +430,11 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                             <div className="flex flex-col text-right sm:text-left min-w-0">
                               <span className="font-semibold text-gray-700 truncate sm:whitespace-normal max-w-[100px] sm:max-w-none" title={cleanName}>
                                 {cleanName}
+                                {sessionEndTime && (
+                                  <span className="ml-1.5 text-[8px] font-black text-blue-500 bg-blue-50 px-1 py-0.5 rounded border border-blue-100 uppercase tracking-tighter">
+                                    Ends {sessionEndTime}
+                                  </span>
+                                )}
                               </span>
                               {locationCoords && (
                                 <span className="text-[9px] text-gray-400 font-mono tracking-tighter sm:hidden truncate">

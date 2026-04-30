@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User, Search } from 'lucide-react';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
 import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus } from '../services/dbService';
@@ -30,7 +30,11 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('All Status');
-  
+  const [typeFilter, setTypeFilter] = useState('All Types');
+  const [courseFilter, setCourseFilter] = useState('All Courses');
+  const [timelineFilter, setTimelineFilter] = useState('All Time');
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Form state
   const [leaveType, setLeaveType] = useState('Casual Leave');
   const [fromDate, setFromDate] = useState('');
@@ -58,16 +62,60 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     return () => unsubscribe();
   }, [role, user]);
 
-  const { visibleItems: studentItems, sentinelRef: studentSentinel } = useInfiniteScroll(leaveRequests, 10, 5);
+  const filteredRequests = leaveRequests.filter(r => {
+    const matchesStatus = statusFilter === 'All Status' || r.status === statusFilter;
+    const matchesType = typeFilter === 'All Types' || r.type === typeFilter;
+    const matchesCourse = courseFilter === 'All Courses' || r.course === courseFilter;
+    
+    // Timeline filtering
+    let matchesTimeline = true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = r.fromDate ? new Date(r.fromDate) : null;
+    const end = r.toDate ? new Date(r.toDate) : null;
+
+    if (timelineFilter === 'Active Leaves') {
+      matchesTimeline = !!(start && end && start <= today && end >= today);
+    } else if (timelineFilter === 'Upcoming') {
+      matchesTimeline = !!(start && start > today);
+    } else if (timelineFilter === 'Past') {
+      matchesTimeline = !!(end && end < today);
+    }
+
+    const searchLower = searchQuery.toLowerCase();
+    const shortId = r.id?.substring(0, 8).toLowerCase() || '';
+    const name = r.userName?.toLowerCase() || '';
+    const rollNo = r.rollNo?.toLowerCase() || '';
+    const reason = r.reason?.toLowerCase() || '';
+    const course = r.course?.toLowerCase() || '';
+
+    const matchesSearch = !searchQuery ||
+      shortId.includes(searchLower) ||
+      name.includes(searchLower) ||
+      rollNo.includes(searchLower) ||
+      reason.includes(searchLower) ||
+      course.includes(searchLower);
+
+    return matchesStatus && matchesType && matchesCourse && matchesTimeline && matchesSearch;
+  });
+
+  const { visibleItems: studentItems, sentinelRef: studentSentinel } = useInfiniteScroll(filteredRequests, 10, 5);
+  const { visibleItems: adminItems, sentinelRef: adminSentinel } = useInfiniteScroll(filteredRequests, 10, 5);
+
+  const approvedCount = leaveRequests.filter(r => r.status === 'Approved').length;
+  const pendingCount = leaveRequests.filter(r => r.status === 'Pending').length;
+  const rejectedCount = leaveRequests.filter(r => r.status === 'Rejected').length;
+  const totalRequests = leaveRequests.length || 1;
 
   const handleSubmitRequest = async () => {
     if (!fromDate || !toDate || !reason || !user) return;
-    
+
     try {
       await addLeaveRequest({
         userId: user.uid || user.id,
         userName: user.name,
         rollNo: user.rollNo,
+        course: user.course || 'N/A',
         fromDate,
         toDate,
         type: leaveType,
@@ -75,7 +123,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         status: 'Pending',
         appliedOn: new Date().toISOString(),
       });
-      
+
       setShowRequestModal(false);
       setFromDate('');
       setToDate('');
@@ -104,25 +152,32 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     }
   };
 
-    if (role === 'student') {
-      const approvedCount = leaveRequests.filter(r => r.status === 'Approved').length;
-      const pendingCount = leaveRequests.filter(r => r.status === 'Pending').length;
-      const rejectedCount = leaveRequests.filter(r => r.status === 'Rejected').length;
-      const totalRequests = leaveRequests.length || 1;
-
-      return (
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-            <div>
-              <h2 className="text-3xl font-black text-gray-800 flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                My Leave Requests
-              </h2>
-              <p className="text-sm text-gray-500 mt-2 font-medium">Apply for leave and track your request status in real-time.</p>
+  if (role === 'student') {
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+          <div className="flex-1">
+            <h2 className="text-3xl font-black text-gray-800 flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-blue-600" />
+              </div>
+              My Leave Requests
+            </h2>
+            <p className="text-sm text-gray-500 mt-2 font-medium">Apply for leave and track your request status in real-time.</p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by ID or Reason..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white shadow-sm"
+              />
             </div>
-            <button 
+            <button
               onClick={() => setShowRequestModal(true)}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white text-sm font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-95 hover:-translate-y-0.5"
             >
@@ -130,37 +185,38 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               Request Leave
             </button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-6">
-            <StatCard 
-              title="Leaves Taken" value={approvedCount.toString()} total="12" percentage={`${Math.round((approvedCount/12)*100)}%`} trend="This Year" trendUp={true} 
-              icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500" 
-            />
-            <StatCard 
-              title="Available Balance" value={(12 - approvedCount).toString()} total="12" percentage={`${Math.round(((12 - approvedCount)/12)*100)}%`} trend="Current" trendUp={true} 
-              icon={<Trophy className="h-6 w-6 text-purple-500" />} colorClass="text-purple-500" bgClass="bg-purple-50" progressColorClass="bg-purple-500" 
-            />
-            <StatCard 
-              title="Pending Approval" value={pendingCount.toString()} total={totalRequests.toString()} percentage={`${Math.round((pendingCount/totalRequests)*100)}%`} trend="Current" trendUp={true} 
-              icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400" 
-            />
-            <StatCard 
-              title="Rejected" value={rejectedCount.toString()} total={totalRequests.toString()} percentage={`${Math.round((rejectedCount/totalRequests)*100)}%`} trend="This Year" trendUp={false} 
-              icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400" 
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-6">
+          <StatCard
+            title="Leaves Taken" value={approvedCount.toString()} total="12" percentage={`${Math.round((approvedCount / 12) * 100)}%`} trend="This Year" trendUp={true}
+            icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500"
+          />
+          <StatCard
+            title="Available Balance" value={(12 - approvedCount).toString()} total="12" percentage={`${Math.round(((12 - approvedCount) / 12) * 100)}%`} trend="Current" trendUp={true}
+            icon={<Trophy className="h-6 w-6 text-purple-500" />} colorClass="text-purple-500" bgClass="bg-purple-50" progressColorClass="bg-purple-500"
+          />
+          <StatCard
+            title="Pending Approval" value={pendingCount.toString()} total={totalRequests.toString()} percentage={`${Math.round((pendingCount / totalRequests) * 100)}%`} trend="Current" trendUp={true}
+            icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400"
+          />
+          <StatCard
+            title="Rejected" value={rejectedCount.toString()} total={totalRequests.toString()} percentage={`${Math.round((rejectedCount / totalRequests) * 100)}%`} trend="This Year" trendUp={false}
+            icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400"
+          />
+        </div>
 
         <div className="bg-transparent space-y-3">
           {/* Desktop Table View */}
           <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50/50 backdrop-blur-md">
-                <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
-                  <th className="px-6 py-4 font-black">Request ID</th>
-                  <th className="px-6 py-4 font-black">Leave Dates</th>
-                  <th className="px-6 py-4 font-black">Type & Reason</th>
-                  <th className="px-6 py-4 font-black">Applied On</th>
-                  <th className="px-6 py-4 font-black text-right">Status</th>
+              <thead className="sticky top-0 bg-gray-50/90 z-10 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
+                <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                  <th className="pb-2 px-6">Request ID</th>
+                  <th className="pb-2 px-6">Leave Dates</th>
+                  <th className="pb-2 px-6">Type & Reason</th>
+                  <th className="pb-2 px-6">Applied On</th>
+                  <th className="pb-2 px-6 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -170,11 +226,11 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                   </tr>
                 )}
                 {studentItems.map((leave, i) => (
-                  <tr key={leave.id || i} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-black text-gray-500">{leave.id?.substring(0, 8) || `LR-${i}`}</td>
-                    <td className="px-6 py-4 text-sm font-black text-gray-800">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-blue-500" />
+                  <tr key={leave.id || i} className="text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30">
+                    <td className="py-2.5 px-6 sm:py-3 text-gray-500 font-bold">{leave.id?.substring(0, 8) || `LR-${i}`}</td>
+                    <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
                         {(() => {
                           const f = new Date(leave.fromDate + 'T00:00:00');
                           const t = new Date(leave.toDate + 'T00:00:00');
@@ -182,23 +238,22 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                         })()}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-black text-gray-800">{leave.type}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{leave.reason}</p>
+                    <td className="py-2.5 px-6 sm:py-3">
+                      <p className="font-bold text-gray-700">{leave.type}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5 max-w-[200px] truncate">{leave.reason}</p>
                     </td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-gray-400">
+                    <td className="py-2.5 px-6 sm:py-3 text-[10px] font-bold text-gray-400">
                       {(() => {
                         const d = new Date(leave.appliedOn);
                         if (isNaN(d.getTime())) return leave.appliedOn;
                         return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                       })()}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
-                        leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                        leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                        'bg-red-50 text-red-700 border-red-100'
-                      }`}>
+                    <td className="py-2.5 px-6 sm:py-3 text-right">
+                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                          leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                            'bg-red-50 text-red-700 border-red-100'
+                        }`}>
                         {leave.status}
                       </span>
                     </td>
@@ -221,35 +276,32 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
             ) : (
               <AnimatePresence>
                 {studentItems.map((leave, i) => (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    key={leave.id || i} 
-                    className={`bg-gradient-to-br p-4 rounded-3xl border shadow-sm transition-all active:scale-[0.98] ${
-                      leave.status === 'Approved' ? 'from-green-50/50 to-green-100/20 border-green-100/50' :
-                      leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
-                      'from-red-50/50 to-red-100/20 border-red-100/50'
-                    }`}
+                    key={leave.id || i}
+                    className={`bg-gradient-to-br p-4 rounded-3xl border shadow-sm transition-all active:scale-[0.98] ${leave.status === 'Approved' ? 'from-green-50/50 to-green-100/20 border-green-100/50' :
+                        leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
+                          'from-red-50/50 to-red-100/20 border-red-100/50'
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-2">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:rotate-6 ${
-                          leave.status === 'Approved' ? 'bg-green-500 text-white shadow-green-100' :
-                          leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
-                          'bg-red-500 text-white shadow-red-100'
-                        }`}>
-                          {leave.status === 'Approved' ? <CheckCircle className="w-4 h-4" /> : 
-                           leave.status === 'Pending' ? <Clock className="w-4 h-4" /> : 
-                           <XCircle className="w-4 h-4" />}
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:rotate-6 ${leave.status === 'Approved' ? 'bg-green-500 text-white shadow-green-100' :
+                            leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
+                              'bg-red-500 text-white shadow-red-100'
+                          }`}>
+                          {leave.status === 'Approved' ? <CheckCircle className="w-4 h-4" /> :
+                            leave.status === 'Pending' ? <Clock className="w-4 h-4" /> :
+                              <XCircle className="w-4 h-4" />}
                         </div>
                         <div>
                           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Status</p>
-                          <h4 className={`text-xs font-black uppercase tracking-tight ${
-                            leave.status === 'Approved' ? 'text-green-900' :
-                            leave.status === 'Pending' ? 'text-orange-900' :
-                            'text-red-900'
-                          }`}>{leave.status}</h4>
+                          <h4 className={`text-xs font-black uppercase tracking-tight ${leave.status === 'Approved' ? 'text-green-900' :
+                              leave.status === 'Pending' ? 'text-orange-900' :
+                                'text-red-900'
+                            }`}>{leave.status}</h4>
                         </div>
                       </div>
                       <div className="text-right">
@@ -348,8 +400,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               </div>
               <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
                 <button onClick={() => setShowRequestModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-                <button 
-                  onClick={handleSubmitRequest} 
+                <button
+                  onClick={handleSubmitRequest}
                   disabled={!fromDate || !toDate || !reason}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 disabled:opacity-50"
                 >
@@ -364,15 +416,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   }
 
   // Admin View
-  const approvedCount = leaveRequests.filter(r => r.status === 'Approved').length;
-  const pendingCount = leaveRequests.filter(r => r.status === 'Pending').length;
-  const rejectedCount = leaveRequests.filter(r => r.status === 'Rejected').length;
+  // Admin View (stats already calculated above)
 
-  const filteredRequests = statusFilter === 'All Status' 
-    ? leaveRequests 
-    : leaveRequests.filter(r => r.status === statusFilter);
-
-  const { visibleItems: adminItems, sentinelRef: adminSentinel } = useInfiniteScroll(filteredRequests, 10, 5);
 
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-8">
@@ -386,214 +431,256 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
-        <StatCard 
-          title="Total Requests" value={leaveRequests.length.toString()} total="50" percentage="90%" trend="" trendUp={true} 
-          icon={<FileText className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500" 
+        <StatCard
+          title="Total Requests" value={leaveRequests.length.toString()} total="50" percentage="90%" trend="" trendUp={true}
+          icon={<FileText className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500"
         />
-        <StatCard 
-          title="Pending" value={pendingCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((pendingCount/Math.max(1, leaveRequests.length))*100)}%`} trend="" trendUp={true} 
-          icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400" 
+        <StatCard
+          title="Pending" value={pendingCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((pendingCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
+          icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400"
         />
-        <StatCard 
-          title="Approved" value={approvedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((approvedCount/Math.max(1, leaveRequests.length))*100)}%`} trend="" trendUp={true} 
-          icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500" 
+        <StatCard
+          title="Approved" value={approvedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((approvedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
+          icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500"
         />
-        <StatCard 
-          title="Rejected" value={rejectedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((rejectedCount/Math.max(1, leaveRequests.length))*100)}%`} trend="" trendUp={false} 
-          icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400" 
+        <StatCard
+          title="Rejected" value={rejectedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((rejectedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={false}
+          icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-8">
-        <LeaveReports />
-        <div className="col-span-1 lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col">
-          <div className="p-3 sm:p-6 border-b border-gray-100 flex justify-between items-center">
+      <div className={`grid grid-cols-1 gap-4 sm:gap-8 mb-8 ${pendingCount > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
+        {pendingCount > 0 && <LeaveReports />}
+        <div className={`bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col ${pendingCount > 0 ? 'lg:col-span-2' : ''}`}>
+          <div className="p-3 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
               Leave History
               {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
             </h3>
-            <CustomDropdown
-              options={[
-                { value: 'All Status', label: 'All Status' },
-                { value: 'Approved', label: 'Approved' },
-                { value: 'Pending', label: 'Pending' },
-                { value: 'Rejected', label: 'Rejected' }
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-              className="w-40"
-            />
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search ID, Name, Roll No..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <CustomDropdown
+                options={[
+                  { value: 'All Time', label: 'All Time' },
+                  { value: 'Active Leaves', label: 'Currently Active' },
+                  { value: 'Upcoming', label: 'Upcoming Only' },
+                  { value: 'Past', label: 'Historical' }
+                ]}
+                value={timelineFilter}
+                onChange={setTimelineFilter}
+                className="w-full sm:w-40"
+              />
+              <CustomDropdown
+                options={[
+                  { value: 'All Courses', label: 'All Courses' },
+                  ...Array.from(new Set(leaveRequests.map(r => r.course).filter(Boolean)))
+                    .map(c => ({ value: c, label: c }))
+                ]}
+                value={courseFilter}
+                onChange={setCourseFilter}
+                className="w-full sm:w-40"
+              />
+              <CustomDropdown
+                options={[
+                  { value: 'All Types', label: 'All Types' },
+                  { value: 'Casual Leave', label: 'Casual' },
+                  { value: 'Sick Leave', label: 'Sick' },
+                  { value: 'Emergency', label: 'Emergency' }
+                ]}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                className="w-full sm:w-40"
+              />
+              <CustomDropdown
+                options={[
+                  { value: 'All Status', label: 'All Status' },
+                  { value: 'Approved', label: 'Approved' },
+                  { value: 'Pending', label: 'Pending' },
+                  { value: 'Rejected', label: 'Decline' }
+                ]}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                className="w-full sm:w-40"
+              />
+            </div>
           </div>
-          
+
           <div className="flex-1 overflow-hidden">
             {/* Desktop Table View */}
             <div className="hidden md:block table-fixed-height overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur-md">
-                  <tr className="border-b border-gray-100">
-                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
-                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Dates</th>
-                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Reason</th>
-                    <th className="py-3 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Status</th>
+                <thead className="sticky top-0 bg-gray-50/90 z-20 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
+                  <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                    <th className="pb-2 px-6">Student</th>
+                    <th className="pb-2 px-6">Leave Dates</th>
+                    <th className="pb-2 px-6">Reason</th>
+                    <th className="pb-2 px-6 text-right">Status</th>
                   </tr>
                 </thead>
-              <tbody className="divide-y divide-gray-50">
-                {isLoading ? (
-                  <>
-                    <SkeletonLeaveRow cols={4} />
-                    <SkeletonLeaveRow cols={4} />
-                    <SkeletonLeaveRow cols={4} />
-                  </>
-                ) : filteredRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-12 px-6 text-center text-gray-400 text-sm italic font-medium">No leave requests found.</td>
-                  </tr>
-                ) : (
-                  adminItems.map((req, i) => (
-                    <tr key={req.id || i} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xs shrink-0 overflow-hidden border border-blue-100 shadow-sm">
-                            {req.userPhoto ? (
-                              <img 
-                                src={req.userPhoto} 
-                                alt={req.userName} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(req.userName || 'S')}`;
-                                }}
-                              />
-                            ) : (
-                              <span>{req.userName?.charAt(0) || 'S'}</span>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-gray-800">{req.userName}</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{req.rollNo || 'N/A'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-sm font-bold text-gray-700">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                          {(() => {
-                            const f = new Date(req.fromDate + 'T00:00:00');
-                            const t = new Date(req.toDate + 'T00:00:00');
-                            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
-                          })()}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <p className="text-sm font-black text-gray-800">{req.type}</p>
-                        <p className="text-xs text-gray-500 max-w-[200px] truncate">{req.reason}</p>
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {req.status === 'Pending' ? (
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => handleUpdateStatus(req.id, 'Approved')}
-                              disabled={processingIds.has(req.id)}
-                              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleUpdateStatus(req.id, 'Rejected')}
-                              disabled={processingIds.has(req.id)}
-                              className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
-                            req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                            'bg-red-50 text-red-700 border-red-100'
-                          }`}>
-                            {req.status}
-                          </span>
-                        )}
-                      </td>
+                <tbody className="divide-y divide-gray-50">
+                  {isLoading ? (
+                    <>
+                      <SkeletonLeaveRow cols={4} />
+                      <SkeletonLeaveRow cols={4} />
+                      <SkeletonLeaveRow cols={4} />
+                    </>
+                  ) : filteredRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 px-6 text-center text-gray-400 text-sm italic font-medium">No leave requests found.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            <div ref={adminSentinel} className="h-4" />
-          </div>
-
-          {/* Mobile Admin Request Cards - Ultra Compact & Responsive */}
-          <div className="md:hidden p-3 space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar bg-gray-50/30">
-            {filteredRequests.length === 0 ? (
-              <div className="p-10 text-center text-gray-400 italic text-xs font-medium">No requests found.</div>
-            ) : (
-              adminItems.map((req, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  key={req.id || i} 
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3.5"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] border border-blue-100 shadow-sm">
-                        {req.userName?.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-black text-gray-800 leading-none truncate w-[100px]">{req.userName}</p>
-                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{req.rollNo || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border shrink-0 ${
-                      req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                      req.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                      'bg-red-50 text-red-700 border-red-100'
-                    }`}>
-                      {req.status}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-gray-600 bg-blue-50/30 p-2 rounded-xl border border-blue-100/50 mb-3">
-                    <Calendar className="w-3 h-3 text-blue-500" />
-                    <span className="text-[10px] font-black tracking-tight">
-                      {(() => {
-                        const f = new Date(req.fromDate + 'T00:00:00');
-                        const t = new Date(req.toDate + 'T00:00:00');
-                        return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
-                      })()}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 mb-3">
-                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{req.type}</p>
-                    <p className="text-[10px] text-gray-600 italic leading-snug line-clamp-2">"{req.reason}"</p>
-                  </div>
-
-                  {req.status === 'Pending' && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleUpdateStatus(req.id, 'Approved')}
-                        disabled={processingIds.has(req.id)}
-                        className="flex-1 py-2 bg-green-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md shadow-green-100 active:scale-95 transition-all"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(req.id, 'Rejected')}
-                        disabled={processingIds.has(req.id)}
-                        className="flex-1 py-2 bg-white text-red-600 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all"
-                      >
-                        Reject
-                      </button>
-                    </div>
+                  ) : (
+                    adminItems.map((req, i) => (
+                      <tr key={req.id || i} className="text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30">
+                        <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-medium">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] shrink-0 overflow-hidden border border-blue-100 shadow-sm">
+                              {req.userPhoto ? (
+                                <img
+                                  src={req.userPhoto}
+                                  alt={req.userName}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(req.userName || 'S')}`;
+                                  }}
+                                />
+                              ) : (
+                                <span>{req.userName?.charAt(0) || 'S'}</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-800">{req.userName}</p>
+                              <p className="text-[9px] text-gray-400 font-medium">{req.rollNo || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                            {(() => {
+                              const f = new Date(req.fromDate + 'T00:00:00');
+                              const t = new Date(req.toDate + 'T00:00:00');
+                              return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                            })()}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-medium">
+                          <p className="font-bold text-gray-700">{req.type}</p>
+                          <p className="text-[10px] text-gray-500 max-w-[200px] truncate">{req.reason}</p>
+                        </td>
+                        <td className="py-2.5 px-6 sm:py-3 text-right">
+                          {req.status === 'Pending' ? (
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleUpdateStatus(req.id, 'Approved')}
+                                disabled={processingIds.has(req.id)}
+                                className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(req.id, 'Rejected')}
+                                disabled={processingIds.has(req.id)}
+                                className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                                'bg-red-50 text-red-700 border-red-100'
+                              }`}>
+                              {req.status}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </motion.div>
-              ))
-            )}
-            <div ref={adminSentinel} className="h-4" />
+                </tbody>
+              </table>
+              <div ref={adminSentinel} className="h-4" />
+            </div>
+
+            {/* Mobile Admin Request Cards - Ultra Compact & Responsive */}
+            <div className="md:hidden p-3 space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar bg-gray-50/30">
+              {filteredRequests.length === 0 ? (
+                <div className="p-10 text-center text-gray-400 italic text-xs font-medium">No requests found.</div>
+              ) : (
+                adminItems.map((req, i) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    key={req.id || i}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3.5"
+                  >
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] border border-blue-100 shadow-sm">
+                          {req.userName?.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-black text-gray-800 leading-none truncate w-[100px]">{req.userName}</p>
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{req.rollNo || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border shrink-0 ${req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                          req.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                            'bg-red-50 text-red-700 border-red-100'
+                        }`}>
+                        {req.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-gray-600 bg-blue-50/30 p-2 rounded-xl border border-blue-100/50 mb-3">
+                      <Calendar className="w-3 h-3 text-blue-500" />
+                      <span className="text-[10px] font-black tracking-tight">
+                        {(() => {
+                          const f = new Date(req.fromDate + 'T00:00:00');
+                          const t = new Date(req.toDate + 'T00:00:00');
+                          return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                        })()}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 mb-3">
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{req.type}</p>
+                      <p className="text-[10px] text-gray-600 italic leading-snug line-clamp-2">"{req.reason}"</p>
+                    </div>
+
+                    {req.status === 'Pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateStatus(req.id, 'Approved')}
+                          disabled={processingIds.has(req.id)}
+                          className="flex-1 py-2 bg-green-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md shadow-green-100 active:scale-95 transition-all"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(req.id, 'Rejected')}
+                          disabled={processingIds.has(req.id)}
+                          className="flex-1 py-2 bg-white text-red-600 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                ))
+              )}
+              <div ref={adminSentinel} className="h-4" />
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info, Copy, Check, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info, Copy, Check, X, RefreshCw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -13,7 +13,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const uid = user?.uid || user?.id;
+    const uid = user?.id || user?.uid; // Prioritize .id to match StudentCheckInWidget
     if (!uid) return;
 
     setIsLoading(true);
@@ -36,14 +36,18 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
         })
         .map(r => {
           const rawLoc = r.location || '';
-          // Format: "Location Name|lat,lng"
-          const pipeIdx = rawLoc.indexOf('|');
-          let cleanName: string;
+          // Format: "Location Name | lat,lng | endTime"
+          const parts = rawLoc.split('|').map(s => s.trim());
+          let cleanName: string = 'Campus';
           let locationCoords: string | null = null;
+          let sessionEndTime: string | null = null;
 
-          if (pipeIdx >= 0) {
-            cleanName = rawLoc.substring(0, pipeIdx).trim() || 'Location';
-            locationCoords = rawLoc.substring(pipeIdx + 1).trim() || null;
+          if (parts.length >= 2) {
+            cleanName = parts[0] || 'Location';
+            locationCoords = parts[1] || null;
+            if (parts.length >= 3) {
+              sessionEndTime = parts[2] === 'N/A' ? null : parts[2];
+            }
           } else {
             cleanName = rawLoc
               .replace(/ \(Auto\)$/i, '')
@@ -52,21 +56,27 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
               .replace(/Auto-Checkout \(([^)]+)\)/i, '$1')
               .replace(/^Auto-Checkout$/i, 'Automatic Out')
               .trim() || 'Campus';
-            locationCoords = null;
           }
+
+          const [y, m, d] = r.date.split('-');
+          const safeDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
 
           return {
             id: r.id,
-            date: new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
+            displayDate: safeDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
+            rawDate: r.date, // Store YYYY-MM-DD for accurate filtering
             in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
             out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
             rawInTime: r.checkInTime,
             status: r.status,
             locationName: cleanName,
             locationCoords,
+            sessionEndTime,
             lateReason: r.lateReason,
             lateReasonStatus: r.lateReasonStatus,
-            image: r.lateReasonImage
+            image: r.lateReasonImage,
+            rejoins: r.rejoins || [],
+            checkoutReason: r.checkoutReason || null
           };
         });
       setAllLogs(studentLogs);
@@ -74,7 +84,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
     }, uid);
 
     return () => unsubscribe();
-  }, [user?.uid, user?.id]);
+  }, [user?.id, user?.uid]);
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -113,12 +123,10 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   };
 
   const filteredLogs = allLogs.filter(log => {
-    const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
-    const logDate = new Date(log.date);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-
-    const matchesDate = (!start || logDate >= start) && (!end || logDate <= end);
+    const matchesStatus = statusFilter === 'All' || log.status === statusFilter || (statusFilter === 'Present' && log.status === 'Late');
+    
+    // Accurate date comparison using raw YYYY-MM-DD
+    const matchesDate = (!startDate || log.rawDate >= startDate) && (!endDate || log.rawDate <= endDate);
 
     return matchesStatus && matchesDate;
   });
@@ -127,7 +135,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
   const generateDataArray = () => {
     return filteredLogs.map(log => [
-      log.date,
+      log.displayDate,
       log.in,
       log.out,
       log.locationName,
@@ -142,7 +150,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       const csvContent = [
         headers.join(','),
         ...filteredLogs.map(log => [
-          `"${log.date}"`, `"${log.in}"`, `"${log.out}"`, `"${log.locationName}"`, `"${log.status}"`
+          `"${log.displayDate}"`, `"${log.in}"`, `"${log.out}"`, `"${log.locationName}"`, `"${log.status}"`
         ].join(','))
       ].join('\n');
 
@@ -327,7 +335,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                         <tr key={log.id} className={`transition-colors group ${isNew ? 'bg-blue-50/60' : 'hover:bg-blue-50/40'}`}>
                           <td className="py-2.5 px-5 text-sm font-bold text-gray-800 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              {log.date}
+                              {log.displayDate}
                               {isNew && <span className="bg-blue-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full animate-pulse shadow-sm shadow-blue-200">Just Now</span>}
                             </div>
                           </td>
@@ -350,10 +358,17 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           <td className="py-2.5 px-5 text-sm text-gray-600 whitespace-nowrap">
                             {log.locationName ? (
                               <div className="flex items-center gap-2 relative" onMouseEnter={() => log.locationCoords && openTooltip(log.id)} onMouseLeave={closeTooltip}>
-                                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                 <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
                                   <MapPin className="w-3.5 h-3.5 text-blue-600" />
                                 </div>
-                                <span className="font-medium text-gray-700 max-w-[140px] truncate" title={log.locationName}>{log.locationName}</span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium text-gray-700 truncate max-w-[140px]" title={log.locationName}>{log.locationName}</span>
+                                  {log.sessionEndTime && (
+                                    <span className="text-[9px] font-black text-blue-500 bg-blue-50 px-1 py-0.5 rounded border border-blue-100 uppercase tracking-tighter w-fit">
+                                      Ends {log.sessionEndTime}
+                                    </span>
+                                  )}
+                                </div>
                                 {log.locationCoords && hoveredLocId === log.id && (
                                   <div className="absolute left-0 top-full pt-1.5 z-50">
                                     <div className="flex items-center gap-2 bg-gray-900 text-white text-[11px] font-mono px-3 py-2 rounded-xl shadow-xl whitespace-nowrap">
@@ -386,14 +401,23 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                                   <p className="text-xs text-gray-700 font-medium leading-relaxed italic">"{log.lateReason}"</p>
                                   {log.image && <img src={log.image} alt="Late Proof" className="mt-3 rounded-lg w-full h-24 object-cover border border-gray-100" />}
                                   <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Status</span>
-                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${log.lateReasonStatus === 'Approved' ? 'bg-green-100 text-green-700' : log.lateReasonStatus === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700 animate-pulse'}`}>
-                                      {log.lateReasonStatus || 'Pending'}
-                                    </span>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-in</span>
+                                    <span className="text-[10px] font-bold text-blue-600 uppercase">{log.in}</span>
                                   </div>
                                 </div>
                               )}
                             </div>
+                            {log.rejoins && log.rejoins.length > 0 && (
+                              <div className="mt-1 flex flex-col items-end gap-1">
+                                {log.rejoins.map((rj: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                    <RefreshCw className="w-2.5 h-2.5" />
+                                    <span>Rejoined {new Date(rj.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    {rj.exit_reason && <span className="text-gray-400 font-medium ml-1">({rj.exit_reason})</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -410,7 +434,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
           {/* Mobile View: High-Fidelity Cards with Swipe */}
           <motion.div
-            className="md:hidden divide-y divide-gray-100 overflow-y-auto max-h-[calc(100vh-350px)] touch-pan-y"
+            className="md:hidden divide-y divide-gray-100 overflow-y-auto max-h-[calc(100vh-420px)] touch-pan-y"
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             onDragEnd={(_, info) => {
@@ -429,7 +453,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date</span>
-                      <span className="text-sm font-black text-gray-800">{log.date}</span>
+                      <span className="text-sm font-black text-gray-800">{log.displayDate}</span>
                     </div>
                     <span className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider ${log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-100' :
                         log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-100' :
@@ -448,7 +472,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                       </div>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Check Out</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Check Out {log.sessionEndTime && <span className="text-gray-300 ml-1 font-mono">(Ends {log.sessionEndTime})</span>}</span>
                       <div className="flex items-center gap-2 text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
                         <Clock className="w-3.5 h-3.5 text-purple-500" />
                         <span className="text-xs font-black">{log.out}</span>
@@ -472,11 +496,36 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
                   {log.status === 'Late' && log.lateReason && (
                     <div className="mt-4 p-3 bg-orange-50/50 rounded-xl border border-orange-100/50">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Info className="w-3.5 h-3.5 text-orange-500" />
-                        <span className="text-[9px] font-black uppercase text-orange-700 tracking-tighter">Late Reason</span>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-orange-500" />
+                          <span className="text-[9px] font-black uppercase text-orange-700 tracking-tighter">Late Reason</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-blue-600 uppercase">In: {log.in}</span>
                       </div>
                       <p className="text-[11px] text-gray-600 leading-relaxed italic">"{log.lateReason}"</p>
+                    </div>
+                  )}
+
+                  {log.rejoins && log.rejoins.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-gray-50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Session Re-joins</span>
+                      </div>
+                      <div className="space-y-2">
+                        {log.rejoins.map((rj: any, idx: number) => (
+                          <div key={idx} className="bg-blue-50/50 p-2 rounded-lg border border-blue-100/50">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[10px] font-bold text-blue-700">{new Date(rj.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span className="text-[8px] font-black uppercase text-blue-400 tracking-tighter">Re-joined</span>
+                            </div>
+                            {rj.exit_reason && (
+                              <p className="text-[10px] text-gray-500 italic">Left due to: {rj.exit_reason}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -27,7 +27,8 @@ import {
   deleteMentor,
   clearDatabase,
   getSystemSettings,
-  updateSystemSettings
+  updateSystemSettings,
+  getBackupData
 } from '../services/dbService';
 import toast from 'react-hot-toast';
 import CustomInput from '../components/CustomInput';
@@ -41,6 +42,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [mentors, setMentors] = useState<any[]>([]);
   const [newMentor, setNewMentor] = useState({ name: '', phone: '' });
   const [localSettings, setLocalSettings] = useState<any>({
@@ -189,6 +191,29 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     }
   };
 
+  const handleDownloadBackup = async () => {
+    setIsDownloading(true);
+    try {
+      const backup = await getBackupData();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TrackMyAttendance_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Database backup downloaded successfully!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to download backup');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const generateDemoData = async () => {
     setIsGenerating(true);
     try {
@@ -304,26 +329,32 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
-            <h2 className="text-lg font-black text-gray-800 tracking-tight">System Settings</h2>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Configure parameters & preferences</p>
+            <h2 className="text-lg font-black text-gray-800 tracking-tight">
+              {role === 'admin' ? 'System Settings' : 'Student Settings'}
+            </h2>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              {role === 'admin' ? 'Configure parameters & preferences' : 'Manage your profile and preferences'}
+            </p>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="w-full sm:w-auto bg-blue-600 text-white text-xs py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save All Changes
-              </>
-            )}
-          </button>
+          {role === 'admin' && (
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full sm:w-auto bg-blue-600 text-white text-xs py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save All Changes
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -426,15 +457,22 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Academic Year</label>
-                    <select
-                      value={localSettings.academic_year || ''}
-                      onChange={(e) => handleSettingsChange({ academic_year: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
-                    >
-                      <option value="2023 - 2024">2023 - 2024</option>
-                      <option value="2024 - 2025">2024 - 2025</option>
-                      <option value="2025 - 2026">2025 - 2026</option>
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        list="academic-years"
+                        value={localSettings.academic_year || ''}
+                        onChange={(e) => handleSettingsChange({ academic_year: e.target.value })}
+                        placeholder="e.g. 2026 - 2027"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
+                      />
+                      <datalist id="academic-years">
+                        <option value="2023 - 2024" />
+                        <option value="2024 - 2025" />
+                        <option value="2025 - 2026" />
+                        <option value="2026 - 2027" />
+                      </datalist>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Timezone</label>
@@ -701,6 +739,37 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                           <>
                             <Database className="w-4 h-4" />
                             Generate Data
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600 shrink-0">
+                      <Save className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-gray-800">Download Database Backup</h4>
+                      <p className="text-sm text-gray-600 mt-1 mb-4">
+                        Download a complete JSON backup of the database including users, attendance records, leave requests, mentors, and system settings.
+                      </p>
+                      <button
+                        onClick={handleDownloadBackup}
+                        disabled={isDownloading}
+                        className="bg-emerald-600 text-white text-sm py-2.5 px-6 rounded-lg font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        {isDownloading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Downloading...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Download Backup JSON
                           </>
                         )}
                       </button>

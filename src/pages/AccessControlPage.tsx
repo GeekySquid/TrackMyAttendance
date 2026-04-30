@@ -3,6 +3,7 @@ import { Shield, Users, GripVertical, Check, Plus, XCircle, Loader2, ArrowRightC
 import { listenToCollection, updateUserRole, saveUser, getRoles, saveRoles } from '../services/dbService';
 import CustomDropdown from '../components/CustomDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 type User = { id: string; uid?: string; name: string; email: string; roleId: string | null };
 type Role = { id: string; name: string; modules: string[] };
@@ -124,8 +125,8 @@ export default function AccessControlPage() {
   const unassignedUsers = users.filter(u => u.roleId === null || u.roleId === undefined);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex-1 flex flex-col h-full overflow-hidden p-4 sm:p-8">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Role-Based Access Control</h2>
           <p className="text-sm text-gray-500">Drag and drop users into roles and configure module access.</p>
@@ -139,10 +140,10 @@ export default function AccessControlPage() {
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 pb-6 lg:pb-0">
         {/* Unassigned Users Pool - Premium Floating Design on Mobile */}
         <div
-          className="w-full lg:w-80 bg-white/80 backdrop-blur-md rounded-3xl border border-gray-100 shadow-xl flex flex-col h-auto lg:h-[calc(100vh-12rem)] sticky lg:relative bottom-0 lg:bottom-auto z-40 transition-all overflow-hidden"
+          className="w-full lg:w-80 bg-white/80 backdrop-blur-md rounded-3xl border border-gray-100 shadow-xl flex flex-col transition-all overflow-hidden shrink-0 lg:h-full max-h-[300px] lg:max-h-none"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null)}
         >
@@ -156,7 +157,7 @@ export default function AccessControlPage() {
             </span>
           </div>
 
-          <div className="p-4 flex-1 overflow-x-auto lg:overflow-y-auto lg:h-full flex lg:flex-col gap-3 custom-scrollbar">
+          <div className="p-4 flex-1 overflow-x-auto lg:overflow-y-auto flex lg:flex-col gap-3 custom-scrollbar min-h-0">
             {unassignedUsers.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-w-[200px]">
                 <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-2">
@@ -195,8 +196,9 @@ export default function AccessControlPage() {
         </div>
 
         {/* Roles Grid */}
-        <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 overflow-y-auto h-[calc(100vh-12rem)] pr-2">
-          {roles.map(role => {
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
+            {roles.map(role => {
             const roleUsers = users.filter(u => u.roleId === role.id);
             return (
               <div key={role.id} className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col h-full overflow-hidden">
@@ -300,16 +302,17 @@ export default function AccessControlPage() {
             );
           })}
 
-          {/* Add New Role Button */}
-          <button
-            onClick={() => setShowAddRoleModal(true)}
-            className="h-[200px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all group"
-          >
-            <div className="w-12 h-12 rounded-full bg-gray-50 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors">
-              <Plus className="w-6 h-6" />
-            </div>
-            <span className="font-bold">Create New Role</span>
-          </button>
+            {/* Add New Role Button */}
+            <button
+              onClick={() => setShowAddRoleModal(true)}
+              className="h-[200px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-50 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors">
+                <Plus className="w-6 h-6" />
+              </div>
+              <span className="font-bold">Create New Role</span>
+            </button>
+          </div>
         </div>
       </div>
 

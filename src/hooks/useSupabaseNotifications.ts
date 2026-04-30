@@ -59,19 +59,31 @@ export function useSupabaseNotifications(profile: any) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'attendance' },
         (payload) => {
-          // ONLY ADMINS see student check-ins
-          if (profile.role !== 'admin') return;
-
-          const personality = formatPersonalityMessage('attendance', {
-            userName: profile.name,
-            actionType: 'check-in',
-            metadata: { location: payload.new.location_name }
-          });
-          addNotification({
-            type: 'attendance',
-            ...personality,
-            data: payload.new
-          });
+          if (profile.role === 'admin') {
+            const personality = formatPersonalityMessage('attendance_admin', {
+              userName: profile.name,
+              senderName: payload.new.user_name,
+              actionType: 'check-in',
+              metadata: { location: payload.new.location_name }
+            });
+            addNotification({
+              type: 'attendance',
+              ...personality,
+              data: payload.new
+            });
+          } else if (payload.new.user_id === profile.id) {
+            const personality = formatPersonalityMessage('attendance_student', {
+              userName: profile.name,
+              senderName: 'Admin',
+              actionType: 'check-in',
+              metadata: { location: payload.new.location_name }
+            });
+            addNotification({
+              type: 'attendance',
+              ...personality,
+              data: payload.new
+            });
+          }
         }
       )
       .subscribe();

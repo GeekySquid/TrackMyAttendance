@@ -32,10 +32,16 @@ export default function LateAppealsList() {
     setProcessingIds(prev => new Set(prev).add(id));
 
     try {
-      await updateAttendance(id, {
+      const updateData: any = {
         lateReasonStatus: newStatus,
         lateReasonReviewedAt: new Date().toISOString(),
-      });
+      };
+      
+      if (newStatus === 'Approved') {
+        updateData.status = 'Present';
+      }
+
+      await updateAttendance(id, updateData);
       toast.success(`Appeal ${newStatus.toLowerCase()} successfully`);
     } catch (err) {
       toast.error('Failed to update appeal');

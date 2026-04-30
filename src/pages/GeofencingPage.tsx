@@ -40,8 +40,8 @@ export default function GeofencingPage() {
   useEffect(() => {
     getGeofenceSchedules()
       .then((data) => {
-        // Filter out the manual-override sentinel row (radius === -999)
-        setSchedules(data.filter((s: GeofenceSchedule) => parseFloat(s.radius) !== -999));
+        // Filter out manual-override records (autoActivate === false)
+        setSchedules(data.filter((s: GeofenceSchedule) => s.autoActivate !== false));
       })
       .catch((e) => console.error('[GeofencingPage] load error:', e))
       .finally(() => setIsLoadingSchedules(false));

@@ -67,6 +67,8 @@ export function mapAttendance(row: any) {
     lateReasonReviewedAt: row.late_reason_reviewed_at || null,
     lateReasonImage: row.late_reason_image || null,
     userPhoto: row.profiles?.photo_url || row.user_photo || '',
+    checkoutReason: row.checkout_reason || null,
+    rejoins: row.rejoins || [],
   };
 }
 
@@ -135,14 +137,14 @@ export function mapNotification(n: any) {
   };
 }
 
-export function isScheduleActive(s: any): boolean {
+export function isScheduleActive(s: any, nowOverride?: Date): boolean {
   if (!s) return false;
   // 1. Manual Global Override Row
   if (!s.isActive) return false;
 
   // Check Time Range if specified (for both manual and auto)
   if (s.endTime || s.time) {
-    const now = new Date();
+    const now = (nowOverride instanceof Date) ? nowOverride : new Date();
     const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
     
     // Day check (only for auto schedules with days array)
@@ -153,9 +155,10 @@ export function isScheduleActive(s: any): boolean {
     const [h, m] = (s.time || '00:00').split(':').map(Number);
     const [eh, em] = (s.endTime || '23:59').split(':').map(Number);
 
-    const startTotal = h * 60 + m;
-    const endTotal = eh * 60 + em;
-    const nowTotal = now.getHours() * 60 + now.getMinutes();
+    // Precise comparison using seconds
+    const startTotal = h * 3600 + m * 60;
+    const endTotal = eh * 3600 + em * 60;
+    const nowTotal = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
     if (endTotal < startTotal) {
       // Spans midnight: active if now is after start OR before end
@@ -390,7 +393,8 @@ export const addAttendance = async (record: any): Promise<any> => {
       p_status: record.status,
       p_location: combinedLocation,
       p_late_reason: record.lateReason || null,
-      p_late_reason_image: record.lateReasonImage || null
+      p_late_reason_image: record.lateReasonImage || null,
+      p_rejoin_reason: record.rejoinReason || null
     };
 
     const { data, error } = await supabase.rpc('record_attendance', params);
@@ -551,18 +555,27 @@ export const bulkMarkAttendance = async (records: any[]): Promise<void> => {
  */
 export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const time = checkoutTime || new Date().toISOString();
+    const now = new Date();
+    const time = checkoutTime || now.toISOString();
+    
+    console.log('[dbService] Running markBulkCheckOut. Closing ALL active sessions...');
 
     const { data: records, error: fetchError } = await supabase
       .from('attendance')
       .select('id, user_id, user_name, course')
-      .eq('date', today)
       .is('check_out_time', null);
 
-    if (fetchError) throw fetchError;
-    if (!records || records.length === 0) return;
+    if (fetchError) {
+      console.error('[dbService] markBulkCheckOut fetch error:', fetchError.message);
+      throw fetchError;
+    }
 
+    if (!records || records.length === 0) {
+      console.log('[dbService] markBulkCheckOut: No active sessions found to close.');
+      return;
+    }
+
+    console.log(`[dbService] markBulkCheckOut: Found ${records.length} active sessions. Closing now...`);
     const ids = records.map(r => r.id);
 
     const { error: updateError } = await supabase
@@ -570,7 +583,12 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
       .update({ check_out_time: time })
       .in('id', ids);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('[dbService] markBulkCheckOut update error:', updateError.message);
+      throw updateError;
+    }
+
+    console.log('[dbService] markBulkCheckOut: Successfully checked out', records.length, 'students.');
 
     // Send notifications
     try {
@@ -587,7 +605,7 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
       console.warn('[dbService] Bulk check-out notifications failed:', e);
     }
   } catch (err: any) {
-    console.error('[dbService] markBulkCheckOut error:', err.message);
+    console.error('[dbService] markBulkCheckOut exception:', err.message);
     throw err;
   }
 };
@@ -1544,5 +1562,32 @@ export const updateSystemSettings = async (updates: any): Promise<boolean> => {
   }
   console.log('[dbService] updateSystemSettings success');
   return true;
+};
+
+export const getBackupData = async (): Promise<any> => {
+  const [
+    { data: attendance },
+    { data: users },
+    { data: leave_requests },
+    { data: mentors },
+    { data: settings },
+    { data: schedules }
+  ] = await Promise.all([
+    supabase.from('attendance').select('*'),
+    supabase.from('users').select('*'),
+    supabase.from('leave_requests').select('*'),
+    supabase.from('mentors').select('*'),
+    supabase.from('app_settings').select('*'),
+    supabase.from('geofence_schedules').select('*')
+  ]);
+  
+  return {
+    attendance: attendance || [],
+    users: users || [],
+    leave_requests: leave_requests || [],
+    mentors: mentors || [],
+    app_settings: settings || [],
+    geofence_schedules: schedules || []
+  };
 };
 

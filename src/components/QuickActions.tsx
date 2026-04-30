@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckSquare, Bell, X, Loader2, Send, Filter, Users, Search } from 'lucide-react';
 import CustomDropdown from './CustomDropdown';
-import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications, isScheduleActive } from '../services/dbService';
+import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications, isScheduleActive, markBulkCheckOut } from '../services/dbService';
 import toast from 'react-hot-toast';
-import { MapPin } from 'lucide-react';
+import { MapPin, XCircle } from 'lucide-react';
 
 interface QuickActionsProps {
   students: any[];
@@ -29,6 +29,19 @@ export default function QuickActions({ students, attendance, adminProfile, sched
   const [reminderCourse, setReminderCourse] = useState('MCA');
   const [reminderTitle, setReminderTitle] = useState('Attendance Reminder');
   const [reminderMessage, setReminderMessage] = useState('');
+
+  const handleForceCheckout = async () => {
+    if (!window.confirm('This will immediately check out ALL students currently marked as Verified. Continue?')) return;
+    setIsProcessing(true);
+    try {
+      await markBulkCheckOut();
+      toast.success('All active students have been checked out.');
+    } catch (err) {
+      toast.error('Failed to perform bulk checkout.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -179,7 +192,24 @@ export default function QuickActions({ students, attendance, adminProfile, sched
       </div>
       <p className="text-xs text-gray-500 mb-4 sm:mb-6 italic leading-relaxed">Perform common administrative tasks with a single click.</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+        <button
+          onClick={handleForceCheckout}
+          disabled={isProcessing}
+          className="group relative w-full bg-red-50 hover:bg-red-600 hover:text-white text-red-700 text-sm font-bold py-4 px-4 rounded-2xl transition-all duration-300 flex items-center justify-between overflow-hidden"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white group-hover:bg-red-500/20 rounded-xl flex items-center justify-center transition-colors">
+              <XCircle className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <p className="font-black">Force Checkout</p>
+              <p className="text-[10px] opacity-70">Close all active sessions</p>
+            </div>
+          </div>
+          <Loader2 className={`w-4 h-4 animate-spin ${isProcessing ? 'opacity-100' : 'opacity-0'}`} />
+        </button>
+
         <button
           onClick={() => setShowBulkModal(true)}
           className="group relative w-full bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 text-sm font-bold py-4 px-4 rounded-2xl transition-all duration-300 flex items-center justify-between overflow-hidden"
