@@ -16,7 +16,9 @@ import {
   Building,
   UserCheck,
   Phone,
-  Activity
+  Activity,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import {
   saveUser,
@@ -45,6 +47,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const [isDownloading, setIsDownloading] = useState(false);
   const [mentors, setMentors] = useState<any[]>([]);
   const [newMentor, setNewMentor] = useState({ name: '', phone: '' });
+  const [isPurgingCache, setIsPurgingCache] = useState(false);
   const [localSettings, setLocalSettings] = useState<any>({
     institution_name: 'TrackMyAttendance Academy',
     academic_year: '2023 - 2024',
@@ -191,6 +194,32 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     }
   };
 
+  const handleGlobalCachePurge = async () => {
+    if (!window.confirm('This will force ALL users to clear their browser caches and re-download assets on their next load. Use this only after significant updates. Continue?')) {
+      return;
+    }
+
+    setIsPurgingCache(true);
+    try {
+      const currentVersion = localSettings.cache_version || 0;
+      const success = await updateSystemSettings({
+        ...localSettings,
+        cache_version: currentVersion + 1
+      });
+
+      if (success) {
+        toast.success('Global cache purge initiated for all users.');
+        await fetchSettings();
+      } else {
+        toast.error('Failed to initiate purge.');
+      }
+    } catch (err) {
+      toast.error('An error occurred.');
+    } finally {
+      setIsPurgingCache(false);
+    }
+  };
+
   const handleDownloadBackup = async () => {
     setIsDownloading(true);
     try {
@@ -308,6 +337,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const adminTabs = [
     { id: 'profile', label: 'My Admin Profile', icon: User },
     { id: 'general', label: 'General Info', icon: Building },
+    { id: 'rbac', label: 'Access Control', icon: ShieldCheck },
     { id: 'attendance', label: 'Attendance Rules', icon: Clock },
     { id: 'alerts', label: 'Alerts & Follow-ups', icon: AlertTriangle },
     { id: 'awards', label: 'Awards & Recognition', icon: Award },
@@ -503,6 +533,78 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
               </div>
             )}
 
+            {activeTab === 'rbac' && role === 'admin' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-800">Role Based Access Control</h3>
+                  <p className="text-sm text-gray-500">Configure which modules each user role can access.</p>
+                </div>
+
+                <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Module Name</th>
+                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-center">Student Role</th>
+                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-center">Admin Role</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {[
+                        { id: 'dashboard', name: 'Main Dashboard' },
+                        { id: 'attendance', name: 'Attendance History' },
+                        { id: 'leave', name: 'Leave Management' },
+                        { id: 'notifications', name: 'Global Notifications' },
+                        { id: 'leaderboard', name: 'Performance Leaderboard' },
+                        { id: 'documents', name: 'Document Vault' },
+                        { id: 'settings', name: 'User Preferences' },
+                      ].map((module) => {
+                        const studentPerms = localSettings.role_permissions?.student || [];
+                        const hasAccess = studentPerms.includes(module.id);
+
+                        return (
+                          <tr key={module.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-bold text-gray-700">{module.name}</span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button
+                                onClick={() => {
+                                  const newPerms = hasAccess
+                                    ? studentPerms.filter((p: string) => p !== module.id)
+                                    : [...studentPerms, module.id];
+                                  handleSettingsChange({
+                                    role_permissions: {
+                                      ...localSettings.role_permissions,
+                                      student: newPerms
+                                    }
+                                  });
+                                }}
+                                className={`w-12 h-6 rounded-full p-1 transition-colors ${hasAccess ? 'bg-blue-600' : 'bg-gray-200'}`}
+                              >
+                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${hasAccess ? 'translate-x-6' : 'translate-x-0'}`} />
+                              </button>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex items-center justify-center">
+                                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                                <span className="ml-2 text-[10px] font-black text-emerald-600 uppercase">Always ON</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
+                  <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                    Permissions are updated in real-time. Students will see or hide tabs instantly upon their next session refresh or navigation.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {activeTab === 'attendance' && (
               <div className="space-y-6 animate-in fade-in duration-300">
@@ -696,12 +798,37 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                   />
 
                   {role === 'admin' && (
-                    <CustomToggle
-                      label="Strict Device Binding"
-                      description="Students can only mark attendance from registered devices."
-                      checked={localSettings.strict_device_binding ?? true}
-                      onChange={(val) => handleSettingsChange({ strict_device_binding: val })}
-                    />
+                    <>
+                      <CustomToggle
+                        label="Strict Device Binding"
+                        description="Students can only mark attendance from registered devices."
+                        checked={localSettings.strict_device_binding ?? true}
+                        onChange={(val) => handleSettingsChange({ strict_device_binding: val })}
+                      />
+
+                      <div className="mt-8 pt-8 border-t border-gray-100">
+                        <div className="flex items-start gap-4 p-5 bg-red-50 border border-red-100 rounded-2xl">
+                          <div className="p-3 bg-red-100 rounded-xl text-red-600 shrink-0">
+                            <RefreshCw className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-base font-black text-gray-800 tracking-tight">Remote Cache Reset (Force Refresh)</h4>
+                            <p className="text-xs text-gray-600 mt-1 mb-4 font-medium leading-relaxed">
+                              Force all connected users (Students & Admins) to clear their browser cache, local data, and reload assets. 
+                              Use this after deploying critical updates or to fix sync issues globally.
+                            </p>
+                            <button
+                              onClick={handleGlobalCachePurge}
+                              disabled={isPurgingCache}
+                              className="bg-red-600 text-white text-[11px] font-black uppercase tracking-widest py-2.5 px-6 rounded-lg shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                              {isPurgingCache ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                              Clear All Users Cache
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

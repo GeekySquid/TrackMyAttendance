@@ -14,6 +14,9 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { localDb } from './OfflineDatabase';
+import { syncService } from './SyncService';
+import { checkCacheVersion } from '../utils/cacheManager';
 
 // ─── TYPE DEFINITIONS ──────────────────────────────────────────────────────────
 
@@ -239,15 +242,23 @@ function resolveTable(collectionName: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getUsers = async (): Promise<any[]> => {
-  const { data, error } = await supabase
+  // 1. Return local data first for instant UI
+  const localData = await localDb.profiles.toArray();
+  
+  // 2. Fetch from network in background
+  supabase
     .from('profiles')
     .select('*')
-    .order('created_at', { ascending: true });
-  if (error) {
-    console.error('[dbService] getUsers error:', error.message);
-    return [];
-  }
-  return (data || []).map(mapProfile);
+    .order('created_at', { ascending: true })
+    .then(({ data, error }) => {
+      if (!error && data) {
+        // Update local cache
+        const mapped = data.map(mapProfile);
+        localDb.profiles.bulkPut(mapped);
+      }
+    });
+
+  return localData.length > 0 ? localData : [];
 };
 
 export const getUserById = async (id: string): Promise<any | null> => {
@@ -273,43 +284,45 @@ export const getUserById = async (id: string): Promise<any | null> => {
 export const saveUser = async (user: any): Promise<boolean> => {
   try {
     const userId = user.uid || user.id;
-    if (!userId) {
-      console.error('[dbService] saveUser: no uid/id provided');
-      return false;
-    }
+    if (!userId) return false;
 
-    const row: Record<string, any> = {
+    const mapped = {
+      ...user,
+      id: userId,
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Update local DB immediately
+    await localDb.profiles.put(mapped);
+
+    // 2. Queue for sync
+    const dbRow: Record<string, any> = {
       id: userId,
       name: user.name || '',
       email: user.email || '',
       updated_at: new Date().toISOString(),
     };
-    if (user.photoURL !== undefined) row.photo_url = user.photoURL;
-    if (user.role !== undefined) row.role = user.role;
-    if (user.rollNo !== undefined) row.roll_no = user.rollNo;
-    if (user.course !== undefined) row.course = user.course;
-    if (user.phone !== undefined) row.phone = user.phone;
-    if (user.gender !== undefined) row.gender = user.gender;
-    if (user.bloodGroup !== undefined) row.blood_group = user.bloodGroup;
-    if (user.status !== undefined) row.status = user.status;
-    if (user.mentorId !== undefined) row.mentor_id = user.mentorId || null;
-    if (user.profileCompleted !== undefined) row.profile_completed = user.profileCompleted;
+    if (user.photoURL !== undefined) dbRow.photo_url = user.photoURL;
+    if (user.role !== undefined) dbRow.role = user.role;
+    if (user.rollNo !== undefined) dbRow.roll_no = user.rollNo;
+    if (user.course !== undefined) dbRow.course = user.course;
+    if (user.phone !== undefined) dbRow.phone = user.phone;
+    if (user.gender !== undefined) dbRow.gender = user.gender;
+    if (user.bloodGroup !== undefined) dbRow.blood_group = user.bloodGroup;
+    if (user.status !== undefined) dbRow.status = user.status;
+    if (user.mentorId !== undefined) dbRow.mentor_id = user.mentorId || null;
+    if (user.profileCompleted !== undefined) dbRow.profile_completed = user.profileCompleted;
 
-    console.log('[dbService] Upserting row to profiles:', row);
-    const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' });
-    if (error) {
-      console.warn('[dbService] saveUser upsert error:', error.message, 'Attempting update fallback...');
-      const { error: updateError } = await supabase.from('profiles').update(row).eq('id', userId);
-      if (updateError) {
-        console.error('[dbService] saveUser update fallback error:', updateError.message);
-        throw new Error(`Database error: ${updateError.message}`);
-      }
-    }
-    console.log('[dbService] saveUser success');
+    await syncService.queueAction({
+      table: 'profiles',
+      action: 'INSERT', // Upsert is handled by INSERT in our SyncService logic or Supabase triggers
+      data: dbRow
+    });
+
     return true;
   } catch (err) {
-    console.error('[dbService] saveUser exception:', err instanceof Error ? err.message : err);
-    throw err;
+    console.error('[dbService] saveUser exception:', err);
+    return false;
   }
 };
 
@@ -364,25 +377,40 @@ export const deleteUser = async (id: string): Promise<void> => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getAttendance = async (userId?: string): Promise<any[]> => {
+  // 1. Return local data first
+  let localData = userId 
+    ? await localDb.attendance.where('user_id').equals(userId).reverse().sortBy('date')
+    : await localDb.attendance.reverse().sortBy('date');
+
+  // 2. Background sync from network
   let query = supabase
     .from('attendance')
     .select('*, profiles(photo_url)')
     .order('date', { ascending: false });
   if (userId) query = query.eq('user_id', userId);
 
-  const { data, error } = await query;
-  if (error) {
-    console.error('[dbService] getAttendance error:', error.message);
-    return [];
-  }
-  return (data || []).map(mapAttendance);
+  query.then(({ data, error }) => {
+    if (!error && data) {
+      const mapped = data.map(mapAttendance);
+      localDb.attendance.bulkPut(mapped);
+    }
+  });
+
+  return localData;
 };
 
 export const addAttendance = async (record: any): Promise<any> => {
   try {
-    // Construct combined location string if components provided
     const combinedLocation = record.location || (record.locationName ? `${record.locationName}${record.locationCoords ? ` | ${record.locationCoords}` : ''}` : null);
+    
+    // Generate a temporary ID for local storage if one doesn't exist
+    const tempId = record.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const mappedRecord = { ...record, id: tempId, location: combinedLocation };
 
+    // 1. Save to local DB immediately
+    await localDb.attendance.put(mappedRecord);
+
+    // 2. Queue for server sync via RPC
     const params = {
       p_user_id: record.userId,
       p_user_name: record.userName || null,
@@ -397,68 +425,14 @@ export const addAttendance = async (record: any): Promise<any> => {
       p_rejoin_reason: record.rejoinReason || null
     };
 
-    const { data, error } = await supabase.rpc('record_attendance', params);
+    await syncService.queueAction({
+      table: 'attendance',
+      action: 'RPC',
+      rpcMethod: 'record_attendance',
+      data: params
+    });
 
-    if (error || (data && data.status === 'failure')) {
-      const errorMsg = error?.message || data?.error;
-      console.warn('[dbService] addAttendance RPC failed, trying direct insert fallback check:', errorMsg);
-
-      // FALLBACK SAFETY: Check if a record already exists for today before direct insert
-      const { data: existing, error: checkError } = await supabase
-        .from('attendance')
-        .select('id')
-        .eq('user_id', record.userId)
-        .eq('date', record.date)
-        .is('check_out_time', null)
-        .maybeSingle();
-
-      if (!checkError && existing) {
-        return mapAttendance(existing);
-      }
-
-      const row = {
-        user_id: record.userId,
-        user_name: record.userName || null,
-        roll_no: record.rollNo || null,
-        course: record.course || null,
-        date: record.date,
-        check_in_time: record.checkInTime || null,
-        status: record.status,
-        location: combinedLocation,
-      };
-
-      const { data: directData, error: directError } = await supabase
-        .from('attendance')
-        .insert(row)
-        .select()
-        .single();
-
-      if (directError) {
-        console.error('[dbService] addAttendance final error:', directError.message);
-        throw directError;
-      }
-      return mapAttendance(directData);
-    }
-
-    // RPC Success: handle both object and primitive returns for 'id'
-    const finalId = data?.id || data;
-
-    // ── Automated Trigger: Check-in Notification ──
-    try {
-      await addNotification({
-        userId: record.userId,
-        type: record.status === 'Present' ? 'success' : 'warning',
-        title: `Attendance Marked: ${record.status}`,
-        message: record.status === 'Present'
-          ? `You have successfully checked in for ${record.course || 'your session'}.`
-          : `You have been marked ${record.status} for ${record.course || 'your session'}.`,
-        data: { sessionId: finalId }
-      });
-    } catch (e) {
-      console.warn('[dbService] Automated check-in notification failed:', e);
-    }
-
-    return { ...record, id: finalId };
+    return mappedRecord;
   } catch (err) {
     console.error('[dbService] addAttendance exception:', err);
     throw err;
@@ -1167,6 +1141,30 @@ export const broadcastNotification = async (notification: { title: string, messa
   });
 };
 
+export const toggleNotificationImportant = async (id: string, current: boolean): Promise<void> => {
+  // Update local
+  await localDb.notifications.update(id, { isImportant: !current });
+  
+  // Sync server
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_important: !current })
+    .eq('id', id);
+  if (error) console.error('[dbService] toggleNotificationImportant error:', error.message);
+};
+
+export const deleteNotification = async (id: string): Promise<void> => {
+  // Update local
+  await localDb.notifications.delete(id);
+  
+  // Sync server
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', id);
+  if (error) console.error('[dbService] deleteNotification error:', error.message);
+};
+
 export const bulkAddNotifications = async (notifications: any[]): Promise<void> => {
   if (!notifications.length) return;
 
@@ -1213,22 +1211,6 @@ export const markAllNotificationsRead = async (userId?: string): Promise<void> =
     console.error('[dbService] markAllNotificationsRead error:', error.message);
 };
 
-export const toggleNotificationImportant = async (id: string, current: boolean): Promise<void> => {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_important: !current })
-    .eq('id', id);
-  if (error) console.error('[dbService] toggleNotificationImportant error:', error.message);
-};
-
-export const deleteNotification = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('notifications')
-    .delete()
-    .eq('id', id);
-  if (error) console.error('[dbService] deleteNotification error:', error.message);
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1240,14 +1222,13 @@ export const getLeaderboard = async (): Promise<any[]> => {
     .order('score', { ascending: false })
     .order('attendance_pct', { ascending: false })
     .order('name', { ascending: true })
-    .limit(50); // Increased limit for better "Full Rankings" scroll
+    .limit(50);
 
   if (error) {
     console.error('[dbService] getLeaderboard error:', error.message);
     return [];
   }
 
-  // Explicitly assign rank based on sort order to ensure consistency
   return (data || []).map((entry, index) => ({
     ...entry,
     rank: index + 1
@@ -1255,46 +1236,17 @@ export const getLeaderboard = async (): Promise<any[]> => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ATTENDANCE SUMMARY (per-student computed view)
+// REAL-TIME LISTENER — Offline-First Optimized
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getAttendanceSummary = async (userId?: string): Promise<any[]> => {
-  let query = supabase.from('attendance_summary').select('*, photo_url');
-  if (userId) query = query.eq('user_id', userId);
-
-  const { data, error } = await query;
-  if (error) {
-    console.error('[dbService] getAttendanceSummary error:', error.message);
-    return [];
-  }
-  return data || [];
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REAL-TIME LISTENER — optimised bi-directional Supabase Realtime
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * listenToCollection()
- *
- * Subscribes to a Supabase table and calls `callback` with the full,
- * mapped dataset whenever a change occurs.
- *
- * Optimisations vs. the previous version:
- *  • Payload-level INSERT/UPDATE/DELETE diff applied locally before re-fetch,
- *    so the UI updates in <10ms instead of waiting for a full round-trip.
- *  • Re-fetch still happens afterwards to guarantee consistency.
- *  • Unique channel names prevent ghost subscriptions on hot-reload.
- *  • Notification broadcast fix: null user_id rows pass through for everyone.
- */
 export const listenToCollection = (
   collectionName: string,
   callback: (data: any[]) => void,
   userId?: string
 ): UnsubFn => {
   const table = resolveTable(collectionName);
+  const dexieTable = localDb[table as keyof typeof localDb] as any;
 
-  // ── Build the base query ──────────────────────────────────────────────────
   const buildQuery = () => {
     let selectStr = '*';
     if (table === 'attendance' || table === 'leave_requests') {
@@ -1309,126 +1261,52 @@ export const listenToCollection = (
       query = query.or(`user_id.eq.${userId},user_id.is.null`);
     }
 
-    if (table === 'leave_requests') {
-      query = (query as any).order('applied_on', { ascending: false });
-    } else if (table === 'notifications') {
-      query = (query as any).order('created_at', { ascending: false });
-    } else if (table === 'attendance') {
-      query = (query as any).order('date', { ascending: false });
-    } else if (table === 'profiles') {
-      query = (query as any).order('created_at', { ascending: true });
-    } else if (table === 'system_configuration') {
-      query = (query as any).limit(1);
-    }
+    if (table === 'leave_requests') query = (query as any).order('applied_on', { ascending: false });
+    else if (table === 'notifications') query = (query as any).order('created_at', { ascending: false });
+    else if (table === 'attendance') query = (query as any).order('date', { ascending: false });
+    else if (table === 'profiles') query = (query as any).order('created_at', { ascending: true });
 
     return query;
   };
 
-  // ── Cache (to apply optimistic local diffs) ───────────────────────────────
-  let cache: any[] = [];
-  let hasInitialLoaded = false;
-
-  const fetchAndCallback = async () => {
+  const loadLocal = async () => {
+    if (!dexieTable) return;
     try {
-      const { data, error } = await buildQuery();
-      if (error) {
-        console.error(`[dbService] listenToCollection fetch error (${table}):`, error.message);
-        // UNBLOCK UI: Even on error, we must signal that we "loaded" (likely empty)
-        if (!hasInitialLoaded) {
-          hasInitialLoaded = true;
-          callback(cache || []);
-        }
-        return;
+      let data;
+      if (userId && (table === 'attendance' || table === 'leave_requests' || table === 'notifications')) {
+        data = await dexieTable.where('user_id').equals(userId).toArray();
+      } else {
+        data = await dexieTable.toArray();
       }
-
-      let processedData = data || [];
-      if (table === 'notifications' && userId) {
-        processedData = processedData.filter(row => row.sender_id !== userId);
-      }
-
-      const mapped = processedData.map((row) => mapRow(table, row));
-      // OPTIMIZATION: Only trigger callback if data actually changed to prevent re-render loops
-      // EXCEPTION: First load must always trigger callback to unblock UI loading states
-      if (JSON.stringify(mapped) !== JSON.stringify(cache) || !hasInitialLoaded) {
-        cache = mapped;
-        hasInitialLoaded = true;
-        callback(cache);
-      }
+      if (data && data.length > 0) callback(data);
     } catch (e) {
-      console.error(`[dbService] listenToCollection catch error (${table}):`, e);
-      if (!hasInitialLoaded) {
-        hasInitialLoaded = true;
-        callback(cache || []);
-      }
+      console.warn('[dbService] Local load failed:', e);
     }
   };
 
-  // Initial load
-  fetchAndCallback();
+  const fetchAndSync = async () => {
+    try {
+      const { data, error } = await buildQuery();
+      if (error) throw error;
+      if (data && dexieTable) {
+        const mapped = data.map(row => mapRow(table, row));
+        await dexieTable.bulkPut(mapped);
+        callback(mapped);
+      }
+    } catch (e) {
+      console.warn(`[dbService] Fetch/Sync failed for ${table}:`, e);
+    }
+  };
 
-  // ── Realtime channel ──────────────────────────────────────────────────────
-  const channelName = `rt-${table}-${userId ?? 'all'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  loadLocal();
+  fetchAndSync();
 
   const channel = supabase
-    .channel(channelName)
-    .on(
-      'postgres_changes' as any,
-      { event: '*', schema: 'public', table },
-      (payload: any) => {
-        const { eventType, new: newRow, old: oldRow } = payload;
+    .channel(`rt-${table}-${userId ?? 'all'}`)
+    .on('postgres_changes' as any, { event: '*', schema: 'public', table }, () => fetchAndSync())
+    .subscribe();
 
-        // ── Scope filter ──────────────────────────────────────────────────
-        if (userId && table !== 'notifications' && table !== 'profiles' && table !== 'geofence_schedules' && table !== 'system_configuration') {
-          const rowUserId = newRow?.user_id ?? oldRow?.user_id;
-          if (rowUserId && rowUserId !== userId) return;
-        }
-
-        if (table === 'notifications' && userId && newRow) {
-          if (newRow.sender_id === userId) return;
-          if (newRow.user_id !== null && newRow.user_id !== userId) return;
-        }
-
-        // ── Optimistic local diff (With Deep Merge) ───────────────────────
-        if (eventType === 'INSERT' && newRow) {
-          const mapped = mapRow(table, newRow);
-          if (!cache.some((r) => r.id === mapped.id)) {
-            cache = [mapped, ...cache];
-            callback([...cache]);
-          }
-        } else if (eventType === 'UPDATE' && newRow) {
-          const existing = cache.find((r) => r.id === newRow.id);
-          const mappedNew = mapRow(table, newRow);
-
-          // IMPORTANT: Merge with existing to prevent partial updates from wiping out 
-          // fields that weren't included in the UPDATE payload (like userName, rollNo)
-          const updated = existing ? { ...existing, ...mappedNew } : mappedNew;
-
-          cache = cache.map((r) => (r.id === updated.id ? updated : r));
-          callback([...cache]);
-        } else if (eventType === 'DELETE' && oldRow) {
-          cache = cache.filter((r) => r.id !== oldRow.id);
-          callback([...cache]);
-        }
-
-        // Proactive sync for eventual consistency
-        fetchAndCallback();
-      }
-    )
-    .subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') {
-        // Subscribed successfully
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        // Attempt a one-time re-fetch on timeout for immediate UI consistency
-        fetchAndCallback();
-      }
-    });
-
-  // ── Polling Fallback (Auto-Refresh Guarantee) ──────────────────────────────
-  // Even if Supabase Realtime publication isn't perfectly configured in the
-  // dashboard, this visually guarantees the app universally auto-refreshes.
-  const intervalId = setInterval(() => {
-    fetchAndCallback();
-  }, 3000); // Poll every 3 seconds as a relaxed fallback (was 5s)
+  const intervalId = setInterval(fetchAndSync, 15000);
 
   return () => {
     clearInterval(intervalId);
@@ -1528,7 +1406,6 @@ export const clearDatabase = async (): Promise<boolean> => {
     await supabase.from('mentors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
     // 7. Delete all student users (keep admins)
-    await supabase.from('users').delete().eq('role', 'student');
     await supabase.from('profiles').delete().eq('role', 'student');
 
     return true;
@@ -1536,6 +1413,35 @@ export const clearDatabase = async (): Promise<boolean> => {
     console.error('[dbService] clearDatabase error:', err instanceof Error ? err.message : err);
     return false;
   }
+};
+// ─── ATTENDANCE SUMMARY ──────────────────────────────────────────────────────
+
+export const getAttendanceSummary = async (): Promise<any[]> => {
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('user_id, status');
+
+  if (error) {
+    console.error('[dbService] getAttendanceSummary error:', error.message);
+    return [];
+  }
+
+  // Group by user_id
+  const stats: Record<string, { total: number; present: number }> = {};
+  data.forEach(record => {
+    if (!stats[record.user_id]) {
+      stats[record.user_id] = { total: 0, present: 0 };
+    }
+    stats[record.user_id].total++;
+    if (['Present', 'Late', 'Half Day'].includes(record.status)) {
+      stats[record.user_id].present++;
+    }
+  });
+
+  return Object.entries(stats).map(([user_id, s]) => ({
+    user_id,
+    attendance_pct: (s.present / s.total) * 100
+  }));
 };
 
 // ─── SYSTEM SETTINGS ────────────────────────────────────────────────────────
@@ -1549,6 +1455,11 @@ export const getSystemSettings = async (): Promise<any> => {
     console.error('[dbService] getSystemSettings error:', error.message);
     return null;
   }
+  
+  if (data && data.cache_version !== undefined) {
+    checkCacheVersion(data.cache_version);
+  }
+  
   return data;
 };
 

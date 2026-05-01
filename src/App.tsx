@@ -29,6 +29,8 @@ import NotificationStack from './components/notifications/NotificationStack';
 import { saveUser, getUserById } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
+import { autoClearCache } from './utils/cacheManager';
+import { syncService } from './services/SyncService';
 
 function NotificationManager({ profile }: { profile: any }) {
   useSupabaseNotifications(profile);
@@ -47,6 +49,12 @@ function AppContent() {
   const [profileLoading, setProfileLoading] = useState(true);
 
   const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
+
+  // ─── Automatic Cache Management & Offline Sync ───────────────────────────
+  useEffect(() => {
+    autoClearCache();
+    syncService.checkAndSync();
+  }, []);
 
   // ─── Persistence Logic ────────────────────────────────────────────────────
   useEffect(() => {

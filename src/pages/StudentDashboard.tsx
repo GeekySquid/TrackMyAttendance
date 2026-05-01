@@ -9,7 +9,7 @@ export default function StudentDashboard({ user }: { user?: any }) {
   const userId = user?.uid || user?.id;
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 max-w-full">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 max-w-[1440px] mx-auto w-full">
       <div className="mb-4 sm:mb-4">
         <h2 className="text-xl sm:text-xl font-black text-gray-900 tracking-tight">Welcome back, {user?.name?.split(' ')[0] || 'Student'}! 👋</h2>
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{user?.course || 'Course'} • Roll No: {user?.rollNo || 'N/A'}</p>

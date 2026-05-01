@@ -121,7 +121,30 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
           </button>
         </div>
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => {
+          {navItems.filter(item => {
+            if (role === 'admin') return true;
+            
+            const perms = sysSettings?.role_permissions?.student || [];
+            
+            // Map nav item IDs to permission module IDs
+            const moduleMapping: Record<string, string> = {
+              '': 'dashboard',
+              'track-my-attendance': 'attendance',
+              'leave-requests': 'leave',
+              'notifications': 'notifications',
+              'leaderboard': 'leaderboard',
+              'documents': 'documents',
+              'settings': 'settings'
+            };
+
+            const moduleId = moduleMapping[item.id] || item.id;
+            
+            // Core items that are always visible
+            const coreItems = ['support'];
+            if (coreItems.includes(item.id)) return true;
+
+            return perms.includes(moduleId);
+          }).map((item) => {
             const Icon = item.icon;
             const itemPath = item.id ? `${basePath}/${item.id}` : basePath || '/';
             const isActive = location.pathname === itemPath || (item.id === '' && location.pathname === (basePath || '/'));

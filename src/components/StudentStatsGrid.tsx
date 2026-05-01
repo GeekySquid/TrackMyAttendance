@@ -78,120 +78,71 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
   return (
     <>
       <style>{`
-        /* MOBILE-ONLY REDESIGN (Vibrant Mesh Glass) */
-        @media (max-width: 1024px) {
-          .stat-card-responsive {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 20px;
-            padding: 0.75rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 84px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-          }
-          .icon-box-responsive {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            z-index: 2;
-          }
-          .icon-box-glow {
-            position: absolute;
-            inset: -4px;
-            border-radius: 16px;
-            filter: blur(12px);
-            opacity: 0.3;
-            background: currentColor;
-          }
-          .label-responsive {
-            font-size: 8px;
-            font-weight: 900;
-            letter-spacing: 0.2em;
-            color: #000000;
-            opacity: 0.4;
-            text-transform: uppercase;
-          }
-          .value-responsive {
-            font-size: 32px;
-            font-weight: 900;
-            color: #000000;
-            line-height: 1;
-            letter-spacing: -0.02em;
-          }
-          .tag-responsive {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 7px;
-            font-weight: 900;
-            padding: 2px 8px;
-            border-radius: 100px;
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-          }
-          .mesh-bg {
-            position: absolute;
-            top: -20%;
-            right: -20%;
-            width: 80%;
-            height: 80%;
-            border-radius: 50%;
-            filter: blur(40px);
-            opacity: 0.15;
-            z-index: 0;
-          }
-          .desktop-layout { display: none; }
-          .mobile-layout { 
-            display: flex; 
-            flex-direction: row; 
-            align-items: center; 
-            justify-content: space-between; 
-            width: 100%;
-            margin-top: auto;
-            position: relative; 
-            z-index: 2;
-            height: 32px;
-          }
-        }
-
-        /* UNIFIED PREMIUM WHITE GLASS STATS */
+        /* PREMIUM STATS DESIGN SYSTEM */
         .stat-card-responsive {
           background: rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(20px) saturate(180%);
           border: 1px solid rgba(255, 255, 255, 0.8);
-          border-radius: 24px;
-          padding: 0.75rem;
+          border-radius: 28px;
+          padding: 1rem;
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: 1rem;
+          gap: 1.25rem;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-          height: 84px;
+          box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.04);
+          height: 96px;
           position: relative;
-          overflow: hidden;
+          overflow: visible; /* Allow tags to overflow if needed */
+        }
+
+        .icon-container {
+          position: relative;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
         .icon-box-responsive {
-          width: 52px;
-          height: 52px;
-          border-radius: 16px;
+          width: 56px;
+          height: 56px;
+          border-radius: 18px;
           display: flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
           position: relative;
           z-index: 2;
+          transition: transform 0.3s ease;
+        }
+
+        .icon-box-glow {
+          position: absolute;
+          inset: -4px;
+          border-radius: 22px;
+          filter: blur(14px);
+          opacity: 0.2;
+          background: currentColor;
+          transition: opacity 0.3s ease;
+        }
+
+        .tag-badge-premium {
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 7px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          padding: 3px 10px;
+          border-radius: 100px;
+          background: #ffffff;
+          border: 1.5px solid currentColor;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          z-index: 10;
+          white-space: nowrap;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .label-responsive {
@@ -199,115 +150,117 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
           font-weight: 900;
           letter-spacing: 0.2em;
           color: #000000;
-          opacity: 0.35;
+          opacity: 0.4;
           text-transform: uppercase;
+          margin-bottom: 4px;
         }
 
         .value-responsive {
-          font-size: 32px;
+          font-size: 38px;
           font-weight: 900;
-          color: #000000;
+          color: #0f172a;
           line-height: 1;
-        }
-
-        .tag-responsive {
-          font-size: 8px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          padding: 2px 8px;
-          border-radius: 6px;
-          background: rgba(255, 255, 255, 0.9);
-          border: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .tag-badge-mobile {
-          position: absolute;
-          bottom: -2px;
-          right: -6px;
-          font-size: 6px;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          padding: 1px 4px;
-          border-radius: 4px;
-          background: white;
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-          z-index: 20;
-          white-space: nowrap;
+          letter-spacing: -0.04em;
         }
 
         .mesh-bg-desktop {
           position: absolute;
           inset: 0;
+          border-radius: inherit;
           opacity: 0;
           z-index: 0;
-          transition: opacity 0.5s ease;
-          background: radial-gradient(circle at 100% 0%, currentColor, transparent 80%);
+          transition: all 0.6s ease;
+          background: radial-gradient(circle at 100% 0%, currentColor, transparent 70%);
         }
 
         @media (min-width: 1025px) {
           .stat-card-responsive {
-            padding: 1.5rem;
+            padding: 2rem;
             height: 140px;
-            gap: 1.5rem;
-            border-radius: 32px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.02);
+            gap: 2rem;
+            border-radius: 40px;
+            box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.05);
           }
           .stat-card-responsive:hover {
-            transform: translateY(-8px) scale(1.02);
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.06);
+            transform: translateY(-8px);
+            background: #ffffff;
+            box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.12);
+            border-color: rgba(255, 255, 255, 1);
           }
-          .stat-card-responsive:hover .mesh-bg-desktop { opacity: 0.1; }
-          .icon-box-responsive { width: 64px; height: 64px; border-radius: 20px; }
-          .label-responsive { font-size: 11px; opacity: 0.4; }
-          .value-responsive { font-size: 42px; letter-spacing: -0.04em; }
-          .tag-responsive { font-size: 9px; padding: 4px 12px; border-radius: 8px; }
+          .stat-card-responsive:hover .icon-box-responsive {
+            transform: scale(1.1) rotate(-5deg);
+          }
+          .stat-card-responsive:hover .icon-box-glow {
+            opacity: 0.5;
+            filter: blur(18px);
+          }
+          .stat-card-responsive:hover .tag-badge-premium {
+            transform: translateX(-50%) translateY(-4px) scale(1.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+          }
+          .stat-card-responsive:hover .mesh-bg-desktop { opacity: 0.15; }
+          
+          .icon-box-responsive { width: 76px; height: 76px; border-radius: 26px; }
+          .tag-badge-premium { font-size: 10px; padding: 4px 14px; bottom: -12px; }
+          .label-responsive { font-size: 12px; opacity: 0.5; }
+          .value-responsive { font-size: 52px; }
+        }
+
+        /* Adjust grid to manage whitespace better */
+        .stats-grid-container {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+          height: 100%;
+        }
+
+        @media (min-width: 1025px) {
+          .stats-grid-container {
+            gap: 1.5rem;
+          }
         }
       `}</style>
 
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="grid grid-cols-2 gap-2 lg:gap-4 h-full"
+        className="stats-grid-container"
       >
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {stats.map((stat, i) => (
             <motion.div 
-              key={i} 
-              initial={{ opacity: 0, y: 10 }}
+              key={stat.label} 
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ 
+                delay: i * 0.08,
+                duration: 0.6,
+                ease: [0.16, 1, 0.3, 1]
+              }}
               className="stat-card-responsive group"
             >
-              <div className={`icon-box-responsive ${stat.iconBg} ${stat.color}`}>
-                <div className={`icon-box-glow ${stat.bg}`} />
-                <stat.icon className="w-5 h-5 relative z-10" strokeWidth={3} />
+              {/* Icon Section with "Upon Logo Down Part" Tag */}
+              <div className="icon-container">
+                <div className={`icon-box-responsive ${stat.iconBg} ${stat.color}`}>
+                  <div className={`icon-box-glow ${stat.bg}`} />
+                  <stat.icon className="w-6 h-6 lg:w-8 lg:h-8 relative z-10" strokeWidth={2.5} />
+                </div>
                 
-                {/* Mobile-Only Tag Badge */}
-                <div className={`tag-badge-mobile lg:hidden ${stat.color}`}>
+                {/* Premium Tag Badge - Positioned at "Logo Down Part" */}
+                <div className={`tag-badge-premium ${stat.color}`}>
                   {stat.insight}
                 </div>
               </div>
 
-              {/* Unified Responsive Content */}
+              {/* Text Content */}
               <div className="flex-1 flex flex-col justify-center min-w-0 relative z-10 h-full">
-                <div className="flex items-center justify-between w-full mb-1">
-                  <span className="label-responsive">{stat.label}</span>
-                  {/* Desktop-Only Tag */}
-                  <div className={`tag-responsive hidden lg:block ${stat.color}`}>
-                    {stat.insight}
-                  </div>
-                </div>
+                <span className="label-responsive">{stat.label}</span>
                 <span className="value-responsive truncate">{stat.value}</span>
               </div>
 
+              {/* Decorative Elements */}
               <div className={`mesh-bg-desktop ${stat.bg}`} />
-              
-              {/* Premium Glow Effect (Desktop Only) */}
-              <div className={`hidden lg:block absolute -right-4 -bottom-4 w-24 h-24 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-700 ${stat.bg}`} />
+              <div className={`hidden lg:block absolute -right-6 -bottom-6 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-700 ${stat.bg}`} />
             </motion.div>
           ))}
         </AnimatePresence>
