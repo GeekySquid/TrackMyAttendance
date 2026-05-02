@@ -3,7 +3,7 @@ import { motion, useSpring, useMotionValue } from 'framer-motion';
 
 const CustomCursor = () => {
   const [isHovering, setIsHovering] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   // Motion values for smooth tracking
   const mouseX = useMotionValue(-100);
@@ -24,7 +24,6 @@ const CustomCursor = () => {
     const handleOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       
-      // Determine if the target is something we should "magnify"
       const isTextOrInteractive = 
         target.tagName === 'P' || 
         target.tagName === 'SPAN' || 
@@ -39,21 +38,10 @@ const CustomCursor = () => {
       
       if (isTextOrInteractive) {
         setIsHovering(true);
-        // Apply a high-definition zoom with hardware acceleration
-        target.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), z-index 0s';
-        target.style.transform = 'scale(1.08)';
-        target.style.position = 'relative';
-        target.style.zIndex = '50';
-        target.style.willChange = 'transform';
       }
     };
 
-    const handleOut = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.style) {
-        target.style.transform = '';
-        target.style.zIndex = '';
-      }
+    const handleOut = () => {
       setIsHovering(false);
     };
 
@@ -78,7 +66,7 @@ const CustomCursor = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[9999] hidden lg:block">
+    <div className="fixed inset-0 pointer-events-none z-[99999] hidden lg:block">
       {/* Precision Lens Center */}
       <motion.div
         className="fixed w-1.5 h-1.5 bg-blue-600 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.8)]"

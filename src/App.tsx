@@ -336,36 +336,59 @@ function AppContent() {
   }
 
   // ─── Auth gates ───────────────────────────────────────────────────────────
-  // If not signed in to Clerk, show Landing Page or Login Page
+  // We render CustomCursor here so it's visible on Landing, Login, and Onboarding pages too.
+  // Since index.css hides the default cursor on desktop, this must always be present.
+  const globalElements = (
+    <>
+      <CustomCursor />
+      {profile && <NotificationManager profile={profile} />}
+    </>
+  );
+
   if (!isSignedIn && !profile) {
     if (isAuthPath) {
       return (
-        <LoginPage 
-          onLogin={handleDemoLogin} 
-          onBack={() => navigate('/')} 
-          initialTab={location.pathname === '/register' ? 'signup' : 'login'}
-        />
+        <>
+          {globalElements}
+          <LoginPage 
+            onLogin={handleDemoLogin} 
+            onBack={() => navigate('/')} 
+            initialTab={location.pathname === '/register' ? 'signup' : 'login'}
+          />
+        </>
       );
     }
-    return <LandingPage onGetStarted={() => navigate('/login')} />;
+    return (
+      <>
+        {globalElements}
+        <LandingPage onGetStarted={() => navigate('/login')} />
+      </>
+    );
   }
 
-  // If signed in but no profile yet, we show login (which handles demo)
-  if (!profile) return <LoginPage onLogin={handleDemoLogin} />;
-
+  if (!profile) return (
+    <>
+      {globalElements}
+      <LoginPage onLogin={handleDemoLogin} />
+    </>
+  );
   // onboarded is already correctly computed inside mapProfile via phone/roll_no/role check
   const isUserOnboarded = profile.onboarded;
 
   if (profile.role === 'student' && !isUserOnboarded) {
-    return <OnboardingPage user={profile} onComplete={handleOnboardingComplete} />;
+    return (
+      <>
+        {globalElements}
+        <OnboardingPage user={profile} onComplete={handleOnboardingComplete} />
+      </>
+    );
   }
 
   const role: 'admin' | 'student' = profile.role === 'admin' ? 'admin' : 'student';
 
   return (
     <>
-      <CustomCursor />
-      {profile && <NotificationManager profile={profile} />}
+      {globalElements}
       <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
         <Sidebar
           isOpen={sidebarOpen}
