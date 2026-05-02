@@ -79,7 +79,7 @@ export default function LeaderboardPage({ userId }: { userId?: string }) {
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[#f8fafc] relative">
+    <div className="flex-1 overflow-y-auto mobile-container-padding bg-[#f8fafc] relative">
       {/* Background Mesh Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200/40 rounded-full blur-[120px] animate-pulse" />

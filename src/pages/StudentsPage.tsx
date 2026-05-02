@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle, Loader2, Trash2, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle, Loader2, Trash2, ChevronDown, History, Trophy } from 'lucide-react';
 import CustomDropdown from '../components/CustomDropdown';
 import CustomDateInput from '../components/CustomDateInput';
 import StatCard from '../components/StatCard';
 import StudentProfile from '../components/StudentProfile';
-import { listenToCollection, saveUser, getMentors, deleteUser, getAttendanceSummary } from '../services/dbService';
+import { listenToCollection, saveUser, getMentors, deleteUser, getAttendanceSummary, updateProfile, addNotification, getMonthlyLeaderboard } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 
@@ -42,6 +42,7 @@ export default function StudentsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const [monthlyWinnerId, setMonthlyWinnerId] = useState<string | null>(null);
 
   // Add Student Form State
   const [newName, setNewName] = useState('');
@@ -57,41 +58,58 @@ export default function StudentsPage() {
       const studentUsers = data.filter(u => u.role === 'student');
       setStudents(studentUsers);
       setIsLoading(false);
-      if (studentUsers.length > 0 && !selectedStudent) {
-        setSelectedStudent(studentUsers[0]);
-      }
     });
 
     const fetchExtraData = async () => {
       const mData = await getMentors();
       setMentors(mData);
 
+
       const summary = await getAttendanceSummary();
       setAttendanceSummary(summary);
+
+      const leaderboard = await getMonthlyLeaderboard();
+      if (leaderboard.length > 0) {
+        setMonthlyWinnerId(leaderboard[0].user_id);
+      }
     };
     fetchExtraData();
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filteredStudents = students.map(s => {
-    // Merge attendance summary
-    const stats = attendanceSummary.find(stat => stat.user_id === (s.uid || s.id));
-    return {
-      ...s,
-      attendance: stats ? `${Math.round(stats.attendance_pct)}%` : (s.attendance || '0%'),
-      attendance_pct: stats ? stats.attendance_pct : (s.attendance_pct || 0)
-    };
-  }).filter(student => {
-    const matchesSearch =
-      student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.rollNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.course?.toLowerCase().includes(searchQuery.toLowerCase());
-    let match = matchesSearch;
-    if (courseFilter !== 'All Courses' && student.course !== courseFilter) match = false;
-    return match;
-  });
+  const filteredStudents = useMemo(() => {
+    return students.map(s => {
+      // Merge attendance summary
+      const stats = attendanceSummary.find(stat => stat.user_id === (s.uid || s.id));
+      return {
+        ...s,
+        attendance: stats ? `${Math.round(stats.attendance_pct)}%` : (s.attendance || '0%'),
+        attendance_pct: stats ? stats.attendance_pct : (s.attendance_pct || 0),
+        isAwardWinner: (s.uid || s.id) === monthlyWinnerId
+      };
+    }).filter(student => {
+      // Safety filter: Remove test profiles that may be stuck in local cache
+      if (student.name === 'ADMIN SAVED TEST' || student.rollNo === '9999999999') return false;
+
+      const matchesSearch =
+        student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.rollNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.course?.toLowerCase().includes(searchQuery.toLowerCase());
+      let match = matchesSearch;
+      if (courseFilter !== 'All Courses' && student.course !== courseFilter) match = false;
+      return match;
+    });
+  }, [students, attendanceSummary, monthlyWinnerId, searchQuery, courseFilter]);
+
+  useEffect(() => {
+    if (!isLoading && filteredStudents.length > 0) {
+      const currentExists = filteredStudents.find(s => (s.uid || s.id) === (selectedStudent?.uid || selectedStudent?.id));
+      if (!currentExists) {
+        setSelectedStudent(filteredStudents[0]);
+      }
+    }
+  }, [isLoading, filteredStudents, selectedStudent]);
 
   const { visibleItems, sentinelRef, hasMore } = useInfiniteScroll(filteredStudents, 10, 5);
 
@@ -189,9 +207,11 @@ export default function StudentsPage() {
   };
 
   const uniqueCourses = ['All Courses', ...Array.from(new Set(students.map(s => s.course).filter(Boolean)))];
+  
+
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8 relative">
+    <div className="flex-1 overflow-y-auto mobile-container-padding relative">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
@@ -277,6 +297,7 @@ export default function StudentsPage() {
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Course</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mentor</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Attendance</th>
+
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
@@ -303,10 +324,18 @@ export default function StudentsPage() {
                                 <span>{student.name?.charAt(0) || 'S'}</span>
                               )}
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{student.name}</p>
-                              <p className="text-[11px] text-gray-500 truncate">{student.email}</p>
-                            </div>
+                             <div className="min-w-0">
+                               <div className="flex items-center gap-1.5">
+                                 <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{student.name}</p>
+                                 {student.isAwardWinner && (
+                                   <div className="relative group/trophy ml-1">
+                                     <div className="absolute inset-0 bg-orange-400 blur-md opacity-20 group-hover/trophy:opacity-40 animate-pulse"></div>
+                                     <Trophy className="w-4 h-4 text-orange-500 fill-orange-200 animate-bounce relative z-10" />
+                                   </div>
+                                 )}
+                               </div>
+                               <p className="text-[11px] text-gray-500 truncate">{student.email}</p>
+                             </div>
                           </div>
                         </td>
                         <td className="py-4 px-4">
@@ -339,6 +368,7 @@ export default function StudentsPage() {
                             </div>
                           </div>
                         </td>
+
                         <td className="py-4 px-4 text-right">
                           <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
@@ -393,7 +423,12 @@ export default function StudentsPage() {
                             )}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-gray-900">{student.name}</h4>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-sm font-bold text-gray-900">{student.name}</h4>
+                              {student.isAwardWinner && (
+                                <Trophy className="w-3.5 h-3.5 text-orange-500 fill-orange-200 animate-bounce" />
+                              )}
+                            </div>
                             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-tight">{student.course} • {student.rollNo}</p>
                             <p className="text-[9px] text-blue-600 font-black uppercase tracking-widest mt-1">Mentor: {student.mentors?.name || 'N/A'}</p>
                           </div>
@@ -453,9 +488,19 @@ export default function StudentsPage() {
           </div>
         </div>
         <div className="col-span-1">
-          <StudentProfile student={selectedStudent} />
+          <div className="flex items-center gap-2 mb-4">
+            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Profile Detail</h4>
+          </div>
+          <StudentProfile 
+            student={filteredStudents.find(s => (s.uid || s.id) === (selectedStudent?.uid || selectedStudent?.id))} 
+            onClose={() => setSelectedStudent(null)} 
+            onNavigate={handleNavigateProfile}
+            isAdmin={true}
+            isLoading={isLoading}
+          />
         </div>
-      </div>
+        </div>
+
 
       {/* Add Student Modal */}
       {showAddModal && (

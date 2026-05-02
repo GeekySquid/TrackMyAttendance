@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User, Search } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User, Search, History } from 'lucide-react';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
 import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus } from '../services/dbService';
@@ -62,6 +62,15 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
 
     return () => unsubscribe();
   }, [role, user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('apply') === 'true') {
+      setShowRequestModal(true);
+      // Clean up URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const filteredRequests = leaveRequests.filter(r => {
     const matchesStatus = statusFilter === 'All Status' || r.status === statusFilter;
@@ -190,7 +199,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
 
   if (role === 'student') {
     return (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+      <div className="flex-1 overflow-y-auto mobile-container-padding">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div className="flex-1">
             <h2 className="text-3xl font-black text-gray-800 flex items-center gap-3">
@@ -252,6 +261,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                   <th className="pb-2 px-6">Leave Dates</th>
                   <th className="pb-2 px-6">Type & Reason</th>
                   <th className="pb-2 px-6">Applied On</th>
+                  <th className="pb-2 px-6 text-center">Details</th>
                   <th className="pb-2 px-6 text-right">Status</th>
                 </tr>
               </thead>
@@ -284,6 +294,18 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                         if (isNaN(d.getTime())) return leave.appliedOn;
                         return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                       })()}
+                    </td>
+                    <td className="py-2.5 px-6 sm:py-3 text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.success(`Viewing ${leave.userName}'s Context`);
+                        }}
+                        className="p-2 hover:bg-blue-50 rounded-xl text-blue-500 transition-all hover:scale-110 active:scale-95 group/btn"
+                        title="View Detailed History"
+                      >
+                        <History className="w-4 h-4 group-hover/btn:rotate-[-45deg] transition-transform duration-500" />
+                      </button>
                     </td>
                     <td className="py-2.5 px-6 sm:py-3 text-right">
                       <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
@@ -389,64 +411,116 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         </div>
 
         {/* Request Leave Modal */}
-        {showRequestModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">Request Leave</h3>
-                <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <CustomDropdown
-                    label="Leave Type"
-                    icon={Briefcase}
-                    options={[
-                      { value: 'Casual Leave', label: 'Casual Leave', icon: Info },
-                      { value: 'Sick Leave', label: 'Sick Leave', icon: AlertTriangle },
-                      { value: 'Emergency', label: 'Emergency', icon: Clock },
-                      { value: 'Personal Leave', label: 'Personal Leave', icon: User }
-                    ]}
-                    value={leaveType}
-                    onChange={setLeaveType}
-                  />
+        <AnimatePresence>
+          {showRequestModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowRequestModal(false)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white w-full max-w-lg h-full sm:h-auto sm:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col"
+              >
+                {/* Modal Header */}
+                <div className="p-6 sm:p-8 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
+                  <div className="relative z-10">
+                    <h3 className="text-xl sm:text-2xl font-[950] tracking-tight mb-1">Request Leave</h3>
+                    <p className="text-blue-100 text-xs font-medium uppercase tracking-[0.2em]">Application Portal</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowRequestModal(false)} 
+                    className="relative z-10 w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-all active:scale-95"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <CustomDateInput
-                    label="From Date"
-                    value={fromDate}
-                    onChange={setFromDate}
-                  />
-                  <CustomDateInput
-                    label="To Date"
-                    value={toDate}
-                    onChange={setToDate}
-                  />
+
+                <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Leave Category</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { id: 'Casual Leave', label: 'Casual', icon: Briefcase, color: 'blue' },
+                          { id: 'Sick Leave', label: 'Sick', icon: AlertTriangle, color: 'orange' },
+                          { id: 'Emergency', label: 'Emergency', icon: Clock, color: 'purple' },
+                          { id: 'Personal Leave', label: 'Personal', icon: User, color: 'indigo' }
+                        ].map((type) => (
+                          <button
+                            key={type.id}
+                            onClick={() => setLeaveType(type.id)}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${
+                              leaveType === type.id 
+                                ? `border-blue-600 bg-blue-50/50 shadow-md` 
+                                : 'border-gray-100 hover:border-gray-200 bg-gray-50/30'
+                            }`}
+                          >
+                            <type.icon className={`w-5 h-5 ${leaveType === type.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-tight ${leaveType === type.id ? 'text-blue-700' : 'text-gray-500'}`}>
+                              {type.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <CustomDateInput
+                        label="From Date"
+                        value={fromDate}
+                        onChange={setFromDate}
+                      />
+                      <CustomDateInput
+                        label="To Date"
+                        value={toDate}
+                        onChange={setToDate}
+                      />
+                    </div>
+
+                    <CustomTextarea
+                      label="Application Reason"
+                      icon={MessageSquareIcon}
+                      rows={4}
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Please provide detailed justification for your leave request..."
+                    />
+                  </div>
+
+                  <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                    <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-wider">
+                      Ensure all dates are correct. Requests submitted cannot be edited once pending.
+                    </p>
+                  </div>
                 </div>
-                <CustomTextarea
-                  label="Reason"
-                  icon={MessageSquareIcon}
-                  rows={3}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Please specify the reason for your leave..."
-                />
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                <button onClick={() => setShowRequestModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-                <button
-                  onClick={handleSubmitRequest}
-                  disabled={!fromDate || !toDate || !reason}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 disabled:opacity-50"
-                >
-                  Submit Request
-                </button>
-              </div>
+
+                <div className="p-6 sm:p-8 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-3">
+                  <button 
+                    onClick={() => setShowRequestModal(false)} 
+                    className="flex-1 sm:flex-none px-8 py-4 text-sm font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest transition-colors order-2 sm:order-1"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    onClick={handleSubmitRequest}
+                    disabled={!fromDate || !toDate || !reason}
+                    className="flex-1 py-4 bg-blue-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:grayscale order-1 sm:order-2 active:scale-95"
+                  >
+                    Submit Application
+                  </button>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -456,7 +530,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
 
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 sm:p-8">
+    <div className="flex-1 overflow-y-auto mobile-container-padding">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
@@ -605,6 +679,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                     <th className="pb-2 px-6">Student</th>
                     <th className="pb-2 px-6">Leave Dates</th>
                     <th className="pb-2 px-6">Reason</th>
+                    <th className="pb-2 px-6 text-center">Details</th>
                     <th className="pb-2 px-6 text-right">Status</th>
                   </tr>
                 </thead>
@@ -667,6 +742,18 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                         <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-medium">
                           <p className="font-bold text-gray-700">{req.type}</p>
                           <p className="text-[10px] text-gray-500 max-w-[200px] truncate">{req.reason}</p>
+                        </td>
+                        <td className="py-2.5 px-6 sm:py-3 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toast.success(`Checking History for ${req.userName}`);
+                            }}
+                            className="p-2 hover:bg-blue-50 rounded-xl text-blue-500 transition-all hover:scale-110 active:scale-95 group/btn"
+                            title="View Student Context"
+                          >
+                            <History className="w-4 h-4 group-hover/btn:rotate-[-45deg] transition-transform duration-500" />
+                          </button>
                         </td>
                         <td className="py-2.5 px-6 sm:py-3 text-right">
                           {req.status === 'Pending' ? (

@@ -233,7 +233,7 @@ export default function DocumentsPage({ user }: { user?: any }) {
   const { visibleItems, sentinelRef } = useInfiniteScroll(filteredDocuments, 10, 5);
 
   return (
-    <div className="flex-1 p-4 sm:p-8 relative min-h-screen">
+    <div className="flex-1 mobile-container-padding relative min-h-screen">
       {/* Toast Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 z-[200] px-6 py-3 rounded-lg shadow-lg text-sm font-bold animate-in slide-in-from-top-2 ${

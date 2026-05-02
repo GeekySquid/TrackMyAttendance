@@ -18,7 +18,9 @@ import {
   Phone,
   Activity,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Trophy,
+  Sparkles
 } from 'lucide-react';
 import {
   listenToCollection,
@@ -349,7 +351,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const tabs = role === 'admin' ? adminTabs : studentTabs;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+    <div className="flex-1 overflow-y-auto mobile-container-padding">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
@@ -924,9 +926,18 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
 
             {activeTab === 'profile' && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">My Profile</h3>
-                  <p className="text-sm text-gray-500">Update your personal information.</p>
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800">My Profile</h3>
+                    <p className="text-sm text-gray-500">Update your personal information.</p>
+                  </div>
+                  {user?.isAwardWinner && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl shadow-lg shadow-orange-100 animate-bounce-slow">
+                      <Trophy className="w-4 h-4" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Student of the Month</span>
+                      <Sparkles className="w-4 h-4 text-orange-200" />
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>

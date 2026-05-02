@@ -23,6 +23,7 @@ import SubscriberManagementPage from './pages/SubscriberManagementPage';
 import SupportPage from './pages/SupportPage';
 import SSOCallbackPage from './pages/SSOCallbackPage';
 import LandingPage from './pages/LandingPage';
+import CertificatePage from './pages/CertificatePage';
 import InstallPWA from './components/InstallPWA';
 import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
@@ -327,7 +328,7 @@ function AppContent() {
   // ─── Loading ──────────────────────────────────────────────────────────────
   if (profileLoading || (!isLoaded && !profile)) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-medium text-gray-500">Loading Track<span className="text-blue-600">MY</span>Attendance...</p>
@@ -390,14 +391,15 @@ function AppContent() {
   return (
     <>
       {globalElements}
-      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+      <div className="flex h-screen bg-white">
         <Sidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
           role={role}
+          user={profile}
           onLogout={handleLogout}
         />
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden pb-24 lg:pb-0">
+        <main className="flex-1 flex flex-col min-w-0">
           <Header
             toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             role={role}
@@ -427,6 +429,7 @@ function AppContent() {
                 <Route path="/leave-requests" element={<LeaveRequestsPage role="student" user={profile} />} />
                 <Route path="/track-my-attendance" element={<TrackMyAttendancePage userId={profile?.id} />} />
                 <Route path="/leaderboard" element={<LeaderboardPage userId={profile?.id} />} />
+                <Route path="/certificates" element={<CertificatePage user={profile} />} />
                 <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
                 <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
                 <Route path="/support" element={<SupportPage role="student" />} />

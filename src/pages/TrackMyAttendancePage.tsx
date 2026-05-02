@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ClipboardList, Download, FileText, FileSpreadsheet, File as FilePdf, 
   Calendar, Clock, MapPin, Search, Info, MessageSquare, X, Copy,
-  TrendingUp, CheckCircle, XCircle
+  TrendingUp, CheckCircle, XCircle, History
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -168,8 +168,9 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-gray-50/50">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden w-full">
+    <div className="flex-1 overflow-y-auto mobile-container-padding bg-gray-50/50">
+      <div className="max-w-[1600px] mx-auto w-full">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden w-full">
         {/* Header Section */}
         <div className="p-6 border-b border-gray-100 bg-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -194,8 +195,8 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
 
               {showExportMenu && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="fixed inset-0 z-[100]" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-[110] py-2 animate-in fade-in zoom-in-95 duration-200">
                     <button onClick={() => handleExport('csv')} className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors">
                       <FileText className="w-4 h-4 mr-3 text-gray-400" />
                       Download CSV
@@ -317,6 +318,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
                           )}
                         </div>
                       </td>
+
                     </tr>
                   ))
                 ) : (
@@ -410,6 +412,89 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           </div>
         </div>
       )}
+      {/* Detailed History Modal (Reusing/Extending the same modal logic for simplicity or creating a new one) */}
+      {showReasonModal && selectedLog && !selectedLog.lateReason && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-inner">
+                  <History className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 tracking-tight">Record History</h3>
+                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{selectedLog.date}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReasonModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Check-in</p>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-blue-500" />
+                    <p className="text-sm font-bold text-gray-800">{selectedLog.in}</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Check-out</p>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-orange-500" />
+                    <p className="text-sm font-bold text-gray-800">{selectedLog.out}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Duration</p>
+                <p className="text-sm font-black text-blue-600">{selectedLog.hours}</p>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Location Details</p>
+                <div className="flex items-start gap-3 mt-1">
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{selectedLog.locationName}</p>
+                    {selectedLog.locationCoords && (
+                      <p className="text-[10px] text-gray-400 font-mono mt-0.5">{selectedLog.locationCoords}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                  <p className={`text-sm font-black uppercase tracking-tight ${selectedLog.status === 'Present' ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedLog.status}
+                  </p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${selectedLog.status === 'Present' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  Verified
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowReasonModal(false)}
+                className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all shadow-lg shadow-gray-200"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info, Copy, Check, X, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Download, Search, FileText, FileSpreadsheet, FileIcon as FilePdf, Info, Copy, Check, X, RefreshCw, History } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -91,6 +92,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const filters = ['All', 'Present', 'Late', 'Absent'];
 
   const handleSwipe = (direction: 'left' | 'right') => {
@@ -224,6 +226,23 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
         {/* Actions section */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setIsExpanded(!isExpanded);
+              setStartDate('');
+              setEndDate('');
+              setStatusFilter('All');
+              if (!isExpanded) toast.success('Showing full history inline');
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 transition-all rounded-lg text-xs font-bold shadow-md active:scale-95 ${
+              isExpanded ? 'bg-gray-800 text-white shadow-gray-200' : 'bg-blue-600 text-white shadow-blue-100 hover:bg-blue-700'
+            }`}
+          >
+            <History className={`w-3.5 h-3.5 ${isExpanded ? 'animate-spin-slow' : ''}`} />
+            <span className="hidden sm:inline">{isExpanded ? 'Minimize View' : 'View All History'}</span>
+            <span className="sm:hidden">{isExpanded ? 'Close' : 'History'}</span>
+          </button>
+
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
@@ -235,8 +254,8 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
             {showExportMenu && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 py-2 animate-in fade-in slide-in-from-top-2">
+                <div className="fixed inset-0 z-[100]" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-[110] py-2 animate-in fade-in slide-in-from-top-2">
                   <button onClick={() => handleExport('csv')} className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors">
                     <FileText className="w-4 h-4 mr-3 text-green-600" />
                     Download CSV
@@ -306,7 +325,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       <div className="flex-1 p-3 sm:p-4">
         <div className="table-fixed-height bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Desktop View: Professional Table */}
-          <div className="hidden md:block overflow-y-auto max-h-[calc(100vh-500px)]">
+          <div className={`hidden md:block overflow-y-auto transition-all duration-500 ${isExpanded ? 'max-h-[1200px]' : 'max-h-[calc(100vh-500px)]'}`}>
             <table className="w-full text-left border-collapse table-responsive">
               <thead className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -434,7 +453,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
 
           {/* Mobile View: High-Fidelity Cards with Swipe */}
           <motion.div
-            className="md:hidden divide-y divide-gray-100 overflow-y-auto max-h-[calc(100vh-420px)] touch-pan-y"
+            className={`md:hidden divide-y divide-gray-100 overflow-y-auto transition-all duration-500 touch-pan-y ${isExpanded ? 'max-h-[2000px]' : 'max-h-[calc(100vh-420px)]'}`}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             onDragEnd={(_, info) => {

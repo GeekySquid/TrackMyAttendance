@@ -1,9 +1,9 @@
-import { Search, Bell, ChevronDown, Menu, LogOut, Settings, User, FileText, MapPin, Users, Calendar, CheckCircle2, AlertCircle, LayoutDashboard, Download } from 'lucide-react';
+import { Search, Bell, ChevronDown, Menu, LogOut, Settings, User, FileText, MapPin, Users, Calendar, CheckCircle2, AlertCircle, LayoutDashboard, Download, Trophy, Sparkles } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UserButton, useUser } from '@clerk/clerk-react';
-import { listenToCollection, markAllNotificationsRead, deleteNotification } from '../services/dbService';
+import { listenToCollection, markAllNotificationsRead, deleteNotification, getMonthlyLeaderboard } from '../services/dbService';
 import SwipeableNotificationItem from './SwipeableNotificationItem';
 import { AnimatePresence, motion } from 'framer-motion';
 import { renderStyledBranding } from '../utils/branding';
@@ -24,6 +24,20 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAwardWinner, setIsAwardWinner] = useState(false);
+
+  useEffect(() => {
+    const checkAward = async () => {
+      const uid = user?.uid || user?.id;
+      if (role === 'student' && uid) {
+        const leaderboard = await getMonthlyLeaderboard();
+        if (leaderboard.length > 0 && leaderboard[0].user_id === uid) {
+          setIsAwardWinner(true);
+        }
+      }
+    };
+    checkAward();
+  }, [user, role]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -234,6 +248,47 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
             <Download className="h-4 w-4" />
             <span>Install App</span>
           </button>
+        )}
+
+        {/* Student of the Month Icon */}
+        {isAwardWinner && (
+          <motion.div
+            initial={{ scale: 0, rotate: -45 }}
+            animate={{ scale: 1, rotate: 0 }}
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-300 via-amber-500 to-orange-600 text-white shadow-[0_8px_30px_rgb(245,158,11,0.3)] border border-yellow-200/50 relative group cursor-pointer"
+            onClick={() => {
+              toast.success("Congratulations! Your certificate is downloading... 🏆", {
+                icon: '🎉',
+                style: { borderRadius: '15px', background: '#333', color: '#fff' }
+              });
+              
+              // Trigger direct download
+              import('../utils/generateCertificate').then(({ generateCertificate }) => {
+                const awardDate = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                generateCertificate(
+                  user?.name || 'Student',
+                  user?.course || 'MCA',
+                  sysSettings?.institution_name || 'TrackMYAttendance',
+                  awardDate,
+                  "Outstanding Academic Attendance & Performance"
+                );
+              });
+            }}
+          >
+            <Trophy className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] group-hover:scale-110 transition-transform" />
+            <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <Sparkles className="relative inline-flex h-4 w-4 text-yellow-200" />
+            </span>
+
+            {/* Tooltip */}
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              Student of the Month
+            </div>
+          </motion.div>
         )}
 
         {/* Notifications Center */}

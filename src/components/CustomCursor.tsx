@@ -80,14 +80,14 @@ const CustomCursor = () => {
 
       {/* Crystal Clear Magnifying Glass Lens */}
       <motion.div
-        className="fixed rounded-full border border-white/60 shadow-[0_25px_60px_rgba(0,0,0,0.25)]"
+        className="fixed rounded-full border border-white/40 shadow-[0_15px_35px_rgba(0,0,0,0.15)]"
         animate={{
-          width: isHovering ? 130 : 40,
-          height: isHovering ? 130 : 40,
-          backgroundColor: isHovering ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+          width: isHovering ? 70 : 30,
+          height: isHovering ? 70 : 30,
+          backgroundColor: isHovering ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.005)',
           boxShadow: isHovering 
-            ? 'inset 0 0 40px rgba(255,255,255,0.4), 0 20px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.5)' 
-            : 'inset 0 0 5px rgba(255,255,255,0.1), 0 4px 10px rgba(0,0,0,0.05)',
+            ? 'inset 0 0 15px rgba(255,255,255,0.1), 0 8px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.2)' 
+            : 'inset 0 0 5px rgba(255,255,255,0.05), 0 4px 10px rgba(0,0,0,0.03)',
         }}
         transition={{
           type: 'spring',
@@ -100,30 +100,23 @@ const CustomCursor = () => {
           y: trailY,
           translateX: '-50%',
           translateY: '-50%',
-          // Trigger hardware acceleration for sharpness
           transformStyle: 'preserve-3d',
           backfaceVisibility: 'hidden',
         }}
       >
         {/* High-Definition Shine Reflection */}
         <motion.div 
-          className="absolute top-3 left-6 w-1/3 h-1/3 bg-gradient-to-br from-white/30 to-transparent rounded-full blur-[1px]"
-          animate={{ opacity: isHovering ? 0.8 : 0 }}
-        />
-        
-        {/* Subtle Lens Glare */}
-        <motion.div 
-          className="absolute bottom-4 right-8 w-1/5 h-1/5 bg-white/10 rounded-full blur-sm"
-          animate={{ opacity: isHovering ? 0.5 : 0 }}
+          className="absolute top-2 left-4 w-1/3 h-1/3 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-[1px]"
+          animate={{ opacity: isHovering ? 0.6 : 0 }}
         />
       </motion.div>
 
       {/* Outer Peripheral Ring */}
       <motion.div
-        className="fixed w-12 h-12 border border-blue-500/10 rounded-full"
+        className="fixed w-10 h-10 border border-blue-500/5 rounded-full"
         animate={{
-          scale: isHovering ? 2.5 : 1,
-          opacity: isHovering ? 0.2 : 0.5
+          scale: isHovering ? 2 : 1,
+          opacity: isHovering ? 0.1 : 0.3
         }}
         style={{
           x: mouseX,

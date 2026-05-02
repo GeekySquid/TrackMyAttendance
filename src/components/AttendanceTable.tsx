@@ -226,8 +226,8 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
 
             {showExportMenu && (
               <>
-                <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[70] py-2 animate-in fade-in slide-in-from-top-2">
+                <div className="fixed inset-0 z-[100]" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[110] py-2 animate-in fade-in slide-in-from-top-2">
                   <button onClick={() => { handleExport('csv'); setShowExportMenu(false); }} className="w-full flex items-center px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors">
                     <FileText className="h-3.5 w-3.5 mr-2 text-green-600" /> CSV
                   </button>
@@ -308,6 +308,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
               <th className="pb-2 px-2">Check-in</th>
               <th className="pb-2 px-2">Check-out</th>
               <th className="pb-2 px-2">Location</th>
+
               <th className="pb-2 px-2">Status</th>
             </tr>
           </thead>
@@ -376,7 +377,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-ping" />
                           )}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="font-bold text-gray-800 truncate">{record.userName}</p>
                             {isNew && (
@@ -446,6 +447,7 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                         );
                       })()}
                     </td>
+
                     <td className="py-2.5 px-1 sm:py-3 sm:px-2" data-label="Status">
                       {record.status === 'Late' ? (
                         <div className="relative flex justify-end sm:justify-start">

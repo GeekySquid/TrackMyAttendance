@@ -47,6 +47,7 @@ export function mapProfile(row: any) {
     mentors: row.mentors || null,
     onboarded: isOnboarded,
     profileCompleted: row.profile_completed || false,
+    isAwardWinner: row.is_award_winner || false,
     createdAt: row.created_at || row.joined_at,
     updatedAt: row.updated_at,
   };
@@ -1062,7 +1063,7 @@ export const toggleManualAttendanceWindow = async (
         .insert({
           lat: String(lat),
           lng: String(lng),
-          radius: radius, // Fixed: Use the passed radius instead of hardcoded -999
+          radius: radius,
           is_active: active,
           time: '00:00',
           end_time: endTime || '23:59',
@@ -1507,6 +1508,69 @@ export const getAttendanceSummary = async (): Promise<any[]> => {
     user_id,
     attendance_pct: (s.present / s.total) * 100
   }));
+};
+
+export const getMonthlyLeaderboard = async (): Promise<any[]> => {
+  const now = new Date();
+  // Calculate start and end of PREVIOUS month
+  const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+  const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('user_id, status, check_in_time')
+    .gte('date', startOfPrevMonth)
+    .lte('date', endOfPrevMonth);
+
+  if (error) {
+    console.error('[dbService] getMonthlyLeaderboard error:', error.message);
+    return [];
+  }
+
+  const stats: Record<string, { total: number; present: number; late: number; punctuality: number[] }> = {};
+  data.forEach(record => {
+    if (!stats[record.user_id]) {
+      stats[record.user_id] = { total: 0, present: 0, late: 0, punctuality: [] };
+    }
+    stats[record.user_id].total++;
+    if (record.status === 'Present') stats[record.user_id].present++;
+    if (record.status === 'Late') {
+      stats[record.user_id].present++;
+      stats[record.user_id].late++;
+    }
+
+    if (record.check_in_time) {
+      const [h, m] = record.check_in_time.split(':').map(Number);
+      stats[record.user_id].punctuality.push(h * 60 + m);
+    }
+  });
+
+  return Object.entries(stats)
+    .filter(([_, s]) => s.total >= 1) // ELIGIBILITY CRITERIA: Lowered for better visibility
+    .map(([user_id, s]) => {
+      const attendancePct = (s.present / s.total) * 100;
+      const avgTime = s.punctuality.length > 0 
+        ? s.punctuality.reduce((a, b) => a + b, 0) / s.punctuality.length 
+        : 1440;
+      
+      // STRONG MATHEMATICAL ANALYSIS:
+      // Primary Factor: Attendance % (Weight 1.0)
+      // Late Penalty: -10 points per Late
+      // Punctuality: Compare against 9:00 AM (540 mins). 
+      // Bonus: +0.5 points for every 10 mins earlier than 9:00 AM.
+      // Penalty: -1 point for every 10 mins later than 9:00 AM.
+      const punctualityFactor = (540 - avgTime) / 10;
+      const score = attendancePct - (s.late * 10) + punctualityFactor;
+
+      return {
+        user_id,
+        attendance_pct: attendancePct,
+        late_count: s.late,
+        avg_time: avgTime,
+        score: Math.max(0, score)
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 };
 
 // ─── SYSTEM SETTINGS ────────────────────────────────────────────────────────

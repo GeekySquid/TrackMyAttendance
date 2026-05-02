@@ -5,11 +5,24 @@
   body {
     font-family: 'Inter', sans-serif;
     background-color: #F8FAFC;
+    color: #0f172a;
+    -webkit-tap-highlight-color: transparent;
     /* Hide default cursor on desktop for custom experience */
     @media (min-width: 1025px) {
       cursor: none;
     }
   }
+
+  /* Responsive Typography Scaling */
+  html {
+    font-size: 14px;
+  }
+  @media (min-width: 640px) {
+    html { font-size: 16px; }
+  }
+
+  h1 { @apply tracking-tighter; }
+  h2, h3, h4 { @apply tracking-tight; }
 
   /* Ensure interactive elements also hide cursor so our custom one can react */
   @media (min-width: 1025px) {
@@ -49,9 +62,11 @@
   .sidebar-active {
     background-color: #f0f9ff;
     color: #0284c7;
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     font-weight: 800;
-    box-shadow: inset 0 0 0 1px #e0f2fe;
+    box-shadow: 
+      inset 0 0 0 1px #e0f2fe,
+      0 4px 12px -2px rgba(2, 132, 199, 0.08);
   }
   .status-late {
     background-color: #FEF3C7;
@@ -81,6 +96,15 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #cbd5e1;
     background-clip: padding-box;
+  }
+
+  /* Hide scrollbar utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 
   @keyframes radar-pulse {
@@ -119,6 +143,15 @@
 
   .animate-radar-red {
     animation: radar-pulse-red 2s infinite;
+  }
+
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
   }
 
   /* Responsive Table "Stacked" Layout - Antigravity Edition */
@@ -192,6 +225,25 @@
     .table-responsive td[data-label="Student"]::before {
       display: none !important;
     }
+
+    /* Glassmorphism Presets */
+    .glass-morphism {
+      @apply bg-white/40 backdrop-blur-2xl border border-white/60 shadow-xl shadow-slate-200/20;
+    }
+
+    .glass-card {
+      @apply bg-white/70 backdrop-blur-xl border border-white/80 rounded-[2.5rem] shadow-sm;
+    }
+  }
+
+  /* Mobile Container Optimization - MOVED OUT OF MEDIA QUERY FOR GLOBAL USE */
+  .mobile-container-padding {
+    @apply px-4 pb-28 pt-6 sm:px-8 sm:pb-8 lg:px-10 lg:py-8 lg:pb-10;
+  }
+
+  /* Glassmorphism Presets - GLOBAL */
+  .glass-morphism-global {
+    @apply bg-white/40 backdrop-blur-2xl border border-white/60 shadow-xl shadow-slate-200/20;
   }
 
   /* Fixed 5-entry height with scrolling */

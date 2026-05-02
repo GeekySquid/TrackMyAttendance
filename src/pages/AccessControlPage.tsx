@@ -125,7 +125,7 @@ export default function AccessControlPage() {
   const unassignedUsers = users.filter(u => u.roleId === null || u.roleId === undefined);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden p-4 sm:p-8">
+    <div className="flex-1 flex flex-col h-full overflow-hidden mobile-container-padding">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Role-Based Access Control</h2>

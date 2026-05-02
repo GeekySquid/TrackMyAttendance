@@ -51,6 +51,7 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
     { id: 'reports', label: 'Reports', icon: BarChart2, path: '/admin/reports' },
     { id: 'documents', label: 'Documents', icon: Folder, path: '/admin/documents' },
     { id: 'access', label: 'Access Control', icon: ShieldCheck, path: '/admin/access-control' },
+    { id: 'subscribers', label: 'Waitlist', icon: ClipboardList, path: '/admin/subscribers' },
     { id: 'support', label: 'Support', icon: Headphones, path: '/admin/support' },
   ];
 

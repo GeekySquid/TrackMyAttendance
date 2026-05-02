@@ -491,9 +491,13 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
           color: #0f172a;
           line-height: 0.9;
           margin-bottom: 0.5rem;
-          font-size: 3.5rem;
+          font-size: 2.5rem;
           font-variant-numeric: tabular-nums;
           filter: drop-shadow(0 4px 12px rgba(0,0,0,0.05));
+        }
+
+        @media (min-width: 1440px) {
+          .time-display-master { font-size: 3.5rem; }
         }
 
         .status-badge-master {
@@ -557,11 +561,18 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
 
         .status-ring-container {
           position: absolute;
-          width: 380px;
-          height: 380px;
+          width: 300px;
+          height: 300px;
           z-index: 0;
           opacity: 0.4;
           pointer-events: none;
+        }
+
+        @media (min-width: 1440px) {
+          .status-ring-container {
+            width: 380px;
+            height: 380px;
+          }
         }
 
         .glow-aura-master {
@@ -574,9 +585,11 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
         }
 
         @media (max-width: 640px) {
-          .time-display-master { font-size: 2.75rem; }
-          .btn-master { height: 64px; border-radius: 20px; font-size: 11px; }
-          .widget-card-master { padding: 1.5rem; min-height: 240px; }
+          .time-display-master { font-size: 2rem; }
+          .btn-master { height: 56px; border-radius: 18px; font-size: 10px; gap: 10px; }
+          .widget-card-master { padding: 1rem; min-height: 200px; border-radius: 32px; }
+          .status-badge-master { margin-bottom: 1.25rem; padding: 4px 12px; font-size: 8px; }
+          .status-ring-container { width: 220px; height: 220px; }
         }
       `}</style>
 

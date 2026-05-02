@@ -83,17 +83,17 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
           background: rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(20px) saturate(180%);
           border: 1px solid rgba(255, 255, 255, 0.8);
-          border-radius: 28px;
-          padding: 1rem;
+          border-radius: 24px;
+          padding: 0.75rem;
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: 1.25rem;
+          gap: 1rem;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
           box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.04);
-          height: 96px;
+          height: 80px;
           position: relative;
-          overflow: visible; /* Allow tags to overflow if needed */
+          overflow: visible;
         }
 
         .icon-container {
@@ -105,9 +105,9 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
         }
 
         .icon-box-responsive {
-          width: 56px;
-          height: 56px;
-          border-radius: 18px;
+          width: 48px;
+          height: 48px;
+          border-radius: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -119,45 +119,45 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
         .icon-box-glow {
           position: absolute;
           inset: -4px;
-          border-radius: 22px;
-          filter: blur(14px);
-          opacity: 0.2;
+          border-radius: 20px;
+          filter: blur(12px);
+          opacity: 0.15;
           background: currentColor;
           transition: opacity 0.3s ease;
         }
 
         .tag-badge-premium {
           position: absolute;
-          bottom: -8px;
+          bottom: -6px;
           left: 50%;
           transform: translateX(-50%);
-          font-size: 7px;
-          font-weight: 900;
+          font-size: 6px;
+          font-weight: 950;
           text-transform: uppercase;
           letter-spacing: 0.08em;
-          padding: 3px 10px;
+          padding: 2px 8px;
           border-radius: 100px;
           background: #ffffff;
-          border: 1.5px solid currentColor;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          border: 1px solid currentColor;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
           z-index: 10;
           white-space: nowrap;
           transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .label-responsive {
-          font-size: 9px;
-          font-weight: 900;
-          letter-spacing: 0.2em;
+          font-size: 8px;
+          font-weight: 950;
+          letter-spacing: 0.15em;
           color: #000000;
           opacity: 0.4;
           text-transform: uppercase;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
 
         .value-responsive {
-          font-size: 38px;
-          font-weight: 900;
+          font-size: 28px;
+          font-weight: 950;
           color: #0f172a;
           line-height: 1;
           letter-spacing: -0.04em;
@@ -175,12 +175,17 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
 
         @media (min-width: 1025px) {
           .stat-card-responsive {
-            padding: 2rem;
-            height: 140px;
-            gap: 2rem;
-            border-radius: 40px;
+            padding: 1.25rem;
+            height: 110px;
+            gap: 1rem;
+            border-radius: 32px;
             box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.05);
           }
+          .icon-box-responsive { width: 64px; height: 64px; border-radius: 20px; }
+          .tag-badge-premium { font-size: 8px; padding: 3px 12px; bottom: -10px; }
+          .label-responsive { font-size: 10px; opacity: 0.5; }
+          .value-responsive { font-size: 42px; }
+          
           .stat-card-responsive:hover {
             transform: translateY(-8px);
             background: #ffffff;
@@ -199,10 +204,18 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
           .stat-card-responsive:hover .mesh-bg-desktop { opacity: 0.15; }
-          
+        }
+
+        @media (min-width: 1440px) {
+          .stat-card-responsive {
+            padding: 2rem;
+            height: 140px;
+            gap: 2rem;
+            border-radius: 40px;
+          }
           .icon-box-responsive { width: 76px; height: 76px; border-radius: 26px; }
           .tag-badge-premium { font-size: 10px; padding: 4px 14px; bottom: -12px; }
-          .label-responsive { font-size: 12px; opacity: 0.5; }
+          .label-responsive { font-size: 12px; }
           .value-responsive { font-size: 52px; }
         }
 
@@ -253,8 +266,8 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
               </div>
 
               {/* Text Content */}
-              <div className="flex-1 flex flex-col justify-center min-w-0 relative z-10 h-full">
-                <span className="label-responsive">{stat.label}</span>
+              <div className="flex-1 flex flex-col justify-center min-w-0 relative z-10 h-full overflow-hidden">
+                <span className="label-responsive truncate">{stat.label}</span>
                 <span className="value-responsive truncate">{stat.value}</span>
               </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf } from 'lucide-react';
+import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf, History } from 'lucide-react';
 import { listenToCollection } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
@@ -321,15 +321,16 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800">Reports & Analytics</h2>
-            <p className="text-sm text-gray-500">Generate and download detailed system reports</p>
+    <div className="flex-1 overflow-y-auto mobile-container-padding">
+      <div className="max-w-[1600px] mx-auto w-full">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Reports & Analytics</h2>
+              <p className="text-sm text-gray-500">Generate and download detailed system reports</p>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Custom Report Generator */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-8">
@@ -363,8 +364,8 @@ export default function ReportsPage() {
 
                 {showExportOptions && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowExportOptions(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-40 py-2 animate-in fade-in slide-in-from-top-2">
+                    <div className="fixed inset-0 z-[100]" onClick={() => setShowExportOptions(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-[110] py-2 animate-in fade-in slide-in-from-top-2">
                       <button
                         onClick={() => handleExport('csv')}
                         className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium transition-colors"
@@ -394,7 +395,7 @@ export default function ReportsPage() {
             
             {/* Column Selection Dropdown */}
             {showColumnDropdown && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="p-3 border-b border-gray-50 bg-gray-50/50">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select Columns to Export</p>
                 </div>
@@ -486,6 +487,7 @@ export default function ReportsPage() {
                 <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkOutTime')}>
                   Out {sortConfig?.key === 'checkOutTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
+
                 <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('status')}>
                   Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
@@ -511,6 +513,7 @@ export default function ReportsPage() {
                     <td className="px-4 py-3 text-gray-600" data-label="Course">{record.course}</td>
                     <td className="px-4 py-3 text-gray-600 font-bold" data-label="In">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                     <td className="px-4 py-3 text-gray-600" data-label="Out">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+
                     <td className="px-4 py-3 text-right" data-label="Status">
                       <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
                         record.status === 'Present' ? 'bg-green-50 text-green-700 border border-green-100' :
@@ -564,6 +567,7 @@ export default function ReportsPage() {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

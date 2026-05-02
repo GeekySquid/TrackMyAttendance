@@ -138,7 +138,7 @@ export default function AttendancePage({ user }: { user: any }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+    <div className="flex-1 overflow-y-auto mobile-container-padding">
       <div className="mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full gap-4">
           <div>

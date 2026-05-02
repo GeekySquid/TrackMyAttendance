@@ -14,11 +14,9 @@ import {
   Search,
   Navigation,
   Map as MapIcon,
-  MapPin,
-  BarChart2,
-  Calendar,
   Sparkles
 } from 'lucide-react';
+
 import { motion } from 'framer-motion';
 import StatCard from './StatCard';
 import AttendanceTable from './AttendanceTable';
@@ -60,6 +58,7 @@ function StatCardSkeleton() {
 }
 
 export default function Dashboard({ user }: { user: any }) {
+
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
@@ -485,46 +484,47 @@ export default function Dashboard({ user }: { user: any }) {
   const adminName = clerkUser?.firstName || clerkUser?.fullName || 'Admin';
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 sm:p-8">
-      <style>{`
-        @keyframes wave {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-15deg); }
-          75% { transform: rotate(15deg); }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        .waving-hand {
-          display: inline-block;
-          animation: wave 2.5s infinite;
-          transform-origin: 70% 70%;
-        }
-        .custom-cursor {
-          display: inline-block;
-          width: 2px;
-          height: 1.1em;
-          background: #2563eb;
-          margin-left: 1px;
-          vertical-align: middle;
-          animation: blink 0.8s step-end infinite;
-          box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
-        }
-      `}</style>
+    <div className="flex-1 overflow-y-auto mobile-container-padding custom-scrollbar">
+      <div className="max-w-[1600px] mx-auto w-full">
+        <style>{`
+          @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+          }
+          @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+          }
+          .waving-hand {
+            display: inline-block;
+            animation: wave 2.5s infinite;
+            transform-origin: 70% 70%;
+          }
+          .custom-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.1em;
+            background: #2563eb;
+            margin-left: 1px;
+            vertical-align: middle;
+            animation: blink 0.8s step-end infinite;
+            box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
+          }
+        `}</style>
 
-      {/* Dashboard Intro */}
-      <div className="mb-8 relative">
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-6"
-        >
+        {/* Dashboard Intro */}
+        <div className="mb-8 sm:mb-12 relative">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row justify-between items-start md:items-center w-full gap-6"
+          >
           <div className="flex-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest mb-3 border border-blue-100">
               <Sparkles className="w-3 h-3" /> System Control Center
             </div>
-            <h1 className="text-xl sm:text-5xl font-[950] text-slate-900 tracking-tighter leading-none flex items-center gap-2 flex-nowrap">
+            <h1 className="text-xl sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter leading-none flex items-center gap-2 flex-nowrap">
               <span className="shrink-0">{getGreeting()},</span>
               <span className="text-blue-600 flex items-center min-w-0">
                 <span className="truncate">
@@ -583,6 +583,7 @@ export default function Dashboard({ user }: { user: any }) {
                   </>
                 )}
               </button>
+
             </div>
           </div>
         </motion.div>
@@ -937,5 +938,6 @@ export default function Dashboard({ user }: { user: any }) {
           />
         </div>
       </div>
-    );
+    </div>
+  );
 }

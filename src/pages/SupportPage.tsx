@@ -123,7 +123,7 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-y-auto custom-scrollbar relative z-0">
+    <div className="h-full flex flex-col bg-[#F8FAFC] overflow-y-auto custom-scrollbar relative z-0 mobile-container-padding">
       {/* Header Section - Cleaned up white space and removed clipping */}
       <div className="bg-white border-b border-gray-100 mb-12 sm:mb-16 pt-10 pb-16 sm:pt-16 sm:pb-24 relative">
         <div className="max-w-4xl mx-auto px-4 text-center">
