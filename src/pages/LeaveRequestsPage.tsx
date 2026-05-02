@@ -27,7 +27,6 @@ function SkeletonLeaveRow({ cols }: { cols: number }) {
 export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'admin' | 'student', user?: any }) {
   const [isLoading, setIsLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-  const [showRequestModal, setShowRequestModal] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [typeFilter, setTypeFilter] = useState('All Types');
@@ -41,6 +40,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
+  const [activeTab, setActiveTab] = useState<'history' | 'apply'>('history');
 
   useEffect(() => {
     setIsLoading(true);
@@ -66,7 +66,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('apply') === 'true') {
-      setShowRequestModal(true);
+      setActiveTab('apply');
       // Clean up URL without reload
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -134,7 +134,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         appliedOn: new Date().toISOString(),
       });
 
-      setShowRequestModal(false);
+      setActiveTab('history');
       setFromDate('');
       setToDate('');
       setReason('');
@@ -199,7 +199,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
 
   if (role === 'student') {
     return (
-      <div className="flex-1 overflow-y-auto mobile-container-padding">
+      <div className="flex-1 mobile-container-padding">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div className="flex-1">
             <h2 className="text-3xl font-black text-gray-800 flex items-center gap-3">
@@ -223,7 +223,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               />
             </div>
             <button
-              onClick={() => setShowRequestModal(true)}
+              onClick={() => setActiveTab('apply')}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white text-sm font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-95 hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5" />
@@ -251,286 +251,267 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
           />
         </div>
 
-        <div className="bg-transparent space-y-3">
-          {/* Desktop Table View */}
-          <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50/90 z-10 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
-                <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
-                  <th className="pb-2 px-6">Request ID</th>
-                  <th className="pb-2 px-6">Leave Dates</th>
-                  <th className="pb-2 px-6">Type & Reason</th>
-                  <th className="pb-2 px-6">Applied On</th>
-                  <th className="pb-2 px-6 text-center">Details</th>
-                  <th className="pb-2 px-6 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {leaveRequests.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 text-sm italic">No leave requests found.</td>
-                  </tr>
-                )}
-                {studentItems.map((leave, i) => (
-                  <tr key={leave.id || i} className="text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30">
-                    <td className="py-2.5 px-6 sm:py-3 text-gray-500 font-bold">{leave.id?.substring(0, 8) || `LR-${i}`}</td>
-                    <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-bold">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                        {(() => {
-                          const f = new Date(leave.fromDate + 'T00:00:00');
-                          const t = new Date(leave.toDate + 'T00:00:00');
-                          return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
-                        })()}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-6 sm:py-3">
-                      <p className="font-bold text-gray-700">{leave.type}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5 max-w-[200px] truncate">{leave.reason}</p>
-                    </td>
-                    <td className="py-2.5 px-6 sm:py-3 text-[10px] font-bold text-gray-400">
-                      {(() => {
-                        const d = new Date(leave.appliedOn);
-                        if (isNaN(d.getTime())) return leave.appliedOn;
-                        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                      })()}
-                    </td>
-                    <td className="py-2.5 px-6 sm:py-3 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toast.success(`Viewing ${leave.userName}'s Context`);
-                        }}
-                        className="p-2 hover:bg-blue-50 rounded-xl text-blue-500 transition-all hover:scale-110 active:scale-95 group/btn"
-                        title="View Detailed History"
-                      >
-                        <History className="w-4 h-4 group-hover/btn:rotate-[-45deg] transition-transform duration-500" />
-                      </button>
-                    </td>
-                    <td className="py-2.5 px-6 sm:py-3 text-right">
-                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                          leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                            'bg-red-50 text-red-700 border-red-100'
-                        }`}>
-                        {leave.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card View: Premium High-Fidelity Design */}
-          <div className="md:hidden space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto pb-8 pr-1 touch-pan-y custom-scrollbar">
-            {leaveRequests.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center flex flex-col items-center border border-gray-100 shadow-sm">
-                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-                  <FileText className="w-8 h-8 text-gray-200" />
-                </div>
-                <p className="text-sm font-black text-gray-400 uppercase tracking-widest">No Leave Records</p>
-                <p className="text-[10px] text-gray-300 mt-1">Apply for leave to see them here.</p>
-              </div>
-            ) : (
-              <AnimatePresence>
-                {studentItems.map((leave, i) => (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    key={leave.id || i}
-                    className={`bg-gradient-to-br p-4 rounded-3xl border shadow-sm transition-all active:scale-[0.98] ${leave.status === 'Approved' ? 'from-green-50/50 to-green-100/20 border-green-100/50' :
-                        leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
-                          'from-red-50/50 to-red-100/20 border-red-100/50'
-                      }`}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:rotate-6 ${leave.status === 'Approved' ? 'bg-green-500 text-white shadow-green-100' :
-                            leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
-                              'bg-red-500 text-white shadow-red-100'
-                          }`}>
-                          {leave.status === 'Approved' ? <CheckCircle className="w-4 h-4" /> :
-                            leave.status === 'Pending' ? <Clock className="w-4 h-4" /> :
-                              <XCircle className="w-4 h-4" />}
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Status</p>
-                          <h4 className={`text-xs font-black uppercase tracking-tight ${leave.status === 'Approved' ? 'text-green-900' :
-                              leave.status === 'Pending' ? 'text-orange-900' :
-                                'text-red-900'
-                            }`}>{leave.status}</h4>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Request ID</p>
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">#{leave.id?.substring(0, 8) || i}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="bg-white/60 backdrop-blur-sm p-2.5 rounded-2xl border border-white/80 shadow-sm">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Leave Duration</span>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                          <span className="text-xs font-black text-gray-800">
-                            {(() => {
-                              const f = new Date(leave.fromDate + 'T00:00:00');
-                              const t = new Date(leave.toDate + 'T00:00:00');
-                              return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
-                            })()}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white/60 backdrop-blur-sm p-2.5 rounded-2xl border border-white/80 shadow-sm">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5 block">{leave.type}</span>
-                        <p className="text-[10px] text-gray-600 leading-relaxed font-medium italic">"{leave.reason}"</p>
-                      </div>
-
-                      <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Clock className="w-3 h-3" />
-                          <span className="text-[9px] font-black uppercase tracking-tighter italic">
-                            Applied: {(() => {
-                              const d = new Date(leave.appliedOn);
-                              if (isNaN(d.getTime())) return leave.appliedOn;
-                              return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                            })()}
-                          </span>
-                        </div>
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
-          </div>
-          <div ref={studentSentinel} className="h-4" />
+        <div className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-2xl mb-6 w-full sm:w-fit">
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'history' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            My History
+          </button>
+          <button
+            onClick={() => setActiveTab('apply')}
+            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'apply' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Apply Now
+          </button>
         </div>
 
-        {/* Request Leave Modal */}
-        <AnimatePresence>
-          {showRequestModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowRequestModal(false)}
-                className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-white w-full max-w-lg h-full sm:h-auto sm:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col"
-              >
-                {/* Modal Header */}
-                <div className="p-6 sm:p-8 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
-                  <div className="relative z-10">
-                    <h3 className="text-xl sm:text-2xl font-[950] tracking-tight mb-1">Request Leave</h3>
-                    <p className="text-blue-100 text-xs font-medium uppercase tracking-[0.2em]">Application Portal</p>
-                  </div>
-                  <button 
-                    onClick={() => setShowRequestModal(false)} 
-                    className="relative z-10 w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-all active:scale-95"
-                  >
-                    <XCircle className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="grid grid-cols-1 gap-6">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Leave Category</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { id: 'Casual Leave', label: 'Casual', icon: Briefcase, color: 'blue' },
-                          { id: 'Sick Leave', label: 'Sick', icon: AlertTriangle, color: 'orange' },
-                          { id: 'Emergency', label: 'Emergency', icon: Clock, color: 'purple' },
-                          { id: 'Personal Leave', label: 'Personal', icon: User, color: 'indigo' }
-                        ].map((type) => (
-                          <button
-                            key={type.id}
-                            onClick={() => setLeaveType(type.id)}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${
-                              leaveType === type.id 
-                                ? `border-blue-600 bg-blue-50/50 shadow-md` 
-                                : 'border-gray-100 hover:border-gray-200 bg-gray-50/30'
-                            }`}
-                          >
-                            <type.icon className={`w-5 h-5 ${leaveType === type.id ? 'text-blue-600' : 'text-gray-400'}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-tight ${leaveType === type.id ? 'text-blue-700' : 'text-gray-500'}`}>
-                              {type.label}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <CustomDateInput
-                        label="From Date"
-                        value={fromDate}
-                        onChange={setFromDate}
-                      />
-                      <CustomDateInput
-                        label="To Date"
-                        value={toDate}
-                        onChange={setToDate}
-                      />
-                    </div>
-
-                    <CustomTextarea
-                      label="Application Reason"
-                      icon={MessageSquareIcon}
-                      rows={4}
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      placeholder="Please provide detailed justification for your leave request..."
-                    />
-                  </div>
-
-                  <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
-                    <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-wider">
-                      Ensure all dates are correct. Requests submitted cannot be edited once pending.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-6 sm:p-8 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-3">
-                  <button 
-                    onClick={() => setShowRequestModal(false)} 
-                    className="flex-1 sm:flex-none px-8 py-4 text-sm font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest transition-colors order-2 sm:order-1"
-                  >
-                    Discard
-                  </button>
-                  <button
-                    onClick={handleSubmitRequest}
-                    disabled={!fromDate || !toDate || !reason}
-                    className="flex-1 py-4 bg-blue-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:grayscale order-1 sm:order-2 active:scale-95"
-                  >
-                    Submit Application
-                  </button>
-                </div>
-              </motion.div>
+        {activeTab === 'history' ? (
+          <div className="bg-transparent space-y-3">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-gray-50/90 z-10 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
+                  <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                    <th className="pb-2 px-6">Request ID</th>
+                    <th className="pb-2 px-6">Leave Dates</th>
+                    <th className="pb-2 px-6">Type & Reason</th>
+                    <th className="pb-2 px-6">Applied On</th>
+                    <th className="pb-2 px-6 text-center">Details</th>
+                    <th className="pb-2 px-6 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {leaveRequests.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500 text-sm italic">No leave requests found.</td>
+                    </tr>
+                  )}
+                  {studentItems.map((leave, i) => (
+                    <tr key={leave.id || i} className="text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30">
+                      <td className="py-2.5 px-6 sm:py-3 text-gray-500 font-bold">{leave.id?.substring(0, 8) || `LR-${i}`}</td>
+                      <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-bold">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                          {(() => {
+                            const f = new Date(leave.fromDate + 'T00:00:00');
+                            const t = new Date(leave.toDate + 'T00:00:00');
+                            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                          })()}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-6 sm:py-3">
+                        <p className="font-bold text-gray-700">{leave.type}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 max-w-[200px] truncate">{leave.reason}</p>
+                      </td>
+                      <td className="py-2.5 px-6 sm:py-3 text-[10px] font-bold text-gray-400">
+                        {(() => {
+                          const d = new Date(leave.appliedOn);
+                          if (isNaN(d.getTime())) return leave.appliedOn;
+                          return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                        })()}
+                      </td>
+                      <td className="py-2.5 px-6 sm:py-3 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.success(`Viewing ${leave.userName}'s Context`);
+                          }}
+                          className="p-2 hover:bg-blue-50 rounded-xl text-blue-500 transition-all hover:scale-110 active:scale-95 group/btn"
+                          title="View Detailed History"
+                        >
+                          <History className="w-4 h-4 group-hover/btn:rotate-[-45deg] transition-transform duration-500" />
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-6 sm:py-3 text-right">
+                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                            leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                              'bg-red-50 text-red-700 border-red-100'
+                          }`}>
+                          {leave.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </AnimatePresence>
+
+            {/* Mobile Card View: Premium High-Fidelity Design */}
+            <div className="md:hidden space-y-4 pb-8 pr-1 touch-pan-y">
+              {leaveRequests.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 text-center flex flex-col items-center border border-gray-100 shadow-sm">
+                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                    <FileText className="w-8 h-8 text-gray-200" />
+                  </div>
+                  <p className="text-sm font-black text-gray-400 uppercase tracking-widest">No Leave Records</p>
+                  <p className="text-[10px] text-gray-300 mt-1">Apply for leave to see them here.</p>
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {studentItems.map((leave, i) => (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      key={leave.id || i}
+                      className={`bg-gradient-to-br p-4 rounded-3xl border shadow-sm transition-all active:scale-[0.98] ${leave.status === 'Approved' ? 'from-green-50/50 to-green-100/20 border-green-100/50' :
+                          leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
+                            'from-red-50/50 to-red-100/20 border-red-100/50'
+                        }`}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:rotate-6 ${leave.status === 'Approved' ? 'bg-green-500 text-white shadow-green-100' :
+                              leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
+                                'bg-red-500 text-white shadow-red-100'
+                            }`}>
+                            {leave.status === 'Approved' ? <CheckCircle className="w-4 h-4" /> :
+                              leave.status === 'Pending' ? <Clock className="w-4 h-4" /> :
+                                <XCircle className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Status</p>
+                            <h4 className={`text-xs font-black uppercase tracking-tight ${leave.status === 'Approved' ? 'text-green-900' :
+                                leave.status === 'Pending' ? 'text-orange-900' :
+                                  'text-red-900'
+                              }`}>{leave.status}</h4>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Request ID</p>
+                          <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">#{leave.id?.substring(0, 8) || i}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="bg-white/60 backdrop-blur-sm p-2.5 rounded-2xl border border-white/80 shadow-sm">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Leave Duration</span>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                            <span className="text-xs font-black text-gray-800">
+                              {(() => {
+                                const f = new Date(leave.fromDate + 'T00:00:00');
+                                const t = new Date(leave.toDate + 'T00:00:00');
+                                return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')} - ${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')}/${t.getFullYear()}`;
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/60 backdrop-blur-sm p-2.5 rounded-2xl border border-white/80 shadow-sm">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5 block">{leave.type}</span>
+                          <p className="text-[10px] text-gray-600 leading-relaxed font-medium italic">"{leave.reason}"</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
+            <div ref={studentSentinel} className="h-4" />
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col max-w-2xl mx-auto"
+          >
+            {/* Modal Header style but integrated */}
+            <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
+              <div className="relative z-10">
+                <h3 className="text-2xl font-[950] tracking-tight mb-1">New Leave Application</h3>
+                <p className="text-blue-100 text-xs font-medium uppercase tracking-[0.2em]">Application Portal</p>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Leave Category</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'Casual Leave', label: 'Casual', icon: Briefcase, color: 'blue' },
+                      { id: 'Sick Leave', label: 'Sick', icon: AlertTriangle, color: 'orange' },
+                      { id: 'Emergency', label: 'Emergency', icon: Clock, color: 'purple' },
+                      { id: 'Personal Leave', label: 'Personal', icon: User, color: 'indigo' }
+                    ].map((type) => (
+                      <button
+                        key={type.id}
+                        onClick={() => setLeaveType(type.id)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${
+                          leaveType === type.id 
+                            ? `border-blue-600 bg-blue-50/50 shadow-md` 
+                            : 'border-gray-100 hover:border-gray-200 bg-gray-50/30'
+                        }`}
+                      >
+                        <type.icon className={`w-5 h-5 ${leaveType === type.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-tight ${leaveType === type.id ? 'text-blue-700' : 'text-gray-500'}`}>
+                          {type.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <CustomDateInput
+                    label="From Date"
+                    value={fromDate}
+                    onChange={setFromDate}
+                  />
+                  <CustomDateInput
+                    label="To Date"
+                    value={toDate}
+                    onChange={setToDate}
+                  />
+                </div>
+
+                <CustomTextarea
+                  label="Application Reason"
+                  icon={MessageSquareIcon}
+                  rows={4}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Please provide detailed justification for your leave request..."
+                />
+              </div>
+
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-wider">
+                  Ensure all dates are correct. Requests submitted cannot be edited once pending.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+              <button
+                onClick={handleSubmitRequest}
+                disabled={!fromDate || !toDate || !reason}
+                className="w-full py-5 bg-blue-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:grayscale active:scale-95"
+              >
+                Submit Application
+              </button>
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   }
 
   // Admin View
-  // Admin View (stats already calculated above)
-
-
   return (
-    <div className="flex-1 overflow-y-auto mobile-container-padding">
+    <div className="flex-1 mobile-container-padding">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>

@@ -23,26 +23,30 @@ const CustomCursor = () => {
 
     const handleOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (!target) return;
+
+      // Efficiently check for interactive elements without forcing a reflow
+      const interactiveTags = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'];
+      const textTags = ['P', 'SPAN', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'LABEL'];
       
-      const isTextOrInteractive = 
-        target.tagName === 'P' || 
-        target.tagName === 'SPAN' || 
-        target.tagName === 'H1' || 
-        target.tagName === 'H2' || 
-        target.tagName === 'H3' || 
-        target.tagName === 'BUTTON' || 
-        target.tagName === 'A' || 
-        target.closest('button') || 
-        target.closest('a') ||
-        window.getComputedStyle(target).cursor === 'pointer';
+      const isInteractive = interactiveTags.includes(target.tagName) || 
+                           target.closest('button') || 
+                           target.closest('a') ||
+                           target.hasAttribute('data-cursor-hover') ||
+                           target.classList.contains('cursor-pointer');
       
-      if (isTextOrInteractive) {
+      const isText = textTags.includes(target.tagName);
+      
+      if (isInteractive || isText) {
         setIsHovering(true);
       }
     };
 
-    const handleOut = () => {
-      setIsHovering(false);
+    const handleOut = (e: MouseEvent) => {
+      const target = e.relatedTarget as HTMLElement;
+      if (!target) {
+        setIsHovering(false);
+      }
     };
 
     const handleLeave = () => setIsVisible(false);

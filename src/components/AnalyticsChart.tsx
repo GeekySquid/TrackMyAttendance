@@ -12,17 +12,17 @@ interface AnalyticsChartProps {
   userId?: string;
 }
 
-export default function AnalyticsChart({
+function AnalyticsChart({
   selectedStudent = 'All Students',
   onStudentSelect,
   userId,
 }: AnalyticsChartProps) {
+
+  const isStudentMode = !!userId;
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [localSelectedStudent, setLocalSelectedStudent] = useState(selectedStudent);
-  const [timeRange, setTimeRange] = useState('Weekly');
-
-  const isStudentMode = !!userId;
+  const [timeRange, setTimeRange] = useState<'Weekly' | 'Monthly'>('Weekly');
 
   useEffect(() => {
     setLocalSelectedStudent(selectedStudent);
@@ -299,8 +299,12 @@ export default function AnalyticsChart({
 
         {/* Chart Section - Now Full Width */}
         <div className="w-full h-[300px] sm:h-[350px] relative mt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height="100%" className="outline-none">
+            <AreaChart 
+              data={chartData} 
+              margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+              style={{ outline: 'none' }}
+            >
               <defs>
                 <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -360,3 +364,5 @@ export default function AnalyticsChart({
     </div>
   );
 }
+
+export default React.memo(AnalyticsChart);

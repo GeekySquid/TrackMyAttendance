@@ -79,33 +79,39 @@ export default function StudentsPage() {
   }, []);
 
   const filteredStudents = useMemo(() => {
+    // Optimization: Create a map for faster lookup
+    const attendanceMap = new Map(attendanceSummary.map(s => [s.user_id, s]));
+
     return students.map(s => {
-      // Merge attendance summary
-      const stats = attendanceSummary.find(stat => stat.user_id === (s.uid || s.id));
+      const id = s.uid || s.id;
+      const stats = attendanceMap.get(id);
       return {
         ...s,
         attendance: stats ? `${Math.round(stats.attendance_pct)}%` : (s.attendance || '0%'),
         attendance_pct: stats ? stats.attendance_pct : (s.attendance_pct || 0),
-        isAwardWinner: (s.uid || s.id) === monthlyWinnerId
+        isAwardWinner: id === monthlyWinnerId
       };
     }).filter(student => {
-      // Safety filter: Remove test profiles that may be stuck in local cache
       if (student.name === 'ADMIN SAVED TEST' || student.rollNo === '9999999999') return false;
 
       const matchesSearch =
         student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.rollNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.course?.toLowerCase().includes(searchQuery.toLowerCase());
-      let match = matchesSearch;
-      if (courseFilter !== 'All Courses' && student.course !== courseFilter) match = false;
-      return match;
+      
+      const matchesCourse = courseFilter === 'All Courses' || student.course === courseFilter;
+      
+      return matchesSearch && matchesCourse;
     });
   }, [students, attendanceSummary, monthlyWinnerId, searchQuery, courseFilter]);
 
+  // Handle automatic student selection
   useEffect(() => {
     if (!isLoading && filteredStudents.length > 0) {
-      const currentExists = filteredStudents.find(s => (s.uid || s.id) === (selectedStudent?.uid || selectedStudent?.id));
-      if (!currentExists) {
+      const currentId = selectedStudent?.uid || selectedStudent?.id;
+      const stillInList = filteredStudents.find(s => (s.uid || s.id) === currentId);
+      
+      if (!stillInList) {
         setSelectedStudent(filteredStudents[0]);
       }
     }
@@ -211,7 +217,7 @@ export default function StudentsPage() {
 
 
   return (
-    <div className="flex-1 overflow-y-auto mobile-container-padding relative">
+    <div className="flex-1 mobile-container-padding relative">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
@@ -313,7 +319,7 @@ export default function StudentsPage() {
                       <tr
                         key={student.uid || student.id}
                         onClick={() => setSelectedStudent(student)}
-                        className={`hover:bg-blue-50/30 transition-all cursor-pointer group ${selectedStudent?.uid === student.uid || selectedStudent?.id === student.id ? 'bg-blue-50' : ''}`}
+                        className={`hover:bg-blue-50/30 transition-colors cursor-pointer group ${selectedStudent?.uid === student.uid || selectedStudent?.id === student.id ? 'bg-blue-50' : ''}`}
                       >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-4">

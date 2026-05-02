@@ -62,7 +62,7 @@ interface SidebarProps {
   const studentNavItems = [
     { id: '', label: 'My Dashboard', icon: LayoutDashboard },
     { id: 'track-my-attendance', label: 'My Attendance', icon: ClipboardList },
-    { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
+    { id: 'leave-requests?apply=true', label: 'Leave Requests', icon: FileText },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'certificates', label: 'My Certificates', icon: Award, awardOnly: true },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -121,7 +121,7 @@ interface SidebarProps {
         onMouseLeave={() => setIsHovered(false)}
         initial={false}
         animate={{ 
-          width: isHovered ? 256 : 84,
+          width: windowWidth < 1024 ? 280 : (isHovered ? 256 : 84),
           x: windowWidth < 1024 ? (isOpen ? 0 : -280) : 0
         }}
         transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
@@ -180,14 +180,18 @@ interface SidebarProps {
               'documents': 'documents',
               'settings': 'settings'
             };
-            const moduleId = moduleMapping[item.id] || item.id;
+            const baseId = item.id.split('?')[0];
+            const moduleId = moduleMapping[baseId] || baseId;
             const coreItems = ['support'];
             if (coreItems.includes(item.id)) return true;
             return perms.includes(moduleId);
           }).map((item) => {
             const Icon = item.icon;
+            const itemPathPart = item.id.split('?')[0];
+            const fullItemPath = itemPathPart ? `${basePath}/${itemPathPart}` : basePath || '/';
             const itemPath = item.id ? `${basePath}/${item.id}` : basePath || '/';
-            const isActive = location.pathname === itemPath || (item.id === '' && location.pathname === (basePath || '/'));
+            const isActive = location.pathname === fullItemPath || (item.id === '' && location.pathname === (basePath || '/'));
+            const showLabels = isHovered || (windowWidth < 1024 && isOpen);
 
             return (
               <Link
@@ -196,14 +200,14 @@ interface SidebarProps {
                 onClick={() => setIsOpen(false)}
                 className={`group relative flex items-center transition-all duration-300 ${
                   isActive ? 'sidebar-active shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                } ${isHovered ? 'px-4 py-3 rounded-xl' : 'justify-center py-3 rounded-xl'}`}
+                } ${showLabels ? 'px-4 py-3 rounded-xl' : 'justify-center py-3 rounded-xl'}`}
               >
                 <div className="shrink-0">
                   <Icon className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
                 </div>
                 
                 <AnimatePresence>
-                  {isHovered && (
+                  {showLabels && (
                     <motion.span 
                       initial={{ opacity: 0, x: -4 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -216,7 +220,7 @@ interface SidebarProps {
                   )}
                 </AnimatePresence>
 
-                {!isHovered && (
+                {!showLabels && (
                   <div className="absolute left-full ml-3 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-[100] hidden lg:block">
                     {item.label}
                   </div>
@@ -227,7 +231,7 @@ interface SidebarProps {
         </nav>
 
         <AnimatePresence>
-          {isHovered && (
+          {(isHovered || (windowWidth < 1024 && isOpen)) && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

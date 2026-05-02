@@ -9,6 +9,39 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getMonthlyLeaderboard } from '../services/dbService';
 
+const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
+  const greeting = React.useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, []);
+
+  return (
+    <div className="flex items-center mb-1">
+      <h1 className="text-lg sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter sm:tracking-tight leading-none flex flex-wrap items-center gap-2 sm:gap-3">
+        <span className="shrink-0">{greeting},</span>
+        <span className="text-blue-600 flex items-center min-w-0">
+          <span className="truncate">
+            {name.split('').map((char, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, display: 'none' }}
+                animate={{ opacity: 1, display: 'inline' }}
+                transition={{ delay: i * 0.08, duration: 0 }}
+              >
+                {char}
+              </motion.span>
+            ))}
+          </span>
+          <span className="custom-cursor shrink-0" />
+        </span>
+        <span className="waving-hand shrink-0 ml-1">👋</span>
+      </h1>
+    </div>
+  );
+});
+
 export default function StudentDashboard({ user }: { user?: any }) {
   const userId = user?.uid || user?.id;
   const fullName = (user?.name || 'Student').split(' ')[0];
@@ -25,7 +58,7 @@ export default function StudentDashboard({ user }: { user?: any }) {
   }, [userId]);
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden mobile-container-padding no-scrollbar">
+    <div className="flex-1 mobile-container-padding">
       <div className="max-w-[1600px] mx-auto w-full">
         <style>{`
           @keyframes wave {
@@ -60,6 +93,8 @@ export default function StudentDashboard({ user }: { user?: any }) {
           }
         `}</style>
 
+        <AnimatedWelcome name={fullName} />
+
         {/* Welcome Section */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -67,27 +102,6 @@ export default function StudentDashboard({ user }: { user?: any }) {
           className="mb-6 sm:mb-12 relative flex flex-col md:flex-row md:items-end justify-between gap-4"
         >
           <div className="flex-1 min-w-0">
-            <div className="flex items-center mb-1">
-              <h1 className="text-lg sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter sm:tracking-tight leading-none flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="shrink-0">Welcome back,</span>
-                <span className="text-blue-600 flex items-center min-w-0">
-                  <span className="truncate">
-                    {fullName.split('').map((char, i) => (
-                      <motion.span
-                        key={i}
-                        initial={{ opacity: 0, display: 'none' }}
-                        animate={{ opacity: 1, display: 'inline' }}
-                        transition={{ delay: i * 0.12, duration: 0 }}
-                      >
-                        {char}
-                      </motion.span>
-                    ))}
-                  </span>
-                  <span className="custom-cursor shrink-0" />
-                </span>
-                <span className="waving-hand shrink-0 ml-1">👋</span>
-              </h1>
-            </div>
             <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.2em] sm:tracking-[0.4em] mt-2 flex items-center gap-2 sm:gap-3 flex-nowrap overflow-x-auto no-scrollbar">
               <span className="shrink-0">{user?.course || 'Course'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />

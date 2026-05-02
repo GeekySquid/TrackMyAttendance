@@ -1,4 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+// ─── Browser Extension Error Fix ──────────────────────────────────────────
+// Suppress console errors from chrome-extension://invalid/ (third-party probes)
+if (typeof window !== 'undefined') {
+  const originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+    if (url && (url.includes('chrome-extension://invalid/') || url.startsWith('chrome-extension://'))) {
+      return Promise.reject(new Error('Suppressed: chrome-extension:// request ignored to prevent console error.'));
+    }
+    return originalFetch.apply(this, arguments);
+  };
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import Sidebar from './components/Sidebar';
@@ -399,7 +413,7 @@ function AppContent() {
           user={profile}
           onLogout={handleLogout}
         />
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto no-scrollbar">
           <Header
             toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             role={role}

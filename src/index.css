@@ -154,8 +154,8 @@
     animation: spin-slow 8s linear infinite;
   }
 
-  /* Responsive Table "Stacked" Layout - Antigravity Edition */
-  @media (max-width: 640px) {
+  /* Responsive Table "Stacked" Layout - Antigravity Ultra Edition */
+  @media (max-width: 768px) {
     .table-responsive {
       border: none !important;
       display: block !important;
@@ -166,84 +166,83 @@
     .table-responsive tbody {
       display: flex !important;
       flex-direction: column !important;
-      gap: 0.75rem !important;
+      gap: 1rem !important;
       background: transparent !important;
+      padding: 0.5rem 0 !important;
     }
     .table-responsive tr {
       display: block !important;
-      border: 1px solid rgba(226, 232, 240, 0.5) !important;
-      border-radius: 1.5rem !important;
-      background: white !important;
-      padding: 1rem !important;
-      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
-      transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+      border: 1px solid rgba(226, 232, 240, 0.4) !important;
+      border-radius: 2rem !important;
+      background: rgba(255, 255, 255, 0.8) !important;
+      backdrop-filter: blur(16px) !important;
+      padding: 1.5rem !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
     .table-responsive tr:active {
-      transform: scale(0.98);
-      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+      transform: scale(0.97);
+      background: rgba(255, 255, 255, 1) !important;
     }
     .table-responsive td {
       display: flex !important;
       justify-content: space-between !important;
       align-items: center !important;
-      padding: 0.625rem 0 !important;
-      border-bottom: 1px dashed #f1f5f9 !important;
+      padding: 0.75rem 0 !important;
+      border-bottom: 1px solid rgba(241, 245, 249, 0.5) !important;
       width: 100% !important;
       text-align: right !important;
+      font-size: 0.875rem !important;
+      font-weight: 700 !important;
     }
     .table-responsive td:last-child {
       border-bottom: none !important;
       padding-bottom: 0 !important;
+      margin-top: 0.5rem;
     }
     .table-responsive td:first-child {
       padding-top: 0 !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      margin-bottom: 0.5rem;
+      padding-bottom: 1rem !important;
     }
     .table-responsive td::before {
       content: attr(data-label);
-      font-weight: 800;
-      font-size: 0.6rem;
+      font-weight: 900;
+      font-size: 0.65rem;
       color: #94a3b8;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-right: 1.5rem;
+      letter-spacing: 0.15em;
+      margin-right: 2rem;
       text-align: left;
       flex-shrink: 0;
     }
-    /* Hide decorative elements on mobile cards if they break layout */
-    .table-responsive .hide-mobile {
-      display: none !important;
-    }
-    /* Adjust specific layouts for labels with subtext */
-    .table-responsive td[data-label="Student"] {
+    /* Special "Identity" cell handling */
+    .table-responsive td[data-label="Student"],
+    .table-responsive td[data-label="Identity / Email"] {
       text-align: left !important;
       justify-content: flex-start !important;
       gap: 1rem !important;
-      border-bottom: 1px solid #f1f5f9 !important;
-      margin-bottom: 0.25rem !important;
-      padding-bottom: 0.75rem !important;
     }
-    .table-responsive td[data-label="Student"]::before {
+    .table-responsive td[data-label="Student"]::before,
+    .table-responsive td[data-label="Identity / Email"]::before {
       display: none !important;
-    }
-
-    /* Glassmorphism Presets */
-    .glass-morphism {
-      @apply bg-white/40 backdrop-blur-2xl border border-white/60 shadow-xl shadow-slate-200/20;
-    }
-
-    .glass-card {
-      @apply bg-white/70 backdrop-blur-xl border border-white/80 rounded-[2.5rem] shadow-sm;
     }
   }
 
   /* Mobile Container Optimization - MOVED OUT OF MEDIA QUERY FOR GLOBAL USE */
   .mobile-container-padding {
-    @apply px-4 pb-28 pt-6 sm:px-8 sm:pb-8 lg:px-10 lg:py-8 lg:pb-10;
+    @apply px-4 pb-32 pt-6 sm:px-8 sm:pb-12 lg:px-12 lg:py-10 lg:pb-14;
   }
 
-  /* Glassmorphism Presets - GLOBAL */
-  .glass-morphism-global {
-    @apply bg-white/40 backdrop-blur-2xl border border-white/60 shadow-xl shadow-slate-200/20;
+  /* Holographic Glass Effect - GLOBAL */
+  .holographic-glass {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(25px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 
+      0 10px 40px -10px rgba(0, 0, 0, 0.05),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.3);
   }
 
   /* Fixed 5-entry height with scrolling */

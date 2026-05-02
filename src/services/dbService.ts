@@ -139,6 +139,7 @@ export function mapNotification(n: any) {
     isImportant: !!n.is_important,
     time: formatRelativeTime(n.created_at),
     data: n.data || null,
+    senderId: n.sender_id,
   };
 }
 
@@ -235,6 +236,7 @@ function resolveTable(collectionName: string): string {
     mentors: 'mentors',
     geofence_schedules: 'geofence_schedules',
     app_settings: 'system_configuration',
+    subscribers: 'subscribers',
   };
   return tableMap[collectionName] || collectionName;
 }
@@ -751,11 +753,35 @@ export const saveRoles = async (roles: any[]): Promise<void> => {
 // DOCUMENTS OPERATIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const addDocument = async (document: any): Promise<any> => {
+export const addDocument = async (document: any, file?: File | Blob): Promise<any> => {
   let storageKey: string | null = null;
   let publicUrl: string | null = null;
 
-  if (document.fileData && document.fileData.startsWith('data:')) {
+  // Use direct file upload if provided (much faster than base64)
+  if (file) {
+    try {
+      const uploaderId = document.uploaderId || 'unknown';
+      const fileName = `${uploaderId}/${Date.now()}_${document.name}`;
+      const mimeType = file.type || 'application/octet-stream';
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file, { contentType: mimeType, upsert: false });
+
+      if (!uploadError) {
+        storageKey = fileName;
+        const { data: urlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName);
+        publicUrl = urlData?.publicUrl || null;
+      } else {
+        console.warn('[dbService] Storage upload failed:', uploadError.message);
+      }
+    } catch (e) {
+      console.warn('[dbService] File upload error:', e);
+    }
+  } else if (document.fileData && document.fileData.startsWith('data:')) {
+    // Legacy / Fallback for base64
     try {
       const [meta, base64] = document.fileData.split(',');
       const mimeType = meta.replace('data:', '').replace(';base64', '');
@@ -776,11 +802,9 @@ export const addDocument = async (document: any): Promise<any> => {
           .from('documents')
           .getPublicUrl(fileName);
         publicUrl = urlData?.publicUrl || null;
-      } else {
-        console.warn('[dbService] Storage upload failed:', uploadError.message);
       }
     } catch (e) {
-      console.warn('[dbService] File upload error:', e);
+      console.warn('[dbService] Base64 upload error:', e);
     }
   }
 
@@ -843,17 +867,7 @@ export const addDocument = async (document: any): Promise<any> => {
     throw error;
   }
 
-  return {
-    id: data.id,
-    name: data.name,
-    type: data.type,
-    size: data.size,
-    date: data.created_at,
-    uploader: data.uploader,
-    storage_key: data.storage_key,
-    fileData: publicUrl,
-    revisions: data.revisions || []
-  };
+  return mapRow('documents', data);
 };
 
 export const deleteDocument = async (id: string): Promise<void> => {
@@ -895,15 +909,18 @@ export const removeDocumentRevision = async (docId: string, revisionIndex: numbe
     await supabase.storage.from('documents').remove([removedRev.storage_key]);
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('documents')
     .update({ revisions: newRevisions })
-    .eq('id', docId);
+    .eq('id', docId)
+    .select()
+    .single();
 
   if (error) {
     console.error('[dbService] removeDocumentRevision error:', error.message);
     throw error;
   }
+  return mapRow('documents', data);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1236,6 +1253,7 @@ export const bulkAddNotifications = async (notifications: any[]): Promise<void> 
     title: n.title,
     message: n.message,
     sender_id: n.senderId || n.sender_id || null,
+    data: n.data || null,
     is_read: false,
     created_at: new Date().toISOString()
   }));
@@ -1334,6 +1352,7 @@ export const listenToCollection = (
     else if (table === 'notifications') query = (query as any).order('created_at', { ascending: false });
     else if (table === 'attendance') query = (query as any).order('date', { ascending: false });
     else if (table === 'profiles') query = (query as any).order('created_at', { ascending: true });
+    else if (table === 'documents') query = (query as any).order('created_at', { ascending: false });
 
     return query;
   };
@@ -1593,8 +1612,30 @@ export const getSystemSettings = async (): Promise<any> => {
 };
 
 export const updateSystemSettings = async (updates: any): Promise<boolean> => {
+  if (!updates) return false;
+  
   // Clean the updates object to prevent issues with primary keys or protected fields
-  const { id, created_at, ...payload } = updates;
+  const { id, created_at, updated_at, ...rawPayload } = updates;
+
+  // Explicitly define the columns we want to save to avoid "undefined_column" errors
+  // if the frontend state contains extra UI-only properties.
+  const validColumns = [
+    'institution_name', 'academic_year', 'timezone', 'date_format',
+    'check_in_time', 'check_out_time', 'late_threshold_mins',
+    'half_day_threshold_hours', 'low_attendance_threshold',
+    'consecutive_absences_threshold', 'auto_notify_parents',
+    'enable_monthly_awards', 'min_attendance_for_award',
+    'max_late_for_award', 'auto_generate_certificates',
+    'strict_device_binding', 'brand_color_word', 'brand_color_type',
+    'cache_version', 'role_permissions'
+  ];
+
+  const payload: any = {};
+  validColumns.forEach(col => {
+    if (rawPayload[col] !== undefined) {
+      payload[col] = rawPayload[col];
+    }
+  });
 
   const { error } = await supabase
     .from('system_configuration')
@@ -1605,7 +1646,7 @@ export const updateSystemSettings = async (updates: any): Promise<boolean> => {
     }, { onConflict: 'id' });
 
   if (error) {
-    console.error('[dbService] updateSystemSettings error:', error.message);
+    console.error('[dbService] updateSystemSettings error:', error.message, error.code);
     return false;
   }
   return true;

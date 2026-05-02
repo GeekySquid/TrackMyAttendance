@@ -173,14 +173,15 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-8 shrink-0 relative z-40">
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 shrink-0 relative z-40">
       <div className="flex items-center flex-1">
+
         {/* Application Branding (Mobile) */}
-        <div className="flex lg:hidden items-center gap-3 mr-2">
-          <div className="w-11 h-11 bg-white rounded-xl shadow-lg border border-gray-100 flex items-center justify-center p-1.5 shrink-0">
+        <div className="flex lg:hidden items-center gap-2 mr-2">
+          <div className="w-9 h-9 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1.5 shrink-0">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-base font-black text-gray-900 tracking-tight leading-tight">
+          <h1 className="text-sm font-black text-gray-900 tracking-tight leading-tight truncate max-w-[140px]">
             {renderStyledBranding(
               sysSettings?.institution_name || 'TrackMYAttendance',
               sysSettings?.brand_color_word,

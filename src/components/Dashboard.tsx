@@ -57,6 +57,37 @@ function StatCardSkeleton() {
   );
 }
 
+const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  })();
+
+  return (
+    <h1 className="text-xl sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter leading-none flex items-center gap-2 flex-nowrap">
+      <span className="shrink-0">{greeting},</span>
+      <span className="text-blue-600 flex items-center min-w-0">
+        <span className="truncate">
+          {name.split('').map((char, i) => (
+            <motion.span
+              key={i}
+              initial={{ opacity: 0, display: 'none' }}
+              animate={{ opacity: 1, display: 'inline' }}
+              transition={{ delay: i * 0.05, duration: 0 }}
+            >
+              {char}
+            </motion.span>
+          ))}
+        </span>
+        <span className="custom-cursor shrink-0" />
+      </span>
+      <span className="waving-hand shrink-0 ml-1">👋</span>
+    </h1>
+  );
+});
+
 export default function Dashboard({ user }: { user: any }) {
 
   const { isLoaded } = useJsApiLoader({
@@ -484,7 +515,7 @@ export default function Dashboard({ user }: { user: any }) {
   const adminName = clerkUser?.firstName || clerkUser?.fullName || 'Admin';
 
   return (
-    <div className="flex-1 overflow-y-auto mobile-container-padding custom-scrollbar">
+    <div className="flex-1 mobile-container-padding">
       <div className="max-w-[1600px] mx-auto w-full">
         <style>{`
           @keyframes wave {
@@ -524,25 +555,7 @@ export default function Dashboard({ user }: { user: any }) {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest mb-3 border border-blue-100">
               <Sparkles className="w-3 h-3" /> System Control Center
             </div>
-            <h1 className="text-xl sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter leading-none flex items-center gap-2 flex-nowrap">
-              <span className="shrink-0">{getGreeting()},</span>
-              <span className="text-blue-600 flex items-center min-w-0">
-                <span className="truncate">
-                  {adminName.split('').map((char, i) => (
-                    <motion.span
-                      key={i}
-                      initial={{ opacity: 0, display: 'none' }}
-                      animate={{ opacity: 1, display: 'inline' }}
-                      transition={{ delay: i * 0.1, duration: 0 }}
-                    >
-                      {char}
-                    </motion.span>
-                  ))}
-                </span>
-                <span className="custom-cursor shrink-0" />
-              </span>
-              <span className="waving-hand shrink-0 ml-1">👋</span>
-            </h1>
+            <AnimatedWelcome name={adminName} />
             <p className="text-xs sm:text-sm font-bold text-slate-400 mt-4 max-w-lg leading-relaxed">
               Managing <span className="text-slate-600 font-black px-2 py-0.5 bg-slate-100 rounded-lg">{totalStudents} Students</span> across all courses with real-time biometric and geofence monitoring.
             </p>

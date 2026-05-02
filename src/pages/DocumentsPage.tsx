@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Folder, File, Download, MoreVertical, Search, Plus, Trash2, X, FileText, FileSpreadsheet, FileIcon as FilePdf, Image as ImageIcon, History, Clock, User, Eye, Share2 } from 'lucide-react';
 import { listenToCollection, addDocument, deleteDocument, removeDocumentRevision } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { supabase } from '../lib/supabase';
 
 export default function DocumentsPage({ user }: { user?: any }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,9 +22,13 @@ export default function DocumentsPage({ user }: { user?: any }) {
 
   useEffect(() => {
     const unsubscribe = listenToCollection('documents', (data) => {
-      // Sort by date descending
-      const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setDocuments(sorted);
+      setDocuments(data);
+      // Sync selectedDoc if it's open
+      setSelectedDoc(prev => {
+        if (!prev) return null;
+        const updated = data.find(d => d.id === prev.id);
+        return updated || null;
+      });
     });
     return () => unsubscribe();
   }, []);
@@ -73,14 +78,26 @@ export default function DocumentsPage({ user }: { user?: any }) {
     let successCount = 0;
 
     for (const file of files) {
-      const docToUpload = await processFile(file);
-      if (docToUpload) {
-        try {
-          await addDocument(docToUpload);
-          successCount++;
-        } catch (error) {
-          console.error("Error uploading:", file.name, error);
-        }
+      // Get basic metadata for the database record
+      let size = file.size;
+      let sizeStr = `${size} B`;
+      if (size > 1024 * 1024) sizeStr = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+      else if (size > 1024) sizeStr = `${(size / 1024).toFixed(1)} KB`;
+
+      const docMetadata = {
+        name: file.name,
+        type: file.name.split('.').pop()?.toUpperCase() || 'FILE',
+        size: sizeStr,
+        size_bytes: file.size,
+        uploader: user?.data?.name || 'Admin',
+        uploaderId: user?.data?.uid || 'admin',
+      };
+
+      try {
+        await addDocument(docMetadata, file);
+        successCount++;
+      } catch (error) {
+        console.error("Error uploading:", file.name, error);
       }
     }
 
@@ -96,18 +113,27 @@ export default function DocumentsPage({ user }: { user?: any }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const docToUpload = await processFile(file);
-    if (docToUpload) {
-      try {
-        // We'll use addDocument with an update logic in dbService if we want versioning
-        // For now, let's just upload it as a new version or new record
-        // The requirement is "Modified in future with proper track record"
-        // I will implement a dedicated updateDocument later, but for now let's use addDocument
-        await addDocument({ ...docToUpload, isReplacement: true, originalId: docId });
-        showNotification("Document updated/replaced successfully!");
-      } catch (error) {
-        showNotification("Failed to update document.", "error");
-      }
+    let size = file.size;
+    let sizeStr = `${size} B`;
+    if (size > 1024 * 1024) sizeStr = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    else if (size > 1024) sizeStr = `${(size / 1024).toFixed(1)} KB`;
+
+    const docMetadata = {
+      name: file.name,
+      type: file.name.split('.').pop()?.toUpperCase() || 'FILE',
+      size: sizeStr,
+      size_bytes: file.size,
+      uploader: user?.data?.name || 'Admin',
+      uploaderId: user?.data?.uid || 'admin',
+      isReplacement: true,
+      originalId: docId
+    };
+
+    try {
+      await addDocument(docMetadata, file);
+      showNotification("Document updated/replaced successfully!");
+    } catch (error) {
+      showNotification("Failed to update document.", "error");
     }
     if (replaceInputRef.current) replaceInputRef.current.value = '';
     setActiveDropdown(null);
@@ -153,12 +179,15 @@ export default function DocumentsPage({ user }: { user?: any }) {
   };
 
   const handleDownload = async (doc: any) => {
-    if (doc.fileData) {
+    if (doc.storage_key) {
       try {
-        const response = await fetch(doc.fileData);
-        if (!response.ok) throw new Error('Fetch failed');
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const { data, error } = await supabase.storage
+          .from('documents')
+          .download(doc.storage_key);
+          
+        if (error) throw error;
+        
+        const url = window.URL.createObjectURL(data);
         const link = document.createElement('a');
         link.href = url;
         link.download = doc.name;
@@ -166,29 +195,19 @@ export default function DocumentsPage({ user }: { user?: any }) {
         link.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(link);
-      } catch (e) {
-        // Fallback for cross-origin or fetch errors
-        const link = document.createElement('a');
-        link.href = doc.fileData;
-        link.download = doc.name;
-        link.target = "_blank";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      } catch (err) {
+        console.error("SDK Download failed, trying direct link:", err);
+        window.open(doc.fileData, '_blank');
       }
-    } else {
-      // Fallback for older simulated files
-      showNotification("Legacy file: Downloading as text.", "info");
-      const content = `This is a simulated download for ${doc.name}\nUploaded by: ${doc.uploader}\nDate: ${new Date(doc.date).toLocaleDateString()}`;
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+    } else if (doc.fileData) {
+      // Fallback for data URLs or simple public links
       const link = document.createElement('a');
-      link.href = url;
+      link.href = doc.fileData;
       link.download = doc.name;
+      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
     }
   };
  
@@ -218,7 +237,8 @@ export default function DocumentsPage({ user }: { user?: any }) {
  
   const handleRemoveRevision = async (docId: string, idx: number) => {
     try {
-      await removeDocumentRevision(docId, idx);
+      const updated = await removeDocumentRevision(docId, idx);
+      setSelectedDoc(updated);
       showNotification("Revision removed successfully!");
     } catch (error) {
       showNotification("Failed to remove revision.", "error");
@@ -413,9 +433,9 @@ export default function DocumentsPage({ user }: { user?: any }) {
 
       {/* History / Track Record Sidebar/Modal */}
       {selectedDoc && !replaceInputRef.current?.files?.length && (
-        <div className="fixed inset-0 z-[200] flex justify-end">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedDoc(null)} />
-          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="fixed top-16 right-0 bottom-0 left-0 z-[100] flex justify-end">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={() => setSelectedDoc(null)} />
+          <div className="relative w-full max-w-md bg-white h-full shadow-[-20px_0_50px_rgba(0,0,0,0.05)] border-l border-gray-100 flex flex-col animate-in slide-in-from-right duration-500 ease-out">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -517,7 +537,7 @@ export default function DocumentsPage({ user }: { user?: any }) {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100">
+            <div className="p-6 mt-2 pb-32 sm:pb-8 border-t border-gray-100 bg-gray-50/30">
               <button 
                 onClick={() => handleDownload(selectedDoc)}
                 className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-xl shadow-gray-200 hover:bg-black transition-all flex items-center justify-center gap-2"
