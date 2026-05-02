@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clearing Cache...</title>
+</head>
+<body>
+    <h1>Resetting Application...</h1>
+    <p id="status">Starting cleanup...</p>
+    <script>
+        async function nuclearReset() {
+            const status = document.getElementById('status');
+            
+            try {
+                // 1. Unregister Service Workers
+                if ('serviceWorker' in navigator) {
+                    status.innerText = "Unregistering Service Workers...";
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let reg of registrations) {
+                        await reg.unregister();
+                        console.log('Unregistered:', reg.scope);
+                    }
+                }
+
+                // 2. Clear Caches
+                if ('caches' in window) {
+                    status.innerText = "Clearing Cache Storage...";
+                    const keys = await caches.keys();
+                    for (let key of keys) {
+                        await caches.delete(key);
+                        console.log('Deleted Cache:', key);
+                    }
+                }
+
+                // 3. Clear LocalStorage / SessionStorage
+                status.innerText = "Clearing Storage...";
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // 4. Clear IndexedDB (Dexie)
+                status.innerText = "Clearing Local Database...";
+                const databases = await indexedDB.databases();
+                for (let db of databases) {
+                    if (db.name) await indexedDB.deleteDatabase(db.name);
+                }
+
+                status.innerHTML = "<b style='color:green'>Cleanup Complete!</b> Redirecting in 2 seconds...";
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 2000);
+
+            } catch (err) {
+                status.innerHTML = "<b style='color:red'>Error during cleanup:</b> " + err.message;
+                console.error(err);
+            }
+        }
+
+        nuclearReset();
+    </script>
+</body>
+</html>
