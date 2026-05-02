@@ -263,8 +263,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
             <div className="flex -space-x-3">
               {[1,2,3,4].map(i => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-slate-800 ring-1 ring-white/10 overflow-hidden">
-                  <img src={`https://i.pravatar.cc/100?u=${i+20}`} alt="User" />
+                <div key={i} className="w-12 h-12 rounded-full border-4 border-[#020617] bg-slate-800 overflow-hidden ring-1 ring-white/10">
+                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=user${i}`} alt="User" />
                 </div>
               ))}
               <div className="w-8 h-8 rounded-full border-2 border-black bg-blue-600 flex items-center justify-center text-[10px] font-black text-white ring-1 ring-white/10">
