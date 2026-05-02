@@ -14,57 +14,57 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const unsubAttendance = listenToCollection('attendance', (logs) => {
-      const unsubUsers = listenToCollection('users', (allUsers) => {
-        const myLogs = logs.filter(l => l.userId === user.id);
-        const myUid = user.id;
+    let isMounted = true;
 
-        // 1. STREAK
-        const presentDates = new Set(myLogs.filter(l => l.status === 'Present' || l.status === 'Late').map(l => l.date));
-        let streak = 0;
-        const todayStr = new Date().toISOString().split('T')[0];
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        let currentStr = presentDates.has(todayStr) ? todayStr : (presentDates.has(yesterdayStr) ? yesterdayStr : null);
-        if (currentStr) {
-          const d = new Date(currentStr);
-          while (presentDates.has(d.toISOString().split('T')[0])) {
-            streak++;
-            d.setDate(d.getDate() - 1);
-          }
-        }
+    const fetchStats = async () => {
+      try {
+        // Fetch authoritative server-side stats from the leaderboard view
+        // Import this dynamically to avoid circular dependencies if any
+        const { getStudentLeaderboardStats } = await import('../services/dbService');
+        const data = await getStudentLeaderboardStats(user.id);
+
+        if (!isMounted || !data) return;
+
+        // Map server data to UI stats
+        const streak = data.current_streak || 0;
+        const totalSessions = data.present_count || 0;
+        const totalPoints = data.score || 0;
+        const myRank = data.rank || 0;
+
         const streakTag = streak >= 10 ? 'LEGENDARY' : streak >= 5 ? 'IRON WILL' : streak >= 3 ? 'ON FIRE' : 'STARTING UP';
-
-        // 2. SESSIONS
-        const totalPresent = myLogs.filter(l => l.status === 'Present' || l.status === 'Late').length;
-        const attendanceTag = totalPresent >= 20 ? 'MASTER' : totalPresent >= 10 ? 'EXCELLENT' : totalPresent >= 5 ? 'REGULAR' : 'VERIFIED';
-
-        // 3. POINTS
-        const points = myLogs.reduce((acc, log) => acc + (log.status === 'Present' ? 10 : (log.status === 'Late' ? 5 : 0)), 0) + (streak * 2);
-        const pointsTag = points >= 200 ? 'ELITE CLASS' : points >= 100 ? 'PRO LEVEL' : points >= 50 ? 'RISING' : 'NOVICE';
-
-        // 4. RANK
-        const studentScores = allUsers.filter(u => u.role === 'student').map(u => {
-          const uLogs = logs.filter(l => l.userId === (u.uid || u.id));
-          return { id: u.uid || u.id, points: uLogs.reduce((acc, log) => acc + (log.status === 'Present' ? 10 : (log.status === 'Late' ? 5 : 0)), 0) };
-        }).sort((a, b) => b.points - a.points);
-        const myRankIndex = studentScores.findIndex(s => s.id === myUid);
-        const myRank = myRankIndex === -1 ? studentScores.length + 1 : myRankIndex + 1;
+        const attendanceTag = totalSessions >= 20 ? 'MASTER' : totalSessions >= 10 ? 'EXCELLENT' : totalSessions >= 5 ? 'REGULAR' : 'VERIFIED';
+        const pointsTag = totalPoints >= 200 ? 'ELITE CLASS' : totalPoints >= 100 ? 'PRO LEVEL' : totalPoints >= 50 ? 'RISING' : 'NOVICE';
+        
         let rankStr = myRank === 1 ? '1st' : myRank === 2 ? '2nd' : myRank === 3 ? '3rd' : `${myRank}th`;
-        const rankTag = myRank <= 3 ? 'PODIUM' : myRank <= 10 ? 'TOP TIER' : 'ACTIVE';
+        if (myRank === 0) rankStr = 'N/A';
+        const rankTag = myRank > 0 && myRank <= 3 ? 'PODIUM' : myRank <= 10 ? 'TOP TIER' : 'ACTIVE';
 
         setStats([
           { label: 'STREAK', value: `${streak}d`, icon: Flame, color: 'text-orange-500', bg: 'bg-orange-400', iconBg: 'bg-orange-100/50', insight: streakTag },
-          { label: 'SESSIONS', value: `${totalPresent}s`, icon: Calendar, color: 'text-blue-500', bg: 'bg-blue-400', iconBg: 'bg-blue-100/50', insight: attendanceTag },
-          { label: 'POINTS', value: points.toString(), icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-400', iconBg: 'bg-yellow-100/50', insight: pointsTag },
+          { label: 'SESSIONS', value: `${totalSessions}s`, icon: Calendar, color: 'text-blue-500', bg: 'bg-blue-400', iconBg: 'bg-blue-100/50', insight: attendanceTag },
+          { label: 'POINTS', value: totalPoints.toString(), icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-400', iconBg: 'bg-yellow-100/50', insight: pointsTag },
           { label: 'RANK', value: rankStr, icon: Trophy, color: 'text-purple-500', bg: 'bg-purple-400', iconBg: 'bg-purple-100/50', insight: rankTag }
         ]);
         setLoading(false);
-      });
-      return () => unsubUsers();
-    });
-    return () => unsubAttendance();
+      } catch (err) {
+        console.error('[StudentStatsGrid] Failed to fetch stats:', err);
+      }
+    };
+
+    // Initial fetch
+    fetchStats();
+
+    // Listen for attendance changes to refresh authoritative stats
+    // This ensures that when a student checks in, their dashboard updates immediately
+    // but the actual calculation remains server-side for accuracy.
+    const unsubAttendance = listenToCollection('attendance', () => {
+      fetchStats();
+    }, user.id); // Filtered to current user for performance
+
+    return () => {
+      isMounted = false;
+      unsubAttendance();
+    };
   }, [user?.id]);
 
   if (loading) return (
@@ -221,18 +221,18 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
         }
       `}</style>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="stats-grid-container"
       >
         <AnimatePresence mode="popLayout">
           {stats.map((stat, i) => (
-            <motion.div 
-              key={stat.label} 
+            <motion.div
+              key={stat.label}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ 
+              transition={{
                 delay: i * 0.08,
                 duration: 0.6,
                 ease: [0.16, 1, 0.3, 1]
@@ -245,7 +245,7 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
                   <div className={`icon-box-glow ${stat.bg}`} />
                   <stat.icon className="w-6 h-6 lg:w-8 lg:h-8 relative z-10" strokeWidth={2.5} />
                 </div>
-                
+
                 {/* Premium Tag Badge - Positioned at "Logo Down Part" */}
                 <div className={`tag-badge-premium ${stat.color}`}>
                   {stat.insight}

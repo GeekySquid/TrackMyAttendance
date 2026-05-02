@@ -26,6 +26,7 @@ import InstallPWA from './components/InstallPWA';
 import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
 import NotificationStack from './components/notifications/NotificationStack';
+import CustomCursor from './components/CustomCursor';
 import { saveUser, getUserById } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
@@ -100,7 +101,6 @@ function AppContent() {
         return;
       }
 
-      console.log('[App] Starting syncProfile for:', user.id);
       setProfileLoading(true);
       
       const toastId = toast.loading('Synchronizing account...', { id: 'sync-status' });
@@ -113,7 +113,6 @@ function AppContent() {
 
       try {
         const clerkId = user.id;
-        console.log('[App] Checking for existing profile in Supabase...');
         let existing = await getUserById(clerkId);
 
         if (!existing) {
@@ -123,7 +122,6 @@ function AppContent() {
           if (userEmail) {
             const { data: byEmail } = await supabase.from('profiles').select('*').eq('email', userEmail).maybeSingle();
             if (byEmail && byEmail.id !== clerkId) {
-              console.log('[App] Found pre-registered profile by email. Merging to Clerk ID...');
               const mapped = await mapProfile(byEmail);
               const mergedData = {
                 ...mapped,
@@ -140,7 +138,6 @@ function AppContent() {
 
           if (!existing) {
             toast.loading('Creating your profile...', { id: 'sync-status' });
-            console.log('[App] No existing profile found. Creating one...');
             const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
             const userEmail = user.primaryEmailAddress?.emailAddress || '';
             const role = adminEmails.includes(userEmail) ? 'admin' : 'student';
@@ -173,7 +170,6 @@ function AppContent() {
 
           if ((shouldBeAdmin && existing.role !== 'admin') || photoDiffers) {
             toast.loading('Updating profile details...', { id: 'sync-status' });
-            console.log('[App] Syncing updates for existing profile...');
             await saveUser({
               ...existing,
               role: shouldBeAdmin ? 'admin' : existing.role,
@@ -233,9 +229,7 @@ function AppContent() {
         profileCompleted: true
       };
 
-      console.log('[App] Saving updated profile:', updatedData);
       const success = await saveUser(updatedData);
-      console.log('[App] saveUser result:', success);
 
       if (success) {
         setProfile(updatedData);
@@ -370,6 +364,7 @@ function AppContent() {
 
   return (
     <>
+      <CustomCursor />
       {profile && <NotificationManager profile={profile} />}
       <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
         <Sidebar

@@ -255,81 +255,106 @@ export default function AnalyticsChart({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 mb-4">
-        <div className={`flex flex-col ${!isStudentMode ? 'lg:flex-row' : ''} gap-8 h-[400px] sm:h-[450px] lg:h-72`}>
-          {/* Chart Section */}
-          <div className="flex-1 relative flex flex-col min-h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 600 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 600 }} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }} formatter={(value: number) => [`${value}%`, 'Rate']} />
-                <Area type="monotone" dataKey="attendance" stroke="#3B82F6" strokeWidth={4} fillOpacity={1} fill="url(#colorAttendance)" connectNulls={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Dynamic Spotlight / Analysis Card */}
-          {analysis && (
-            <div className={`w-full lg:w-64 bg-gradient-to-br ${analysis.type === 'spotlight' ? 'from-blue-50 to-indigo-50 border-blue-100' : 'from-gray-50 to-white border-gray-100'} rounded-2xl p-6 border flex flex-col items-center text-center shadow-sm relative overflow-hidden group`}>
-              {analysis.type === 'spotlight' && <div className="absolute -top-10 -right-10 w-24 h-24 bg-yellow-400/10 rounded-full blur-2xl group-hover:bg-yellow-400/20 transition-all duration-700" />}
-
-              <p className={`text-[10px] font-black uppercase tracking-widest mb-4 ${analysis.type === 'spotlight' ? 'text-blue-600' : 'text-gray-400'}`}>
-                {analysis.label}
-              </p>
-
-              <div className="relative mb-4">
-                <div className={`absolute inset-0 blur-xl opacity-20 rounded-full ${analysis.type === 'spotlight' ? 'bg-blue-400' : 'bg-gray-400'}`} />
-                <img alt={analysis.name} className={`w-20 h-20 rounded-full border-4 border-white shadow-md relative z-10 object-cover transition-transform group-hover:scale-110 duration-500`} src={analysis.photoURL} />
-                {analysis.type === 'spotlight' && (
-                  <div className="absolute -bottom-1 -right-1 bg-yellow-400 rounded-full p-1.5 shadow-lg z-20 border-2 border-white">
-                    <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                  </div>
-                )}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Analysis Overview Header */}
+        {analysis && (
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 pb-6 border-b border-gray-50">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className={`absolute inset-0 blur-lg opacity-20 rounded-full ${analysis.type === 'spotlight' ? 'bg-blue-400' : 'bg-indigo-400'}`} />
+                <img alt={analysis.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-10" src={analysis.photoURL} />
               </div>
+              <div className="text-left">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{analysis.label}</p>
+                <h4 className="text-sm font-black text-gray-900">{analysis.name}</h4>
+              </div>
+            </div>
 
-              <h4 className="text-sm font-black text-gray-800 mb-4 truncate w-full">{analysis.name}</h4>
-
-              {analysis.type === 'spotlight' ? (
-                <div className="w-full pt-4 border-t border-blue-100/50">
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-1">Monthly Score</p>
-                  <p className="text-3xl font-black text-blue-600 tracking-tighter">{analysis.score}</p>
-                </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
+              {analysis.type === 'analysis' ? (
+                <>
+                  <div className="bg-blue-50/50 px-3 py-1.5 rounded-xl border border-blue-100/50">
+                    <p className="text-[9px] font-black text-blue-400 uppercase tracking-tight">Attendance</p>
+                    <p className="text-xs font-black text-blue-700">{analysis.rate}</p>
+                  </div>
+                  <div className="bg-emerald-50/50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tight">Punctuality</p>
+                    <p className="text-xs font-black text-emerald-700">{analysis.punctuality}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <div className="bg-green-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-green-700">{analysis.present}P</div>
+                    <div className="bg-orange-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-orange-700">{analysis.late}L</div>
+                    <div className="bg-red-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-red-700">{analysis.missed}M</div>
+                  </div>
+                </>
               ) : (
-                <div className="w-full grid grid-cols-2 gap-y-4 pt-4 border-t border-gray-100">
-                  <div className="text-left">
-                    <p className="text-[9px] text-gray-400 font-bold uppercase">Attendance</p>
-                    <p className="text-sm font-black text-indigo-600">{analysis.rate}</p>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[9px] text-gray-400 font-bold uppercase">Punctuality</p>
-                    <p className="text-sm font-black text-emerald-500">{analysis.punctuality}</p>
-                  </div>
-                  <div className="text-left col-span-2 grid grid-cols-3 gap-2">
-                    <div className="bg-green-50 rounded-lg p-1.5">
-                      <p className="text-[8px] text-green-600 font-bold uppercase">Pres</p>
-                      <p className="text-xs font-black text-green-700">{analysis.present}</p>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-1.5">
-                      <p className="text-[8px] text-orange-600 font-bold uppercase">Late</p>
-                      <p className="text-xs font-black text-orange-700">{analysis.late}</p>
-                    </div>
-                    <div className="bg-red-50 rounded-lg p-1.5">
-                      <p className="text-[8px] text-red-600 font-bold uppercase">Miss</p>
-                      <p className="text-xs font-black text-red-700">{analysis.missed}</p>
-                    </div>
-                  </div>
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-2xl shadow-lg shadow-blue-100">
+                   <p className="text-[9px] font-black text-blue-100 uppercase tracking-widest opacity-80">Monthly Score</p>
+                   <p className="text-lg font-black text-white leading-none">{analysis.score}</p>
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Chart Section - Now Full Width */}
+        <div className="w-full h-[300px] sm:h-[350px] relative mt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                </linearGradient>
+                <filter id="shadow" height="200%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#2563EB" floodOpacity="0.2"/>
+                </filter>
+              </defs>
+              <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#f1f5f9" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} 
+                dy={15} 
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} 
+                domain={[0, 100]} 
+                ticks={[0, 25, 50, 75, 100]} 
+                tickFormatter={(v) => `${v}%`} 
+              />
+              <Tooltip 
+                cursor={{ stroke: '#e2e8f0', strokeWidth: 2, strokeDasharray: '4 4' }}
+                contentStyle={{ 
+                  borderRadius: '16px', 
+                  border: '1px solid #f1f5f9', 
+                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
+                  padding: '12px',
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(8px)'
+                }}
+                itemStyle={{ fontSize: '11px', fontWeight: 900, color: '#1e293b' }}
+                labelStyle={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}
+                formatter={(value: number) => [`${value}%`, 'Attendance Rate']} 
+              />
+              <Area 
+                type="monotone" 
+                dataKey="attendance" 
+                stroke="#2563EB" 
+                strokeWidth={4} 
+                fillOpacity={1} 
+                fill="url(#colorAttendance)" 
+                filter="url(#shadow)"
+                connectNulls={false} 
+                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 3, shadow: '0 0 10px rgba(37,99,235,0.5)' }}
+                animationDuration={2000}
+                animationEasing="ease-in-out"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

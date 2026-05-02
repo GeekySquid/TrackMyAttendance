@@ -25,17 +25,19 @@ export class AppDatabase extends Dexie {
   geofence_schedules!: Table<any>;
   notifications!: Table<any>;
   system_configuration!: Table<any>;
+  mentors!: Table<any>;
   pendingActions!: Table<PendingAction>;
 
   constructor() {
     super('TrackMyAttendanceDB');
-    this.version(1).stores({
+    this.version(2).stores({
       profiles: 'id, email',
       attendance: 'id, user_id, date',
       leave_requests: 'id, user_id',
       geofence_schedules: 'id',
       notifications: 'id, user_id',
       system_configuration: 'id',
+      mentors: 'id',
       pendingActions: '++id, table, action, timestamp'
     });
   }
@@ -50,6 +52,7 @@ export class AppDatabase extends Dexie {
     await this.geofence_schedules.clear();
     await this.notifications.clear();
     await this.system_configuration.clear();
+    await this.mentors.clear();
     await this.pendingActions.clear();
   }
 }

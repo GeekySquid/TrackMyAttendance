@@ -34,8 +34,7 @@ class SyncService {
     try {
       const actions = await localDb.pendingActions.orderBy('timestamp').toArray();
       if (actions.length === 0) return;
-
-      console.log(`[SyncService] Starting sync for ${actions.length} actions...`);
+      
       
       for (const action of actions) {
         const success = await this.processAction(action);
@@ -43,7 +42,6 @@ class SyncService {
           await localDb.pendingActions.delete(action.id!);
         } else {
           // If a critical failure happens (not network), we might want to skip or alert
-          console.warn(`[SyncService] Action ${action.id} failed to sync, will retry later.`);
           break; // Stop sync for now to avoid out-of-order execution issues
         }
       }
@@ -72,7 +70,12 @@ class SyncService {
         
         switch (action.action) {
           case 'INSERT':
-            result = await query.insert(action.data);
+            // Use upsert for profiles to prevent 409 Conflict if profile already exists (clerk webhooks, etc.)
+            if (action.table === 'profiles') {
+              result = await query.upsert(action.data);
+            } else {
+              result = await query.insert(action.data);
+            }
             break;
           case 'UPDATE':
             result = await query.update(action.data).eq('id', action.primaryKey);
@@ -84,13 +87,16 @@ class SyncService {
       }
 
       if (result?.error) {
-        console.error(`[SyncService] Supabase error for ${action.table}:`, result.error);
+        // If the error is "Duplicate Key" (23505), it means the data is already there.
+        // We can treat this as a success to allow the sync queue to proceed.
+        if (result.error.code === '23505') {
+          return true;
+        }
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('[SyncService] Process action exception:', error);
       return false;
     }
   }

@@ -37,8 +37,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip mutations (POST/PUT/DELETE) and Supabase calls (handled by Dexie/SyncService)
-  if (request.method !== 'GET' || url.hostname.includes('supabase.co') || url.hostname.includes('clerk')) {
+  // Skip mutations (POST/PUT/DELETE), Supabase/Clerk calls, and non-http schemes (chrome-extension, etc.)
+  if (
+    request.method !== 'GET' || 
+    url.hostname.includes('supabase.co') || 
+    url.hostname.includes('clerk') || 
+    !url.protocol.startsWith('http')
+  ) {
     return;
   }
 
@@ -68,12 +73,14 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, cacheCopy));
           return response;
         })
-        .catch(() => {
+        .catch(async () => {
           // If navigation fails, return index.html for SPA routing
           if (request.mode === 'navigate') {
-            return caches.match('/index.html');
+            const cachedIndex = await caches.match('/index.html');
+            return cachedIndex || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
           }
-          return caches.match(request);
+          const cachedFallback = await caches.match(request);
+          return cachedFallback || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
         })
     );
   }

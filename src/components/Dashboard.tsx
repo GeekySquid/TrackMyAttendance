@@ -16,8 +16,10 @@ import {
   Map as MapIcon,
   MapPin,
   BarChart2,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import StatCard from './StatCard';
 import AttendanceTable from './AttendanceTable';
 import LeaveReports from './LeaveReports';
@@ -148,7 +150,7 @@ export default function Dashboard({ user }: { user: any }) {
       if (manualRecord && manualRecord.isActive) {
         const active = isScheduleActive(manualRecord);
         if (!active) {
-          console.log('[Dashboard] Auto-closing manual window due to time expiration:', manualRecord.endTime);
+          // Auto-closing manual window due to time expiration
           await toggleManualAttendanceWindow(
             false,
             manualRecord.lat,
@@ -484,12 +486,66 @@ export default function Dashboard({ user }: { user: any }) {
 
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-8">
+      <style>{`
+        @keyframes wave {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-15deg); }
+          75% { transform: rotate(15deg); }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .waving-hand {
+          display: inline-block;
+          animation: wave 2.5s infinite;
+          transform-origin: 70% 70%;
+        }
+        .custom-cursor {
+          display: inline-block;
+          width: 2px;
+          height: 1.1em;
+          background: #2563eb;
+          margin-left: 1px;
+          vertical-align: middle;
+          animation: blink 0.8s step-end infinite;
+          box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
+        }
+      `}</style>
+
       {/* Dashboard Intro */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800">{getGreeting()}, {adminName} 👋</h2>
-            <p className="text-sm text-gray-500">Monitor student attendance in real-time</p>
+      <div className="mb-8 relative">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-6"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest mb-3 border border-blue-100">
+              <Sparkles className="w-3 h-3" /> System Control Center
+            </div>
+            <h1 className="text-xl sm:text-5xl font-[950] text-slate-900 tracking-tighter leading-none flex items-center gap-2 flex-nowrap">
+              <span className="shrink-0">{getGreeting()},</span>
+              <span className="text-blue-600 flex items-center min-w-0">
+                <span className="truncate">
+                  {adminName.split('').map((char, i) => (
+                    <motion.span
+                      key={i}
+                      initial={{ opacity: 0, display: 'none' }}
+                      animate={{ opacity: 1, display: 'inline' }}
+                      transition={{ delay: i * 0.1, duration: 0 }}
+                    >
+                      {char}
+                    </motion.span>
+                  ))}
+                </span>
+                <span className="custom-cursor shrink-0" />
+              </span>
+              <span className="waving-hand shrink-0 ml-1">👋</span>
+            </h1>
+            <p className="text-xs sm:text-sm font-bold text-slate-400 mt-4 max-w-lg leading-relaxed">
+              Managing <span className="text-slate-600 font-black px-2 py-0.5 bg-slate-100 rounded-lg">{totalStudents} Students</span> across all courses with real-time biometric and geofence monitoring.
+            </p>
           </div>
 
           {/* Attendance Window Toggle */}
@@ -529,7 +585,8 @@ export default function Dashboard({ user }: { user: any }) {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
+      </div>
 
         {/* Manual Activation Modal */}
         {showConfigModal && (
@@ -800,8 +857,21 @@ export default function Dashboard({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        {/* Summary Cards with Staggered Entrance */}
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6"
+        >
           {isLoading ? (
             <>
               <StatCardSkeleton />
@@ -812,69 +882,38 @@ export default function Dashboard({ user }: { user: any }) {
             </>
           ) : (
             <>
-              <StatCard
-                title="Total Students"
-                value={students.length.toString()}
-                total=""
-                percentage="100%"
-                trend=""
-                trendUp={true}
-                icon={<Users className="h-6 w-6 text-indigo-600" />}
-                colorClass="text-indigo-600"
-                bgClass="bg-indigo-50"
-                progressColorClass="bg-indigo-500"
-              />
-              <StatCard
-                title="Present Today"
-                value={presentCount.toString()}
-                total={totalStudents.toString()}
-                percentage={`${presentPercentage}%`}
-                trend=""
-                trendUp={true}
-                icon={<UserCheck className="h-6 w-6 text-blue-600" />}
-                colorClass="text-blue-600"
-                bgClass="bg-blue-50"
-                progressColorClass="bg-blue-500"
-              />
-              <StatCard
-                title="Late Arrivals"
-                value={lateCount.toString()}
-                total={totalStudents.toString()}
-                percentage={`${latePercentage}%`}
-                trend=""
-                trendUp={false}
-                icon={<Clock className="h-6 w-6 text-orange-400" />}
-                colorClass="text-orange-400"
-                bgClass="bg-orange-50"
-                progressColorClass="bg-orange-400"
-              />
-              <StatCard
-                title="Absent"
-                value={absentCount.toString()}
-                total={totalStudents.toString()}
-                percentage={`${absentPercentage}%`}
-                trend=""
-                trendUp={false}
-                icon={<XCircle className="h-6 w-6 text-red-500" />}
-                colorClass="text-red-500"
-                bgClass="bg-red-50"
-                progressColorClass="bg-red-400"
-              />
-              <StatCard
-                title="On Leave"
-                value={onLeaveCount.toString()}
-                total={totalStudents.toString()}
-                percentage={`${leavePercentage}%`}
-                trend=""
-                trendUp={true}
-                icon={<FileText className="h-6 w-6 text-green-500" />}
-                colorClass="text-green-500"
-                bgClass="bg-green-50"
-                progressColorClass="bg-green-500"
-              />
+              {[
+                { title: "Total Students", value: students.length.toString(), icon: <Users className="h-6 w-6 text-indigo-600" />, color: "text-indigo-600", bg: "bg-indigo-50", progress: "bg-indigo-500", percentage: "100%" },
+                { title: "Present Today", value: presentCount.toString(), total: totalStudents.toString(), icon: <UserCheck className="h-6 w-6 text-blue-600" />, color: "text-blue-600", bg: "bg-blue-50", progress: "bg-blue-500", percentage: `${presentPercentage}%` },
+                { title: "Late Arrivals", value: lateCount.toString(), total: totalStudents.toString(), icon: <Clock className="h-6 w-6 text-orange-400" />, color: "text-orange-400", bg: "bg-orange-50", progress: "bg-orange-400", percentage: `${latePercentage}%` },
+                { title: "Absent", value: absentCount.toString(), total: totalStudents.toString(), icon: <XCircle className="h-6 w-6 text-red-500" />, color: "text-red-500", bg: "bg-red-50", progress: "bg-red-400", percentage: `${absentPercentage}%` },
+                { title: "On Leave", value: onLeaveCount.toString(), total: totalStudents.toString(), icon: <FileText className="h-6 w-6 text-green-500" />, color: "text-green-500", bg: "bg-green-50", progress: "bg-green-500", percentage: `${leavePercentage}%` }
+              ].map((card, i) => (
+                <motion.div
+                  key={i}
+                  variants={{
+                    hidden: { opacity: 0, y: 20, scale: 0.95 },
+                    visible: { opacity: 1, y: 0, scale: 1 }
+                  }}
+                  transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+                >
+                  <StatCard
+                    title={card.title}
+                    value={card.value}
+                    total={card.total || ""}
+                    percentage={card.percentage}
+                    trend=""
+                    trendUp={true}
+                    icon={card.icon}
+                    colorClass={card.color}
+                    bgClass={card.bg}
+                    progressColorClass={card.progress}
+                  />
+                </motion.div>
+              ))}
             </>
           )}
-        </div>
+        </motion.div>
 
         {/* Layout Grid (Attendance & Leave Reports) */}
         <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
@@ -898,6 +937,5 @@ export default function Dashboard({ user }: { user: any }) {
           />
         </div>
       </div>
-    </div>
-  );
+    );
 }

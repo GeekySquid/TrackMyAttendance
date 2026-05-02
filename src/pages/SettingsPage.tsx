@@ -21,6 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import {
+  listenToCollection,
   saveUser,
   addAttendance,
   addLeaveRequest,
@@ -112,7 +113,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     const success = await saveMentor(newMentor);
     if (success) {
       setNewMentor({ name: '', phone: '' });
-      fetchMentors();
       toast.success('Mentor added successfully');
     } else {
       toast.error('Failed to add mentor');
@@ -120,17 +120,14 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   };
 
   useEffect(() => {
-    fetchMentors();
+    const unsubscribe = listenToCollection('mentors', (data) => {
+      setMentors(data || []);
+    });
+    return () => unsubscribe();
   }, []);
-
-  const fetchMentors = async () => {
-    const data = await getMentors();
-    setMentors(data);
-  };
 
   const handleDeleteMentor = async (id: string) => {
     await deleteMentor(id);
-    fetchMentors();
     toast.success('Mentor removed');
   };
 
@@ -146,7 +143,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
       return;
     }
     setIsSaving(true);
-    console.log('[SettingsPage] Saving system settings:', localSettings);
     const success = await updateSystemSettings(localSettings);
     if (success) {
       toast.success('System settings saved!');
@@ -161,7 +157,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     setIsSaving(true);
     const userId = user?.id || user?.uid;
     if (userId) {
-      console.log('[SettingsPage] Updating profile:', profileForm);
       const success = await saveUser({ id: userId, ...profileForm });
       if (success) {
         onUpdate?.({ ...user, ...profileForm });
@@ -337,7 +332,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   const adminTabs = [
     { id: 'profile', label: 'My Admin Profile', icon: User },
     { id: 'general', label: 'General Info', icon: Building },
-    { id: 'rbac', label: 'Access Control', icon: ShieldCheck },
     { id: 'attendance', label: 'Attendance Rules', icon: Clock },
     { id: 'alerts', label: 'Alerts & Follow-ups', icon: AlertTriangle },
     { id: 'awards', label: 'Awards & Recognition', icon: Award },
@@ -529,79 +523,6 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                     </select>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'rbac' && role === 'admin' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">Role Based Access Control</h3>
-                  <p className="text-sm text-gray-500">Configure which modules each user role can access.</p>
-                </div>
-
-                <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Module Name</th>
-                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-center">Student Role</th>
-                        <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-center">Admin Role</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {[
-                        { id: 'dashboard', name: 'Main Dashboard' },
-                        { id: 'attendance', name: 'Attendance History' },
-                        { id: 'leave', name: 'Leave Management' },
-                        { id: 'notifications', name: 'Global Notifications' },
-                        { id: 'leaderboard', name: 'Performance Leaderboard' },
-                        { id: 'documents', name: 'Document Vault' },
-                        { id: 'settings', name: 'User Preferences' },
-                      ].map((module) => {
-                        const studentPerms = localSettings.role_permissions?.student || [];
-                        const hasAccess = studentPerms.includes(module.id);
-
-                        return (
-                          <tr key={module.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <span className="text-sm font-bold text-gray-700">{module.name}</span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <button
-                                onClick={() => {
-                                  const newPerms = hasAccess
-                                    ? studentPerms.filter((p: string) => p !== module.id)
-                                    : [...studentPerms, module.id];
-                                  handleSettingsChange({
-                                    role_permissions: {
-                                      ...localSettings.role_permissions,
-                                      student: newPerms
-                                    }
-                                  });
-                                }}
-                                className={`w-12 h-6 rounded-full p-1 transition-colors ${hasAccess ? 'bg-blue-600' : 'bg-gray-200'}`}
-                              >
-                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${hasAccess ? 'translate-x-6' : 'translate-x-0'}`} />
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center">
-                                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                                <span className="ml-2 text-[10px] font-black text-emerald-600 uppercase">Always ON</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                  <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                    Permissions are updated in real-time. Students will see or hide tabs instantly upon their next session refresh or navigation.
-                  </p>
                 </div>
               </div>
             )}

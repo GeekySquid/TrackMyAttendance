@@ -7,7 +7,7 @@
 
 export const autoClearCache = async () => {
   try {
-    const DEBUG = true;
+    const DEBUG = false;
     if (DEBUG) console.log('[CacheManager] Initializing automatic cache cleanup...');
 
     // 1. SESSION STORAGE
@@ -20,6 +20,7 @@ export const autoClearCache = async () => {
       'tm_persistent_session',
       'tm_onboarded',
       'tm_last_sync',
+      'tm_cache_version',
       'clerk', // Clerk Auth
       'sb-',   // Supabase Auth
       'supabase.auth',
@@ -81,9 +82,11 @@ export const checkCacheVersion = async (serverVersion: number) => {
   const localVersion = parseInt(localStorage.getItem(LOCAL_VERSION_KEY) || '0', 10);
 
   if (serverVersion > localVersion) {
-    console.log(`[CacheManager] Cache version mismatch (Local: ${localVersion}, Server: ${serverVersion}). Purging...`);
-    await autoClearCache();
+    // 1. Mark as updated immediately to prevent reload loops
     localStorage.setItem(LOCAL_VERSION_KEY, serverVersion.toString());
+    
+    // 2. Perform purge
+    await autoClearCache();
     
     // Hard refresh to ensure everything is clean and new assets are fetched
     window.location.reload();

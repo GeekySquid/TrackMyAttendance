@@ -5,6 +5,17 @@
   body {
     font-family: 'Inter', sans-serif;
     background-color: #F8FAFC;
+    /* Hide default cursor on desktop for custom experience */
+    @media (min-width: 1025px) {
+      cursor: none;
+    }
+  }
+
+  /* Ensure interactive elements also hide cursor so our custom one can react */
+  @media (min-width: 1025px) {
+    a, button, [role="button"], input, select, textarea, .cursor-pointer {
+      cursor: none !important;
+    }
   }
   
   table {

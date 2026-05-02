@@ -53,20 +53,23 @@ export default function CustomDateInput({
       {label && <label className="block text-sm font-black text-gray-700 mb-1.5 ml-1 tracking-tight">{label}</label>}
       
       <div className="relative">
-        {/* Hidden Native Input */}
+        {/* Hidden Native Input - Overlaying the entire area but invisible */}
         <input
           ref={inputRef}
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
-          style={{ visibility: 'hidden', pointerEvents: 'none' }}
+          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20 appearance-none bg-transparent"
+          style={{ 
+            color: 'transparent',
+            backgroundColor: 'transparent'
+          }}
         />
 
         {/* Premium Display Button */}
         <button
           type="button"
-          onClick={handleClick}
+          tabIndex={-1}
           className="w-full flex items-center justify-between px-4 py-2.5 sm:py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold transition-all duration-300 hover:border-blue-400 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-50/50 group-active:scale-[0.98] z-10 relative"
         >
           <div className="flex items-center gap-3 truncate">
@@ -83,6 +86,25 @@ export default function CustomDateInput({
         {/* Mobile Highlight Overlay */}
         <div className="absolute inset-0 rounded-xl pointer-events-none border border-transparent group-active:border-blue-200 group-active:bg-blue-50/10 transition-all duration-200" />
       </div>
+      
+      <style>{`
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          cursor: pointer;
+          opacity: 0;
+        }
+        input[type="date"]::-webkit-inner-spin-button,
+        input[type="date"]::-webkit-clear-button {
+          display: none;
+          -webkit-appearance: none;
+        }
+      `}</style>
     </div>
   );
 }

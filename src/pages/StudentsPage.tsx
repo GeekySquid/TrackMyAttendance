@@ -275,6 +275,7 @@ export default function StudentsPage() {
                     <th className="py-4 px-6 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Student Info</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Roll No</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Course</th>
+                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mentor</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Attendance</th>
                     <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                   </tr>
@@ -314,6 +315,11 @@ export default function StudentsPage() {
                         <td className="py-4 px-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 uppercase tracking-wider">
                             {student.course}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-xs font-bold text-gray-700">
+                            {student.mentors?.name || 'No Mentor'}
                           </span>
                         </td>
                         <td className="py-4 px-4 text-center">
@@ -389,6 +395,7 @@ export default function StudentsPage() {
                           <div>
                             <h4 className="text-sm font-bold text-gray-900">{student.name}</h4>
                             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-tight">{student.course} • {student.rollNo}</p>
+                            <p className="text-[9px] text-blue-600 font-black uppercase tracking-widest mt-1">Mentor: {student.mentors?.name || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">

@@ -44,6 +44,7 @@ export function mapProfile(row: any) {
     attendance_pct: row.attendance_pct ?? 0,
     roleId: row.role_id || null,
     mentorId: row.mentor_id || null,
+    mentors: row.mentors || null,
     onboarded: isOnboarded,
     profileCompleted: row.profile_completed || false,
     createdAt: row.created_at || row.joined_at,
@@ -337,6 +338,62 @@ export const updateUserRole = async (
   if (error) console.error('[dbService] updateUserRole error:', error.message);
 };
 
+export const updateProfile = async (userId: string, updates: Record<string, any>): Promise<boolean> => {
+  try {
+    if (!userId) return false;
+
+    // 1. Map camelCase to snake_case and STRIP protected fields
+    const { id, created_at, updated_at, ...rawUpdates } = updates;
+    const dbUpdates: Record<string, any> = { ...rawUpdates };
+
+    if (updates.photoURL !== undefined) {
+      dbUpdates.photo_url = updates.photoURL;
+      delete dbUpdates.photoURL;
+    }
+    if (updates.rollNo !== undefined) {
+      dbUpdates.roll_no = updates.rollNo;
+      delete dbUpdates.rollNo;
+    }
+    if (updates.mentorId !== undefined) {
+      dbUpdates.mentor_id = updates.mentorId;
+      delete dbUpdates.mentorId;
+    }
+    if (updates.profileCompleted !== undefined) {
+      dbUpdates.profile_completed = updates.profileCompleted;
+      delete dbUpdates.profileCompleted;
+    }
+
+    // 2. Update Supabase
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        ...dbUpdates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('[dbService] updateProfile Supabase Error:', error);
+      throw error;
+    }
+
+    // 3. Update Local Cache
+    const existing = await localDb.profiles.get(userId);
+    if (existing) {
+      await localDb.profiles.put({
+        ...existing,
+        ...updates,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[dbService] updateProfile Exception:', err);
+    return false;
+  }
+};
+
 export const updateUserProfile = async (
   userId: string,
   updates: Partial<{
@@ -532,7 +589,7 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
     const now = new Date();
     const time = checkoutTime || now.toISOString();
     
-    console.log('[dbService] Running markBulkCheckOut. Closing ALL active sessions...');
+    // Closing ALL active sessions...
 
     const { data: records, error: fetchError } = await supabase
       .from('attendance')
@@ -540,16 +597,14 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
       .is('check_out_time', null);
 
     if (fetchError) {
-      console.error('[dbService] markBulkCheckOut fetch error:', fetchError.message);
+      console.error('[dbService] markBulkCheckOut fetch error');
       throw fetchError;
     }
 
     if (!records || records.length === 0) {
-      console.log('[dbService] markBulkCheckOut: No active sessions found to close.');
       return;
     }
 
-    console.log(`[dbService] markBulkCheckOut: Found ${records.length} active sessions. Closing now...`);
     const ids = records.map(r => r.id);
 
     const { error: updateError } = await supabase
@@ -558,11 +613,9 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
       .in('id', ids);
 
     if (updateError) {
-      console.error('[dbService] markBulkCheckOut update error:', updateError.message);
+      console.error('[dbService] markBulkCheckOut update error');
       throw updateError;
     }
-
-    console.log('[dbService] markBulkCheckOut: Successfully checked out', records.length, 'students.');
 
     // Send notifications
     try {
@@ -970,7 +1023,6 @@ export const toggleManualAttendanceWindow = async (
     const now = new Date();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    console.log('[dbService] toggleManualAttendanceWindow:', { active, lat, lng, radius, locationName, endTime });
 
     const { data, error } = await supabase
       .from('geofence_schedules')
@@ -993,9 +1045,9 @@ export const toggleManualAttendanceWindow = async (
     }
 
     if (active) {
-      console.log('[dbService] Manual window ACTIVATED');
+      // Manual window ACTIVATED
     } else {
-      console.log('[dbService] Manual window CLOSED');
+      // Manual window CLOSED
       try {
         await markBulkCheckOut();
       } catch (e) {
@@ -1231,8 +1283,22 @@ export const getLeaderboard = async (): Promise<any[]> => {
 
   return (data || []).map((entry, index) => ({
     ...entry,
-    rank: index + 1
+    rank: entry.rank || index + 1
   }));
+};
+
+export const getStudentLeaderboardStats = async (userId: string): Promise<any> => {
+  const { data, error } = await supabase
+    .from('leaderboard')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[dbService] getStudentLeaderboardStats error:', error.message);
+    return null;
+  }
+  return data;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1251,6 +1317,8 @@ export const listenToCollection = (
     let selectStr = '*';
     if (table === 'attendance' || table === 'leave_requests') {
       selectStr = '*, profiles(photo_url)';
+    } else if (table === 'profiles' || table === 'users') {
+      selectStr = '*, mentors(name)';
     }
     let query = supabase.from(table).select(selectStr);
 
@@ -1288,21 +1356,24 @@ export const listenToCollection = (
     try {
       const { data, error } = await buildQuery();
       if (error) throw error;
-      if (data && dexieTable) {
+      if (data) {
         const mapped = data.map(row => mapRow(table, row));
-        await dexieTable.bulkPut(mapped);
+        if (dexieTable) {
+          await dexieTable.bulkPut(mapped);
+        }
         callback(mapped);
       }
     } catch (e) {
-      console.warn(`[dbService] Fetch/Sync failed for ${table}:`, e);
+      // Fetch/Sync failed
     }
   };
 
   loadLocal();
   fetchAndSync();
 
+  const channelId = Math.random().toString(36).substring(2, 10);
   const channel = supabase
-    .channel(`rt-${table}-${userId ?? 'all'}`)
+    .channel(`rt-${table}-${userId ?? 'all'}-${channelId}`)
     .on('postgres_changes' as any, { event: '*', schema: 'public', table }, () => fetchAndSync())
     .subscribe();
 
@@ -1329,20 +1400,14 @@ export const getMentors = async (): Promise<any[]> => {
 
       if (tableError) {
         console.error('[dbService] getMentors table error:', tableError.message);
-        return [
-          { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+919876543210' },
-          { id: 'm2', name: 'Prof. James Chen', phone: '+919876543211' },
-        ];
+        return [];
       }
       return (tableData || []).map(mapMentor);
     }
     return (data || []).map(mapMentor);
   } catch (err) {
     console.error('[dbService] getMentors exception:', err);
-    return [
-      { id: 'm1', name: 'Dr. Sarah Wilson', phone: '+919876543210' },
-      { id: 'm2', name: 'Prof. James Chen', phone: '+919876543211' },
-    ];
+    return [];
   }
 };
 
@@ -1467,7 +1532,6 @@ export const updateSystemSettings = async (updates: any): Promise<boolean> => {
   // Clean the updates object to prevent issues with primary keys or protected fields
   const { id, created_at, ...payload } = updates;
 
-  console.log('[dbService] updateSystemSettings payload:', payload);
   const { error } = await supabase
     .from('system_configuration')
     .upsert({
@@ -1477,10 +1541,9 @@ export const updateSystemSettings = async (updates: any): Promise<boolean> => {
     }, { onConflict: 'id' });
 
   if (error) {
-    console.error('[dbService] updateSystemSettings error:', error.message, error.details, error.hint);
+    console.error('[dbService] updateSystemSettings error:', error.message);
     return false;
   }
-  console.log('[dbService] updateSystemSettings success');
   return true;
 };
 

@@ -199,108 +199,108 @@ export default function AccessControlPage() {
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
             {roles.map(role => {
-            const roleUsers = users.filter(u => u.roleId === role.id);
-            return (
-              <div key={role.id} className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col h-full overflow-hidden">
-                <div className="p-4 border-b border-gray-100 bg-blue-50/30 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-100">
-                      <Shield className="w-5 h-5" />
+              const roleUsers = users.filter(u => u.roleId === role.id);
+              return (
+                <div key={role.id} className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 flex flex-col h-full overflow-hidden">
+                  <div className="p-4 border-b border-gray-100 bg-blue-50/30 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-100">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-800 text-sm uppercase tracking-tight">{role.name}</h3>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase">{roleUsers.length} Members</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-black text-gray-800 text-sm uppercase tracking-tight">{role.name}</h3>
-                      <p className="text-[10px] font-bold text-blue-500 uppercase">{roleUsers.length} Members</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setExpandedRolePermissions(expandedRolePermissions === role.id ? null : role.id)}
-                    className="lg:hidden p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="p-4 flex-1 flex flex-col gap-6">
-                  {/* Drop Zone for Users */}
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Members</h4>
-                      <UserPlus className="w-3.5 h-3.5 text-gray-300" />
-                    </div>
-                    <div
-                      className="min-h-[100px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, role.id)}
+                    <button
+                      onClick={() => setExpandedRolePermissions(expandedRolePermissions === role.id ? null : role.id)}
+                      className="lg:hidden p-2 text-gray-400 hover:text-blue-600 transition-colors"
                     >
-                      {roleUsers.length === 0 && (
-                        <div className="flex-1 flex items-center justify-center text-sm text-gray-400 font-medium">
-                          Drag users here
-                        </div>
-                      )}
-                      {roleUsers.map(user => (
-                        <div
-                          key={user.id}
-                          draggable={true}
-                          onDragStart={(e) => handleDragStart(e, user.id)}
-                          className="bg-white border border-gray-100 rounded-2xl p-2.5 shadow-sm cursor-grab active:cursor-grabbing flex items-center gap-3 hover:border-blue-300 hover:shadow-lg transition-all group border-l-4 border-l-blue-400"
-                        >
-                          <GripVertical className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black border border-blue-100 shrink-0">
-                            {user.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase truncate">Assigned User</p>
-                          </div>
-                          <button
-                            onClick={() => updateUserRole(user.id, null)}
-                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 bg-gray-50/50 lg:bg-transparent"
-                            title="Remove from role"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
                   </div>
 
-                  {/* Module Permissions */}
-                  <div className={`${expandedRolePermissions === role.id ? 'block' : 'hidden lg:block'} animate-in fade-in slide-in-from-top-2 duration-300`}>
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Module Access Control</h4>
-                      <div className="h-px bg-gray-100 flex-1 ml-4" />
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
-                      {AVAILABLE_MODULES.map(module => {
-                        const isAllowed = role.modules.includes(module);
-                        return (
-                          <label
-                            key={module}
-                            className={`flex items-center gap-2 p-2.5 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${isAllowed ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50' : 'bg-white border-gray-100 hover:bg-gray-50'
-                              }`}
+                  <div className="p-4 flex-1 flex flex-col gap-6">
+                    {/* Drop Zone for Users */}
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned Members</h4>
+                        <UserPlus className="w-3.5 h-3.5 text-gray-300" />
+                      </div>
+                      <div
+                        className="min-h-[100px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, role.id)}
+                      >
+                        {roleUsers.length === 0 && (
+                          <div className="flex-1 flex items-center justify-center text-sm text-gray-400 font-medium">
+                            Drag users here
+                          </div>
+                        )}
+                        {roleUsers.map(user => (
+                          <div
+                            key={user.id}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, user.id)}
+                            className="bg-white border border-gray-100 rounded-2xl p-2.5 shadow-sm cursor-grab active:cursor-grabbing flex items-center gap-3 hover:border-blue-300 hover:shadow-lg transition-all group border-l-4 border-l-blue-400"
                           >
-                            <div className={`w-4 h-4 rounded-lg border flex items-center justify-center shrink-0 transition-all ${isAllowed ? 'bg-blue-600 border-blue-600 rotate-0' : 'border-gray-200 rotate-90'
-                              }`}>
-                              {isAllowed && <Check className="w-2.5 h-2.5 text-white" />}
+                            <GripVertical className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black border border-blue-100 shrink-0">
+                              {user.name.charAt(0)}
                             </div>
-                            <input
-                              type="checkbox"
-                              className="hidden"
-                              checked={isAllowed}
-                              onChange={() => toggleModule(role.id, module)}
-                            />
-                            <span className={`text-[10px] font-black uppercase tracking-tight ${isAllowed ? 'text-blue-900' : 'text-gray-400'}`}>
-                              {module}
-                            </span>
-                          </label>
-                        );
-                      })}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
+                              <p className="text-[8px] font-bold text-gray-400 uppercase truncate">Assigned User</p>
+                            </div>
+                            <button
+                              onClick={() => updateUserRole(user.id, null)}
+                              className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 bg-gray-50/50 lg:bg-transparent"
+                              title="Remove from role"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Module Permissions */}
+                    <div className={`${expandedRolePermissions === role.id ? 'block' : 'hidden lg:block'} animate-in fade-in slide-in-from-top-2 duration-300`}>
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Module Access Control</h4>
+                        <div className="h-px bg-gray-100 flex-1 ml-4" />
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
+                        {AVAILABLE_MODULES.map(module => {
+                          const isAllowed = role.modules.includes(module);
+                          return (
+                            <label
+                              key={module}
+                              className={`flex items-center gap-2 p-2.5 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${isAllowed ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50' : 'bg-white border-gray-100 hover:bg-gray-50'
+                                }`}
+                            >
+                              <div className={`w-4 h-4 rounded-lg border flex items-center justify-center shrink-0 transition-all ${isAllowed ? 'bg-blue-600 border-blue-600 rotate-0' : 'border-gray-200 rotate-90'
+                                }`}>
+                                {isAllowed && <Check className="w-2.5 h-2.5 text-white" />}
+                              </div>
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={isAllowed}
+                                onChange={() => toggleModule(role.id, module)}
+                              />
+                              <span className={`text-[10px] font-black uppercase tracking-tight ${isAllowed ? 'text-blue-900' : 'text-gray-400'}`}>
+                                {module}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
             {/* Add New Role Button */}
             <button

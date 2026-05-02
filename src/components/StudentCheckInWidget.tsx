@@ -15,7 +15,7 @@ import {
 } from '../services/dbService';
 import {
   Phone, AlertCircle, Send, X, ClipboardList, LogOut,
-  MapPin, Navigation, Lock, Unlock, Loader2, History, Timer, CheckCircle, Clock, RefreshCw, Zap
+  MapPin, Navigation, Lock, Unlock, Loader2, History, Timer, CheckCircle, Clock, RefreshCw, Zap, WifiOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -277,11 +277,9 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
       
       // Step 2: If still not checked in and not outside zone (meaning it likely timed out or accuracy was poor), try standard
       if (!hasCheckedInLocally && !locallyOutsideZone) {
-        console.log('[AutoCheckIn] Retrying with standard accuracy...');
         await attemptCheckIn(false);
       }
     } catch (e) { 
-      console.error('[AutoCheckIn] Fatal error:', e); 
     } finally { 
       setIsProcessing(false); 
     }
@@ -456,111 +454,199 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   return (
     <>
       <style>{`
-        /* UNIFIED PREMIUM WHITE GRADIENT UI */
-        .widget-card-responsive {
-          background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-          border-radius: 32px;
-          padding: 1.5rem;
+        /* GLOBAL STANDARD DESIGN SYSTEM: AESTHETIC EXCELLENCE */
+        .widget-card-master {
+          background: rgba(255, 255, 255, 0.4);
+          backdrop-filter: blur(40px) saturate(200%);
+          -webkit-backdrop-filter: blur(40px) saturate(200%);
+          border-radius: 40px;
+          padding: 2rem;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           position: relative;
           overflow: hidden;
-          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.9);
-          transition: all 0.4s ease;
-          min-height: 200px;
+          box-shadow: 
+            0 10px 30px -10px rgba(0, 0, 0, 0.05),
+            0 20px 60px -20px rgba(0, 0, 0, 0.1),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+          transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          min-height: 280px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        .time-display-responsive {
-          font-weight: 900;
-          letter-spacing: -0.05em;
+        .widget-card-master:before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+          opacity: 0.02;
+          pointer-events: none;
+        }
+
+        .time-display-master {
+          font-weight: 950;
+          letter-spacing: -0.06em;
           color: #0f172a;
-          line-height: 1;
-          margin-bottom: 0.25rem;
-          font-size: 2.5rem;
+          line-height: 0.9;
+          margin-bottom: 0.5rem;
+          font-size: 3.5rem;
+          font-variant-numeric: tabular-nums;
+          filter: drop-shadow(0 4px 12px rgba(0,0,0,0.05));
         }
 
-        .status-label-responsive {
+        .status-badge-master {
           font-weight: 900;
-          letter-spacing: 0.4em;
+          letter-spacing: 0.5em;
           text-transform: uppercase;
           color: #64748b;
-          font-size: 9px;
-          margin-bottom: 1.5rem;
+          font-size: 10px;
+          margin-bottom: 2rem;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: rgba(0,0,0,0.03);
+          padding: 6px 16px;
+          border-radius: 100px;
         }
 
-        .btn-responsive {
+        .btn-master {
           width: 100%;
-          max-width: 240px;
-          height: 56px;
-          border-radius: 16px;
+          max-width: 300px;
+          height: 72px;
+          border-radius: 24px;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 12px;
+          gap: 14px;
           font-weight: 900;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.15em;
           text-transform: uppercase;
-          font-size: 11px;
+          font-size: 12px;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 10;
+          position: relative;
+          overflow: hidden;
         }
 
-        .btn-primary { background: #0f172a; color: #ffffff; box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15); }
-        .btn-primary:hover { transform: translateY(-4px); box-shadow: 0 18px 35px rgba(0, 0, 0, 0.2); }
-        .btn-secondary { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
-        .btn-disabled { background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; }
+        .btn-master-primary { 
+          background: #0f172a; 
+          color: #ffffff; 
+          box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3);
+        }
+        
+        .btn-master-primary:hover { 
+          transform: translateY(-4px) scale(1.02);
+          box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.4);
+        }
 
-        .desktop-aura {
+        .btn-master-verified { 
+          background: #f0fdf4; 
+          color: #166534; 
+          border: 1px solid rgba(22, 101, 52, 0.1);
+          box-shadow: 0 10px 30px -10px rgba(22, 163, 74, 0.15);
+        }
+
+        .btn-master-disabled { 
+          background: rgba(0,0,0,0.02); 
+          color: #94a3b8; 
+          border: 1px solid rgba(0,0,0,0.05);
+          cursor: not-allowed;
+        }
+
+        .status-ring-container {
+          position: absolute;
+          width: 380px;
+          height: 380px;
+          z-index: 0;
+          opacity: 0.4;
+          pointer-events: none;
+        }
+
+        .glow-aura-master {
           position: absolute;
           inset: 0;
-          filter: blur(100px);
-          opacity: 0.1;
-          z-index: 0;
-          pointer-events: none;
-          background: radial-gradient(circle at 50% 50%, #3b82f6, #8b5cf6, transparent 70%);
+          filter: blur(120px);
+          opacity: 0.15;
+          z-index: -1;
+          transition: all 1s ease;
         }
 
-        @media (min-width: 1025px) {
-          .widget-card-responsive { padding: 2.5rem; min-height: 260px; border-radius: 40px; }
-          .time-display-responsive { font-size: 3.5rem; margin-bottom: 0.5rem; }
-          .status-label-responsive { font-size: 12px; margin-bottom: 2rem; }
-          .btn-responsive { height: 68px; border-radius: 20px; font-size: 13px; max-width: 280px; }
-        }
-
-        @keyframes pulse-dot {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.5); opacity: 0.5; }
+        @media (max-width: 640px) {
+          .time-display-master { font-size: 2.75rem; }
+          .btn-master { height: 64px; border-radius: 20px; font-size: 11px; }
+          .widget-card-master { padding: 1.5rem; min-height: 240px; }
         }
       `}</style>
 
-      <motion.div className="widget-card-responsive group">
-        <div className="desktop-aura" />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="widget-card-master group"
+      >
+        {/* Dynamic Glow Aura */}
+        <div className={`glow-aura-master ${
+          !windowOpen ? 'bg-slate-500' : 
+          isCheckedIn ? 'bg-emerald-500' : 
+          isOutsideZone ? 'bg-amber-500' : 'bg-blue-500'
+        }`} />
+
+        {/* SVG Status Ring */}
+        <div className="status-ring-container">
+          <svg viewBox="0 0 100 100" className="w-full h-full rotate-[-90deg]">
+            <motion.circle
+              cx="50" cy="50" r="48"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.5"
+              className={!windowOpen ? 'text-slate-200' : isCheckedIn ? 'text-emerald-200' : 'text-blue-200'}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 2, ease: "easeInOut" }}
+            />
+            {windowOpen && (
+              <motion.circle
+                cx="50" cy="50" r="48"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeDasharray="2 6"
+                className={isCheckedIn ? 'text-emerald-500' : 'text-blue-500'}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              />
+            )}
+          </svg>
+        </div>
         
         {/* Unified Content Container */}
         <div className="relative z-10 flex flex-col items-center w-full text-center">
-          <div className="time-display-responsive">
+          <div className="time-display-master">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </div>
           
-          <div className="status-label-responsive flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${windowOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-            Precision System Status
+          <div className="status-badge-master">
+            <motion.span 
+              animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className={`w-2 h-2 rounded-full ${windowOpen ? 'bg-emerald-500' : 'bg-slate-300'}`} 
+            />
+            {windowOpen ? 'Protocol Active' : 'System Standby'}
           </div>
 
           <AnimatePresence mode="wait">
             {!windowOpen ? (
-              <motion.div key="off" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-disabled">
-                <Lock className="w-5 h-5 opacity-40" /> SYSTEM OFFLINE
+              <motion.div key="off" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-master btn-master-disabled">
+                <WifiOff className="w-5 h-5 opacity-40" /> OFFLINE
               </motion.div>
             ) : isCheckedIn ? (
-              <motion.div key="verified" onClick={handleCheckOutRequest} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-secondary cursor-pointer hover:bg-emerald-100 transition-colors">
+              <motion.div key="verified" onClick={handleCheckOutRequest} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-master btn-master-verified cursor-pointer hover:bg-emerald-100/50 transition-colors">
+                <div className="absolute inset-0 bg-emerald-500/5 animate-pulse" />
                 <CheckCircle className="w-5 h-5" /> VERIFIED ACCESS
               </motion.div>
             ) : (lastCheckOut && !checkoutReasonState?.startsWith('Classes Over')) ? (
-              <motion.button key="rejoin" onClick={handleReJoinClick} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-responsive btn-primary">
+              <motion.button key="rejoin" onClick={handleReJoinClick} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="btn-master btn-master-primary">
                 <RefreshCw className="w-5 h-5" /> RE-JOIN SESSION
               </motion.button>
             ) : (
@@ -569,17 +655,25 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
                 onClick={() => { if (verificationState === 'READY') performFinalCheckIn(); }} 
                 initial={{ opacity: 0, scale: 0.9 }} 
                 animate={{ opacity: 1, scale: 1 }}
-                className={`btn-responsive ${verificationState === 'READY' ? 'btn-primary' : 'btn-disabled'}`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`btn-master ${verificationState === 'READY' ? 'btn-master-primary' : 'btn-master-disabled'}`}
               >
-                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
-                {verificationState === 'READY' ? 'INITIALIZE CHECK-IN' : 'LOCATING ZONE...'}
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : (verificationState === 'READY' ? <Zap className="w-5 h-5 text-yellow-400" /> : <Navigation className="w-5 h-5" />)}
+                {verificationState === 'READY' ? 'INITIALIZE CHECK-IN' : 'SCANNING ZONE...'}
               </motion.button>
             )}
           </AnimatePresence>
 
-          <div className="w-full flex justify-between mt-6 px-2 opacity-20 text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] text-slate-900">
-            <span>{activeScheduleForCountdown?.locationName || 'Global'}</span>
-            <span>{windowOpen ? 'Verified' : 'Standby'}</span>
+          <div className="w-full flex flex-col gap-1 mt-8 opacity-40">
+            <div className="flex justify-between px-2 text-[9px] font-black uppercase tracking-[0.3em] text-slate-900">
+              <span>{activeScheduleForCountdown?.locationName || 'GLOBAL'}</span>
+              <span>GPS SECURED</span>
+            </div>
+            <div className="h-[1px] w-full bg-slate-900/10" />
+            <div className="text-[7px] font-bold text-slate-500 uppercase tracking-widest text-center mt-1">
+              Verified by Global Attendance Protocol v2.4
+            </div>
           </div>
         </div>
       </motion.div>

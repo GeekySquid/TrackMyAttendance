@@ -34,6 +34,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const [courseFilter, setCourseFilter] = useState('All Courses');
   const [timelineFilter, setTimelineFilter] = useState('All Time');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Form state
   const [leaveType, setLeaveType] = useState('Casual Leave');
@@ -150,6 +151,41 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     } finally {
       setProcessingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+    const idsToProcess = Array.from(selectedIds);
+    const loadingToast = toast.loading(`Approving ${idsToProcess.length} requests...`);
+    
+    setProcessingIds(prev => {
+      const next = new Set(prev);
+      idsToProcess.forEach(id => next.add(id));
+      return next;
+    });
+
+    try {
+      await Promise.all(idsToProcess.map(id => updateLeaveRequestStatus(id, 'Approved')));
+      toast.success(`Successfully approved ${idsToProcess.length} requests`, { id: loadingToast });
+      setSelectedIds(new Set());
+    } catch (err) {
+      toast.error("Failed to process some requests", { id: loadingToast });
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        idsToProcess.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   if (role === 'student') {
@@ -424,9 +460,40 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Leave Requests</h2>
-            <p className="text-sm text-gray-500">Manage student leave applications</p>
+            <h2 className="text-3xl font-[950] text-gray-800 tracking-tight flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100">
+                <FileText className="w-6 h-6" />
+              </div>
+              Leave Management
+            </h2>
+            <p className="text-sm text-gray-500 font-bold mt-1">Review and process student leave applications with full control</p>
           </div>
+
+          <AnimatePresence>
+            {selectedIds.size > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex items-center gap-3 bg-white p-2 pl-6 rounded-2xl border border-blue-100 shadow-xl shadow-blue-900/5"
+              >
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{selectedIds.size} Selected</p>
+                <div className="h-8 w-px bg-gray-100 mx-1" />
+                <button 
+                  onClick={handleBulkApprove}
+                  className="px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
+                >
+                  Bulk Approve
+                </button>
+                <button 
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-4 py-2.5 text-gray-400 hover:text-gray-600 text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -520,6 +587,21 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-gray-50/90 z-20 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
                   <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                    <th className="pb-2 px-6 w-12">
+                      <input 
+                        type="checkbox" 
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const pendingIds = filteredRequests.filter(r => r.status === 'Pending').map(r => r.id);
+                            setSelectedIds(new Set(pendingIds));
+                          } else {
+                            setSelectedIds(new Set());
+                          }
+                        }}
+                        checked={selectedIds.size > 0 && selectedIds.size === filteredRequests.filter(r => r.status === 'Pending').length}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
                     <th className="pb-2 px-6">Student</th>
                     <th className="pb-2 px-6">Leave Dates</th>
                     <th className="pb-2 px-6">Reason</th>
@@ -539,7 +621,17 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                     </tr>
                   ) : (
                     adminItems.map((req, i) => (
-                      <tr key={req.id || i} className="text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30">
+                      <tr key={req.id || i} className={`text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30 ${selectedIds.has(req.id) ? 'bg-blue-50/50' : ''}`}>
+                        <td className="py-2.5 px-6 sm:py-3 text-center">
+                          {req.status === 'Pending' && (
+                            <input 
+                              type="checkbox" 
+                              checked={selectedIds.has(req.id)}
+                              onChange={() => toggleSelection(req.id)}
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          )}
+                        </td>
                         <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-medium">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-[10px] shrink-0 overflow-hidden border border-blue-100 shadow-sm">

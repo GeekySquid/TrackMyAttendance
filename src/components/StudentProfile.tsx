@@ -1,4 +1,4 @@
-import { ChevronDown, Mail, FileDigit, Copy, Trophy, Sparkles, Download } from 'lucide-react';
+import { ChevronDown, Mail, FileDigit, Copy, Trophy, Sparkles, Download, UserCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { generateCertificate } from '../utils/generateCertificate';
 
@@ -89,6 +89,16 @@ export default function StudentProfile({ student }: { student?: any }) {
           <div className="p-3 bg-gray-50 rounded-xl">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Course</p>
             <p className="text-xs font-bold text-gray-700 mt-1">{displayStudent.course || 'N/A'}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+            <UserCheck className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] text-gray-400">Assigned Mentor</p>
+            <p className="text-xs font-semibold text-gray-700">{displayStudent.mentors?.name || 'No Mentor Assigned'}</p>
           </div>
         </div>
 
