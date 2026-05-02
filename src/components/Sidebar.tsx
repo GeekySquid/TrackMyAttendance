@@ -14,7 +14,8 @@ import {
   Trophy,
   Shield,
   HelpCircle,
-  Download
+  Download,
+  Mail
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -43,6 +44,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, onLogout }: SidebarPr
     { id: 'access-control', label: 'Access Control', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'geofencing', label: 'Geofencing', icon: MapPin },
+    { id: 'subscribers', label: 'Waitlist', icon: Mail },
     { id: 'support', label: 'Support', icon: HelpCircle },
   ];
 

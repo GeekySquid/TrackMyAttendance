@@ -1574,3 +1574,67 @@ export const getBackupData = async (): Promise<any> => {
   };
 };
 
+// ─── SUBSCRIBERS ─────────────────────────────────────────────────────────────
+
+export const subscribeEmail = async (email: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const { error } = await supabase
+      .from('subscribers')
+      .insert({ email, status: 'active' });
+      
+    if (error) {
+      if (error.code === '23505') {
+        return { success: false, message: 'You are already subscribed!' };
+      }
+      throw error;
+    }
+    return { success: true, message: 'Successfully subscribed to updates!' };
+  } catch (err) {
+    console.error('[dbService] subscribeEmail error:', err);
+    return { success: false, message: 'Subscription failed. Please try again.' };
+  }
+};
+
+export const getSubscribers = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('subscribers')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[dbService] getSubscribers error:', err);
+    return [];
+  }
+};
+
+export const updateSubscriberStatus = async (id: string, status: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('subscribers')
+      .update({ status })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[dbService] updateSubscriberStatus error:', err);
+    return false;
+  }
+};
+
+export const markSubscriberMailed = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('subscribers')
+      .update({ last_mailed_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[dbService] markSubscriberMailed error:', err);
+    return false;
+  }
+};
+

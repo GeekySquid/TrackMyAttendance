@@ -19,6 +19,7 @@ import ReportsPage from './pages/ReportsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import AccessControlPage from './pages/AccessControlPage';
+import SubscriberManagementPage from './pages/SubscriberManagementPage';
 import SupportPage from './pages/SupportPage';
 import SSOCallbackPage from './pages/SSOCallbackPage';
 import LandingPage from './pages/LandingPage';
@@ -416,6 +417,7 @@ function AppContent() {
                 <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} onUpdate={setProfile} />} />
                 <Route path="/admin/geofencing" element={<GeofencingPage />} />
                 <Route path="/admin/access-control" element={<AccessControlPage />} />
+                <Route path="/admin/subscribers" element={<SubscriberManagementPage />} />
                 <Route path="/admin/support" element={<SupportPage role="admin" />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </>
