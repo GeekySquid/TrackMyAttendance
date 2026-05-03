@@ -152,9 +152,27 @@ export default function StudentProfile({ student, isAdmin, onToggleAward, onClos
             </div>
           </div>
           <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5">Gender</p>
+            <p className="text-xs font-black text-gray-700 tracking-tighter uppercase">{displayStudent.gender || 'N/A'}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5">Blood Group</p>
+            <p className="text-xs font-black text-rose-600 tracking-tighter uppercase">{displayStudent.blood_group || 'N/A'}</p>
+          </div>
+          <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1.5">Phone</p>
             <p className="text-xs font-black text-gray-700 tracking-tighter">{displayStudent.phone || 'N/A'}</p>
           </div>
+        </div>
+
+        <div className="p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Joined On</p>
+          <p className="text-xs font-bold text-blue-800">
+            {displayStudent.created_at ? new Date(displayStudent.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}
+          </p>
         </div>
 
         <div className="space-y-3 pt-2">
@@ -168,6 +186,17 @@ export default function StudentProfile({ student, isAdmin, onToggleAward, onClos
                 <p className="text-xs font-bold text-gray-800">{displayStudent.mentors?.name || 'No Mentor Assigned'}</p>
               </div>
             </div>
+            {displayStudent.mentors?.name && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(displayStudent.mentors.name);
+                  toast.success('Mentor Name Copied');
+                }}
+                className="p-2 text-gray-300 hover:text-blue-600 transition-colors"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-3.5 bg-gray-50/50 rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors group">

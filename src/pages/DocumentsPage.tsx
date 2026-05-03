@@ -163,14 +163,19 @@ export default function DocumentsPage({ user }: { user?: any }) {
 
   const confirmDelete = async () => {
     if (!documentToDelete) return;
+    const docId = documentToDelete;
+    setDocumentToDelete(null);
+    
+    // Optimistic update
+    setDocuments(prev => prev.filter(d => d.id !== docId));
+    
     try {
-      await deleteDocument(documentToDelete);
+      await deleteDocument(docId);
       showNotification("Document deleted successfully!");
     } catch (error) {
       console.error("Error deleting document:", error);
       showNotification("Failed to delete document.", "error");
     }
-    setDocumentToDelete(null);
   };
 
   const handleDeleteClick = (id: string) => {

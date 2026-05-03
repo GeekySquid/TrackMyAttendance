@@ -237,22 +237,24 @@ function AppContent() {
   // ─── Onboarding complete ──────────────────────────────────────────────────
   const handleOnboardingComplete = async (onboardingData: any) => {
     console.log('[App] handleOnboardingComplete started:', onboardingData);
+    const updatedData = {
+      ...profile,
+      ...onboardingData,
+      onboarded: true,
+      profileCompleted: true
+    };
+
+    // Optimistic Update
+    const prevProfile = profile;
+    const prevOnboarded = onboarded;
+    setProfile(updatedData);
+    setOnboarded(true);
+    localStorage.setItem('tm_onboarded', 'true');
+
     try {
-      const updatedData = {
-        ...profile,
-        ...onboardingData,
-        onboarded: true,
-        profileCompleted: true
-      };
-
       const success = await saveUser(updatedData);
-
       if (success) {
-        setProfile(updatedData);
-        setOnboarded(true);
-        localStorage.setItem('tm_onboarded', 'true');
-
-        // Update persistent session if it exists
+        // Update persistent session
         const savedSession = localStorage.getItem('tm_persistent_session');
         if (savedSession) {
           localStorage.setItem('tm_persistent_session', JSON.stringify({
@@ -260,14 +262,17 @@ function AppContent() {
             timestamp: new Date().getTime()
           }));
         }
-
         toast.success('Profile created successfully!');
       } else {
-        toast.error('Failed to save profile. Please check if ID is present.');
+        throw new Error('Save failed');
       }
     } catch (err) {
       console.error('[App] handleOnboardingComplete error:', err);
       toast.error('Error saving profile: ' + (err instanceof Error ? err.message : String(err)));
+      // Rollback
+      setProfile(prevProfile);
+      setOnboarded(prevOnboarded);
+      localStorage.setItem('tm_onboarded', String(prevOnboarded));
     }
   };
 
@@ -413,7 +418,7 @@ function AppContent() {
           user={profile}
           onLogout={handleLogout}
         />
-        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto no-scrollbar">
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto no-scrollbar pb-32 lg:pb-0">
           <Header
             toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             role={role}

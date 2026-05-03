@@ -129,8 +129,14 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   }, []);
 
   const handleDeleteMentor = async (id: string) => {
-    await deleteMentor(id);
-    toast.success('Mentor removed');
+    // Optimistic update
+    setMentors(prev => prev.filter(m => m.id !== id));
+    try {
+      await deleteMentor(id);
+      toast.success('Mentor removed');
+    } catch (err) {
+      toast.error('Failed to remove mentor');
+    }
   };
 
   useEffect(() => {

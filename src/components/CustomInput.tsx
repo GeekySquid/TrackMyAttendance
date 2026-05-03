@@ -16,7 +16,7 @@ export default function CustomInput({
   ...props
 }: CustomInputProps) {
   return (
-    <div className={`flex flex-col gap-1.5 w-full ${className}`}>
+    <div className={`flex flex-col gap-2.5 w-full ${className}`}>
       {label && (
         <label className="text-sm font-black text-gray-700 ml-1 tracking-tight">
           {label}

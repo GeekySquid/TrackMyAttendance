@@ -175,14 +175,19 @@ export default function StudentsPage() {
     if (!confirmDeleteId) return;
     const studentId = confirmDeleteId;
     setConfirmDeleteId(null);
+    
+    // Optimistic update
+    setStudents(prev => prev.filter(s => (s.uid || s.id) !== studentId));
+    if (selectedStudent?.id === studentId || selectedStudent?.uid === studentId) {
+      setSelectedStudent(null);
+    }
+
     try {
       await deleteUser(studentId);
       toast.success('Student removed successfully');
-      if (selectedStudent?.id === studentId || selectedStudent?.uid === studentId) {
-        setSelectedStudent(students.find(s => s.id !== studentId && s.uid !== studentId) || null);
-      }
     } catch (err) {
       toast.error('Failed to remove student');
+      // Realtime listener will eventually restore if it failed, but let's be proactive if needed
     } finally {
       setIsDeleting(null);
     }

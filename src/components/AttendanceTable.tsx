@@ -22,7 +22,7 @@ function SkeletonRow() {
   );
 }
 
-export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
+export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?: () => void, onStudentSelect?: (name: string) => void }) {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -348,7 +348,8 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
                 return (
                   <tr
                     key={record.id || idx}
-                    className={`text-[11px] sm:text-xs transition-all duration-500 ${isNew
+                    onClick={() => onStudentSelect?.(record.userName)}
+                    className={`text-[11px] sm:text-xs transition-all duration-500 cursor-pointer ${isNew
                         ? 'bg-blue-50/80 animate-in fade-in slide-in-from-left-2'
                         : 'hover:bg-gray-50/50'
                       }`}
@@ -542,15 +543,23 @@ export default function AttendanceTable({ onClose }: { onClose?: () => void }) {
               </button>
               <button
                 onClick={async () => {
+                  // Optimistic update
+                  setAttendanceRecords(prev => prev.map(r => 
+                    r.id === selectedRecord.id 
+                      ? { ...r, status: 'Present', lateReasonStatus: 'Approved' } 
+                      : r
+                  ));
+                  setShowReasonModal(false);
+
                   try {
                     await updateAttendance(selectedRecord.id, {
                       status: 'Present',
                       lateReasonStatus: 'Approved'
                     });
                     toast.success('Appeal approved successfully!');
-                    setShowReasonModal(false);
                   } catch (err) {
                     toast.error('Failed to approve appeal.');
+                    // Realtime will restore if it failed
                   }
                 }}
                 className="flex-1 py-4 px-6 bg-blue-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"

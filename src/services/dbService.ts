@@ -660,6 +660,7 @@ export const getLeaveRequests = async (userId?: string): Promise<any[]> => {
 };
 
 export const addLeaveRequest = async (request: any): Promise<any> => {
+  const tempId = request.id || `lr-temp-${Date.now()}`;
   const row = {
     user_id: request.userId,
     user_name: request.userName || null,
@@ -672,17 +673,18 @@ export const addLeaveRequest = async (request: any): Promise<any> => {
     applied_on: request.appliedOn || new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  // We don't await the insert here for the return value, we return the mapped row with tempId
+  // The actual insert happens, and Realtime will replace the temp row with the real one.
+  supabase
     .from('leave_requests')
     .insert(row)
     .select()
-    .single();
+    .single()
+    .then(({ data, error }) => {
+      if (error) console.error('[dbService] addLeaveRequest async error:', error.message);
+    });
 
-  if (error) {
-    console.error('[dbService] addLeaveRequest error:', error.message);
-    throw error;
-  }
-  return mapLeaveRequest(data);
+  return mapLeaveRequest({ ...row, id: tempId });
 };
 
 export const updateLeaveRequestStatus = async (
@@ -714,6 +716,47 @@ export const updateLeaveRequestStatus = async (
     } catch (e) {
       console.warn('[dbService] Automated leave notification failed:', e);
     }
+  }
+};
+
+export const bulkUpdateLeaveRequestStatus = async (
+  ids: string[],
+  status: string
+): Promise<void> => {
+  if (!ids.length) return;
+
+  const { data: records, error: fetchError } = await supabase
+    .from('leave_requests')
+    .select('id, user_id, type')
+    .in('id', ids);
+
+  if (fetchError) {
+    console.error('[dbService] bulkUpdateLeaveRequestStatus fetch error:', fetchError.message);
+    throw fetchError;
+  }
+
+  const { error: updateError } = await supabase
+    .from('leave_requests')
+    .update({ status, reviewed_at: new Date().toISOString() })
+    .in('id', ids);
+
+  if (updateError) {
+    console.error('[dbService] bulkUpdateLeaveRequestStatus update error:', updateError.message);
+    throw updateError;
+  }
+
+  // Bulk notifications
+  if (records && records.length > 0) {
+    const notifications = records.map(r => ({
+      user_id: r.user_id,
+      type: status === 'Approved' ? 'success' : 'alert',
+      title: `Leave Request ${status}`,
+      message: `Your ${r.type || 'leave'} request has been ${status.toLowerCase()} in a bulk action.`,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      data: { requestId: r.id }
+    }));
+    await supabase.from('notifications').insert(notifications);
   }
 };
 

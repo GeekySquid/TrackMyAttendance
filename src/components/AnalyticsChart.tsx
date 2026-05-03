@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { listenToCollection } from '../services/dbService';
 import CustomDropdown from './CustomDropdown';
 
@@ -60,10 +60,11 @@ function AnalyticsChart({
     const todayLocalStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const populationCount = isStudentMode ? 1 : (students.length > 0 ? students.length : 1);
 
+    let rawData = [];
+
     if (timeRange === 'Weekly') {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      // We look at the current week (Sun to Sat)
-      return Array(7).fill(0).map((_, i) => {
+      rawData = Array(7).fill(0).map((_, i) => {
         const d = new Date(today);
         d.setDate(d.getDate() - d.getDay() + i);
         const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -73,7 +74,6 @@ function AnalyticsChart({
           dayRecords = dayRecords.filter((r: any) => r.userName === localSelectedStudent);
         }
 
-        // Deduplicate: Count unique userIds per day to ensure accuracy (no 400% logic)
         const uniquePresent = new Set(
           dayRecords
             .filter((r: any) => r.status === 'Present' || r.status === 'Late')
@@ -94,8 +94,7 @@ function AnalyticsChart({
         };
       });
     } else {
-      // Monthly: Show 4 weeks leading up to today
-      return Array(4).fill(0).map((_, weekIdx) => {
+      rawData = Array(4).fill(0).map((_, weekIdx) => {
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - (3 - weekIdx) * 7 - today.getDay());
         const weekEnd = new Date(weekStart);
@@ -107,7 +106,6 @@ function AnalyticsChart({
         for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
           const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
           weekDates.push(dStr);
-          // Only count weekdays that have already passed or are today
           if (d.getDay() !== 0 && d.getDay() !== 6 && dStr <= todayLocalStr) {
             validOperationDays++;
           }
@@ -118,8 +116,6 @@ function AnalyticsChart({
           weekRecords = weekRecords.filter((r: any) => r.userName === localSelectedStudent);
         }
 
-        // Total unique check-ins in this week
-        // Note: For a week-wide "Rate", we need to sum the unique check-ins per day
         let totalDailyUniques = 0;
         weekDates.forEach(ds => {
           if (ds > todayLocalStr) return;
@@ -146,6 +142,14 @@ function AnalyticsChart({
         };
       });
     }
+
+    // Calculate period average for more "Informative Info"
+    const validPoints = rawData.filter(d => d.attendance !== null);
+    const avg = validPoints.length > 0 
+      ? Math.round(validPoints.reduce((acc, curr) => acc + curr.attendance, 0) / validPoints.length) 
+      : 0;
+
+    return rawData.map(d => ({ ...d, average: avg }));
   };
 
   const chartData = React.useMemo(() => processChartData(), [attendanceData, students, localSelectedStudent, timeRange, isStudentMode]);
@@ -164,26 +168,28 @@ function AnalyticsChart({
     }
 
     if (localSelectedStudent === 'All Students' && !isStudentMode) {
-      // Return Best Student of Month logic
       if (students.length === 0) return { type: 'spotlight', name: '—', score: '—', photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=none' };
 
       const studentsWithStats = students.map(s => {
         const studentRecords = attendanceData.filter(r => r.userId === (s.uid || s.id) && new Date(r.date) >= monthStart);
         const uniqueDays = new Set(studentRecords.filter(r => r.status === 'Present' || r.status === 'Late').map(r => r.date)).size;
         const rate = weekdaysSoFar > 0 ? Math.round((uniqueDays / weekdaysSoFar) * 100) : 0;
-        return { ...s, monthlyRate: rate };
+        return { ...s, monthlyRate: rate, presentDays: uniqueDays };
       });
 
       const best = studentsWithStats.sort((a, b) => b.monthlyRate - a.monthlyRate)[0];
       return {
         type: 'spotlight',
         name: best?.name || '—',
+        email: best?.email || '—',
+        id: best?.roll_no || best?.uid || best?.id || '—',
+        department: (best as any)?.department || 'Student',
         score: `${best?.monthlyRate || 0}%`,
+        presentDays: best?.presentDays || 0,
         photoURL: best?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${best?.name || 'best'}`,
         label: 'Best of Month'
       };
     } else {
-      // Individual User Analysis (Ongoing Data)
       const targetName = isStudentMode ? students.find(s => (s.uid || s.id) === userId)?.name : localSelectedStudent;
       const targetUser = students.find(s => s.name === targetName) || (isStudentMode ? { id: userId, name: 'You' } : null);
 
@@ -204,6 +210,9 @@ function AnalyticsChart({
       return {
         type: 'analysis',
         name: targetUser.name,
+        email: (targetUser as any)?.email || '—',
+        id: (targetUser as any)?.roll_no || (targetUser as any)?.uid || (targetUser as any)?.id || '—',
+        department: (targetUser as any)?.department || 'Student',
         photoURL: targetUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.name}`,
         rate: `${attendanceRate}%`,
         punctuality: `${punctualityRate}%`,
@@ -265,8 +274,21 @@ function AnalyticsChart({
                 <img alt={analysis.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-10" src={analysis.photoURL} />
               </div>
               <div className="text-left">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{analysis.label}</p>
-                <h4 className="text-sm font-black text-gray-900">{analysis.name}</h4>
+                <p className="text-[10px] font-black text-blue-600/60 uppercase tracking-widest leading-none mb-1">{analysis.label}</p>
+                <h4 className="text-sm font-black text-gray-900 leading-tight">{analysis.name}</h4>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                  <p className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-gray-300" />
+                    ID: {analysis.id}
+                  </p>
+                  <p className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-gray-300" />
+                    {analysis.email}
+                  </p>
+                  <p className="text-[9px] font-black text-indigo-500/80 uppercase tracking-tighter">
+                    {analysis.department}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -288,9 +310,21 @@ function AnalyticsChart({
                   </div>
                 </>
               ) : (
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-2xl shadow-lg shadow-blue-100">
-                   <p className="text-[9px] font-black text-blue-100 uppercase tracking-widest opacity-80">Monthly Score</p>
-                   <p className="text-lg font-black text-white leading-none">{analysis.score}</p>
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-5 py-3 rounded-2xl shadow-lg shadow-blue-100 border border-white/10">
+                   <p className="text-[9px] font-black text-blue-100 uppercase tracking-widest opacity-80 mb-1">Monthly Score</p>
+                   <div className="flex items-end gap-2">
+                     <p className="text-2xl font-black text-white leading-none">{analysis.score}</p>
+                     <div className="flex flex-col">
+                        <p className="text-[10px] font-black text-blue-100/90 leading-tight">
+                          {analysis.presentDays} Days Present
+                        </p>
+                        {parseInt(analysis.score) >= 90 && (
+                          <p className="text-[8px] font-black text-emerald-300 uppercase tracking-tighter mt-0.5">
+                            Perfect Record
+                          </p>
+                        )}
+                     </div>
+                   </div>
                 </div>
               )}
             </div>
@@ -302,7 +336,7 @@ function AnalyticsChart({
           <ResponsiveContainer width="100%" height="100%" className="outline-none">
             <AreaChart 
               data={chartData} 
-              margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+              margin={{ top: 20, right: 80, left: -20, bottom: 0 }}
               style={{ outline: 'none' }}
             >
               <defs>
@@ -332,18 +366,65 @@ function AnalyticsChart({
               />
               <Tooltip 
                 cursor={{ stroke: '#e2e8f0', strokeWidth: 2, strokeDasharray: '4 4' }}
-                contentStyle={{ 
-                  borderRadius: '16px', 
-                  border: '1px solid #f1f5f9', 
-                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
-                  padding: '12px',
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(8px)'
+                offset={20}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const value = payload[0].value as number;
+                    const status = value >= 75 ? 'Optimal' : value >= 50 ? 'Warning' : 'Critical';
+                    const color = value >= 75 ? '#059669' : value >= 50 ? '#d97706' : '#dc2626';
+                    return (
+                      <div className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl shadow-2xl p-4 min-w-[160px] z-50">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</p>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-black text-gray-800">Attendance</span>
+                          <span className="text-sm font-black text-blue-600">{value}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mb-3">
+                          <div className="h-full transition-all duration-500" style={{ width: `${value}%`, backgroundColor: color }} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-gray-400 uppercase">Status</span>
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: `${color}10`, color }}>{status}</span>
+                        </div>
+                        {payload[1] && (
+                          <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                            <span className="text-[9px] font-black text-gray-400 uppercase">Period Avg</span>
+                            <span className="text-[10px] font-black text-gray-600">{payload[1].value}%</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
-                itemStyle={{ fontSize: '11px', fontWeight: 900, color: '#1e293b' }}
-                labelStyle={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}
-                formatter={(value: number) => [`${value}%`, 'Attendance Rate']} 
               />
+              
+              {/* Reference Line for Minimum Requirement (75%) */}
+              <ReferenceLine 
+                y={75} 
+                stroke="#F87171" 
+                strokeDasharray="4 4" 
+                label={{ 
+                  value: 'Target (75%)', 
+                  position: 'insideRight', 
+                  fill: '#F87171', 
+                  fontSize: 9, 
+                  fontWeight: 900,
+                  offset: 10
+                }} 
+              />
+
+              {/* Period Average Line */}
+              <Area
+                type="monotone"
+                dataKey="average"
+                stroke="#94a3b8"
+                strokeWidth={1}
+                strokeDasharray="5 5"
+                fill="transparent"
+                animationDuration={2000}
+              />
+
               <Area 
                 type="monotone" 
                 dataKey="attendance" 
@@ -353,7 +434,8 @@ function AnalyticsChart({
                 fill="url(#colorAttendance)" 
                 filter="url(#shadow)"
                 connectNulls={false} 
-                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 3, shadow: '0 0 10px rgba(37,99,235,0.5)' }}
+                dot={{ r: 4, fill: '#2563EB', stroke: '#fff', strokeWidth: 2 }}
+                activeDot={{ r: 7, stroke: '#fff', strokeWidth: 3, shadow: '0 0 10px rgba(37,99,235,0.5)' }}
                 animationDuration={2000}
                 animationEasing="ease-in-out"
               />

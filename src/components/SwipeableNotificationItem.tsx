@@ -30,16 +30,18 @@ export default function SwipeableNotificationItem({
 
   const [localIsImportant, setLocalIsImportant] = useState(notification.isImportant);
 
-  const handleDragEnd = async (event: any, info: any) => {
+  const handleDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) {
       // Star/Important
       const nextState = !localIsImportant;
       setLocalIsImportant(nextState);
-      await toggleNotificationImportant(notification.id, localIsImportant);
+      // Non-blocking server sync
+      toggleNotificationImportant(notification.id, localIsImportant);
     } else if (info.offset.x < -100) {
-      // Delete
-      await deleteNotification(notification.id);
+      // Delete - Optimistic removal
       onRemove(notification.id);
+      // Background server sync
+      deleteNotification(notification.id);
     }
   };
 

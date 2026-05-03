@@ -253,7 +253,15 @@ export default function AccessControlPage() {
                               <p className="text-[8px] font-bold text-gray-400 uppercase truncate">Assigned User</p>
                             </div>
                             <button
-                              onClick={() => updateUserRole(user.id, null)}
+                              onClick={async () => {
+                                // Optimistic update
+                                setUsers(prev => prev.map(u => u.id === user.id ? { ...u, roleId: null } : u));
+                                try {
+                                  await updateUserRole(user.id, null);
+                                } catch (err) {
+                                  toast.error('Failed to remove user from role');
+                                }
+                              }}
                               className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 bg-gray-50/50 lg:bg-transparent"
                               title="Remove from role"
                             >
@@ -355,8 +363,15 @@ export default function AccessControlPage() {
                   <div className="pt-2">
                     <button
                       onClick={async () => {
-                        await updateUserRole(selectingRoleForUser.id, null);
+                        const userId = selectingRoleForUser.id;
+                        // Optimistic update
+                        setUsers(prev => prev.map(u => u.id === userId ? { ...u, roleId: null } : u));
                         setSelectingRoleForUser(null);
+                        try {
+                          await updateUserRole(userId, null);
+                        } catch (err) {
+                          toast.error('Failed to remove user from role');
+                        }
                       }}
                       className="w-full p-3 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 rounded-2xl transition-colors border border-dashed border-red-100"
                     >

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User, Search, History } from 'lucide-react';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
-import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus } from '../services/dbService';
+import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus, bulkUpdateLeaveRequestStatus } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -120,28 +120,43 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const handleSubmitRequest = async () => {
     if (!fromDate || !toDate || !reason || !user) return;
 
-    try {
-      await addLeaveRequest({
-        userId: user.uid || user.id,
-        userName: user.name,
-        rollNo: user.rollNo,
-        course: user.course || 'N/A',
-        fromDate,
-        toDate,
-        type: leaveType,
-        reason,
-        status: 'Pending',
-        appliedOn: new Date().toISOString(),
-      });
+    const tempRequest = {
+      id: `lr-temp-${Date.now()}`,
+      userId: user.uid || user.id,
+      userName: user.name,
+      rollNo: user.rollNo,
+      course: user.course || 'N/A',
+      fromDate,
+      toDate,
+      type: leaveType,
+      reason,
+      status: 'Pending',
+      appliedOn: new Date().toISOString(),
+    };
 
-      setActiveTab('history');
-      setFromDate('');
-      setToDate('');
-      setReason('');
+    // Optimistic update
+    setLeaveRequests(prev => [tempRequest, ...prev]);
+    setActiveTab('history');
+    const prevFrom = fromDate;
+    const prevTo = toDate;
+    const prevReason = reason;
+
+    setFromDate('');
+    setToDate('');
+    setReason('');
+
+    try {
+      await addLeaveRequest(tempRequest);
       toast.success("Leave request submitted successfully!");
     } catch (err) {
       console.error("Failed to submit request:", err);
       toast.error("Failed to submit leave request. Please try again.");
+      // Rollback
+      setLeaveRequests(prev => prev.filter(r => r.id !== tempRequest.id));
+      setFromDate(prevFrom);
+      setToDate(prevTo);
+      setReason(prevReason);
+      setActiveTab('apply');
     }
   };
 
@@ -165,20 +180,24 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const handleBulkApprove = async () => {
     if (selectedIds.size === 0) return;
     const idsToProcess = Array.from(selectedIds);
-    const loadingToast = toast.loading(`Approving ${idsToProcess.length} requests...`);
     
+    // Optimistic update
+    setLeaveRequests(prev => prev.map(r => idsToProcess.includes(r.id) ? { ...r, status: 'Approved' } : r));
     setProcessingIds(prev => {
       const next = new Set(prev);
       idsToProcess.forEach(id => next.add(id));
       return next;
     });
 
+    const loadingToast = toast.loading(`Approving ${idsToProcess.length} requests...`);
+    setSelectedIds(new Set());
+
     try {
-      await Promise.all(idsToProcess.map(id => updateLeaveRequestStatus(id, 'Approved')));
+      await bulkUpdateLeaveRequestStatus(idsToProcess, 'Approved');
       toast.success(`Successfully approved ${idsToProcess.length} requests`, { id: loadingToast });
-      setSelectedIds(new Set());
     } catch (err) {
       toast.error("Failed to process some requests", { id: loadingToast });
+      // Realtime will reconcile, but we could rollback here if needed
     } finally {
       setProcessingIds(prev => {
         const next = new Set(prev);

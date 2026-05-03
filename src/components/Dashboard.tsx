@@ -23,6 +23,7 @@ import AttendanceTable from './AttendanceTable';
 import LeaveReports from './LeaveReports';
 import AnalyticsChart from './AnalyticsChart';
 import QuickActions from './QuickActions';
+import StudentProfile from './StudentProfile';
 import { supabase } from '../lib/supabase';
 import {
   listenToCollection,
@@ -884,7 +885,7 @@ export default function Dashboard({ user }: { user: any }) {
               }
             }
           }}
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6"
         >
           {isLoading ? (
             <>
@@ -931,7 +932,7 @@ export default function Dashboard({ user }: { user: any }) {
 
         {/* Layout Grid (Attendance & Leave Reports) */}
         <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
-          <AttendanceTable />
+          <AttendanceTable onStudentSelect={setSelectedStudentName} />
           <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${pendingLeaveCount > 0 ? 'lg:grid-cols-2' : ''}`}>
             <QuickActions
               students={students}
@@ -943,12 +944,18 @@ export default function Dashboard({ user }: { user: any }) {
           </div>
         </div>
 
-        {/* Bottom Section (Analytics) */}
-        <div className="grid grid-cols-1 gap-4 sm:gap-8">
+        {/* Bottom Section (Analytics & Profile) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-12">
           <AnalyticsChart
             selectedStudent={selectedStudentName}
             onStudentSelect={setSelectedStudentName}
           />
+          <div className="lg:mt-0">
+            <StudentProfile 
+              student={students.find(s => s.name === selectedStudentName)} 
+              isAdmin={true} 
+            />
+          </div>
         </div>
       </div>
     </div>

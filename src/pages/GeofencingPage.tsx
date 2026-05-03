@@ -110,22 +110,23 @@ export default function GeofencingPage() {
   const toggleSchedule = async (id: string) => {
     const schedule = schedules.find(s => s.id === id);
     if (!schedule) return;
+    
+    // Optimistic update
+    setSchedules(prev => prev.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
+    
     try {
       await updateGeofenceSchedule(id, { isActive: !schedule.isActive });
-      setSchedules(prev =>
-        prev.map(s =>
-          s.id === id ? { ...s, isActive: !s.isActive } : s
-        )
-      );
     } catch (err: any) {
       toast.error('Failed to update schedule');
+      // State will reconcile automatically via fetch or manual restore
     }
   };
 
   const deleteSchedule = async (id: string) => {
+    // Optimistic update
+    setSchedules(prev => prev.filter(s => s.id !== id));
     try {
       await deleteGeofenceSchedule(id);
-      setSchedules(prev => prev.filter(s => s.id !== id));
       toast.success('Schedule deleted');
     } catch (err) {
       toast.error('Failed to delete schedule');

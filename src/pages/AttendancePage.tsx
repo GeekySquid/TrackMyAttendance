@@ -217,7 +217,7 @@ export default function AttendancePage({ user }: { user: any }) {
 
       <div className={`grid grid-cols-1 gap-4 sm:gap-8 mb-8 ${pendingAppealsCount > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
         <div className={pendingAppealsCount > 0 ? 'lg:col-span-2' : ''}>
-          <AttendanceTable />
+          <AttendanceTable onStudentSelect={setSelectedStudentName} />
         </div>
         {pendingAppealsCount > 0 && (
           <div className="flex flex-col gap-8 lg:col-span-1">

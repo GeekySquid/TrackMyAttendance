@@ -53,11 +53,16 @@ const SubscriberManagementPage: React.FC = () => {
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'unsubscribed' : 'active';
+    
+    // Optimistic update
+    setSubscribers(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+    
     const success = await updateSubscriberStatus(id, newStatus);
     if (success) {
       toast.success(`Subscriber ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
     } else {
       toast.error('Failed to update status');
+      // Realtime will restore
     }
   };
 

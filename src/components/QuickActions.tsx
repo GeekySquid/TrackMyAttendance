@@ -32,7 +32,11 @@ export default function QuickActions({ students, attendance, adminProfile, sched
 
   const handleForceCheckout = async () => {
     if (!window.confirm('This will immediately check out ALL students currently marked as Verified. Continue?')) return;
+    
+    // Optimistic UI
+    toast.success('Initiating bulk checkout...');
     setIsProcessing(true);
+    
     try {
       await markBulkCheckOut();
       toast.success('All active students have been checked out.');
@@ -94,7 +98,11 @@ export default function QuickActions({ students, attendance, adminProfile, sched
       ? `${selectedLoc.locationName} | ${selectedLoc.lat}, ${selectedLoc.lng}`
       : 'Campus';
 
+    // Optimistic UI
     setIsProcessing(true);
+    setShowBulkModal(false);
+    toast.success(`Marking ${targets.length} students as present...`);
+
     try {
       const records = targets.map(s => ({
         userId: s.uid || s.id,
@@ -108,8 +116,6 @@ export default function QuickActions({ students, attendance, adminProfile, sched
       }));
 
       await bulkMarkAttendance(records);
-      toast.success(`Marked ${targets.length} students as present.`);
-      setShowBulkModal(false);
       setSelectedIds(new Set());
     } catch (err) {
       toast.error('Failed to mark bulk attendance.');
@@ -121,7 +127,11 @@ export default function QuickActions({ students, attendance, adminProfile, sched
   const handleSendReminder = async () => {
     if (!reminderMessage) return toast.error('Please enter a message.');
 
+    // Optimistic UI
     setIsProcessing(true);
+    setShowReminderModal(false);
+    toast.success('Sending reminders...');
+
     try {
       if (reminderType === 'all') {
         // Use Global Broadcast (efficient: 1 row)
@@ -131,15 +141,6 @@ export default function QuickActions({ students, attendance, adminProfile, sched
           type: 'announcement',
           sender_id: adminProfile?.id
         });
-
-        toast.success('Announcement broadcasted successfully!', {
-          icon: '📢',
-          style: {
-            borderRadius: '12px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
       } else {
         let rawTargets = [];
         if (reminderType === 'absent') {
@@ -148,7 +149,6 @@ export default function QuickActions({ students, attendance, adminProfile, sched
           rawTargets = students.filter(s => s.course === reminderCourse);
         }
 
-        // Filter out any students without valid IDs to prevent DB errors
         const targets = rawTargets.filter(s => (s.uid || s.id));
 
         if (targets.length === 0) {
@@ -157,7 +157,6 @@ export default function QuickActions({ students, attendance, adminProfile, sched
           return;
         }
 
-        // Use Bulk Insert (efficient: 1 batch)
         const notifications = targets.map(s => ({
           userId: s.uid || s.id,
           type: 'warning',
@@ -168,15 +167,11 @@ export default function QuickActions({ students, attendance, adminProfile, sched
         }));
 
         await bulkAddNotifications(notifications);
-        toast.success(`Reminder sent to ${targets.length} students.`);
       }
-
-      setShowReminderModal(false);
       setReminderMessage('');
     } catch (err: any) {
       console.error('[QuickActions] handleSendReminder error:', err);
-      const errorMsg = err.message || 'Database connection error';
-      toast.error(`Failed to send reminders: ${errorMsg}`);
+      toast.error(`Failed to send reminders.`);
     } finally {
       setIsProcessing(false);
     }
