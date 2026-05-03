@@ -45,11 +45,11 @@ export default function CustomDropdown({
     <div className={className}>
       {label && <label className="block text-sm font-black text-gray-700 mb-2.5 ml-1 tracking-tight">{label}</label>}
       
-      <div className="relative" ref={dropdownRef}>
+      <div className="relative isolate" ref={dropdownRef}>
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full flex items-center justify-between px-4 py-2.5 sm:py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold transition-all duration-300
+          className={`w-full flex items-center justify-between px-4 py-2.5 sm:py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold transition-all duration-300 relative z-20
             ${isOpen ? 'border-blue-400 ring-4 ring-blue-50/50 shadow-md' : 'hover:border-gray-300 shadow-sm'}
             ${!selectedOption ? 'text-gray-400' : 'text-gray-900'}
             group
@@ -59,17 +59,22 @@ export default function CustomDropdown({
             {MainIcon && <MainIcon className={`w-4 h-4 transition-colors ${isOpen ? 'text-blue-500' : 'text-gray-400'}`} />}
             <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           </div>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-500 ${isOpen ? 'rotate-180 text-blue-500' : 'group-hover:text-gray-600'}`} />
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: "anticipate" }}
+          >
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-colors ${isOpen ? 'text-blue-500' : 'group-hover:text-gray-600'}`} />
+          </motion.div>
         </button>
 
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 4, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-              className="absolute z-[100] top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute z-10 top-[calc(100%+6px)] left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
             >
               <div className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar">
                 {options.length === 0 ? (

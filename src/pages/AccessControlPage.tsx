@@ -332,7 +332,7 @@ export default function AccessControlPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xs overflow-hidden border border-gray-100"
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xs border border-gray-100"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
@@ -388,7 +388,7 @@ export default function AccessControlPage() {
       {/* Add Role Modal */}
       {showAddRoleModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">Create New Role</h3>
               <button onClick={() => setShowAddRoleModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -425,7 +425,7 @@ export default function AccessControlPage() {
       {/* Add User Modal */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">Add New User</h3>
               <button onClick={() => setShowAddUserModal(false)} className="text-gray-400 hover:text-gray-600">

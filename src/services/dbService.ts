@@ -1786,3 +1786,17 @@ export const markSubscriberMailed = async (id: string): Promise<boolean> => {
   }
 };
 
+export const deleteSubscriber = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('subscribers')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[dbService] deleteSubscriber error:', err);
+    return false;
+  }
+};
+

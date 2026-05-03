@@ -284,6 +284,31 @@ Move the state update logic (e.g., `setStudents(...)`) to inside the `try` block
 
 ---
 
+## [2026-05-03] - Subscriber Management Removal & Dropdown Fixes
+**Author:** Antigravity AI
+**Status:** Completed
+
+### 1. File: `src/pages/SubscriberManagementPage.tsx` & `src/services/dbService.ts`
+*   **Change:** Implemented a full permanent removal (deletion) workflow for waitlist nodes.
+*   **Key Features:**
+    *   **Trash Icon**: Added a `Trash2` action button to each row in the subscriber table.
+    *   **Optimistic UI**: Subscribers are removed from the view instantly upon deletion for zero perceived lag.
+    *   **Confirmation Modal**: Added a high-fidelity, centered confirmation modal matching the app's premium aesthetic.
+    *   **Backend Integration**: Added `deleteSubscriber` to `dbService.ts` to perform the actual Supabase `delete` operation.
+*   **Stability Fix:** Restored missing `useState` and `useEffect` imports that were accidentally dropped during the UI update.
+
+### 2. File: `src/components/CustomDropdown.tsx`
+*   **Change:** Fixed a persistent issue where the dropdown menu would overlap the input/trigger field.
+*   **Key Fixes:**
+    *   **Explicit Positioning**: Replaced `top-full` and `mt-2` with `top-[calc(100%+6px)]` to guarantee a consistent gap.
+    *   **Animation Stabilization**: Removed the `y` transform from the entry animation to prevent variable offsets in complex layouts.
+    *   **Stacking Context**: Added `isolate` to the parent and explicit `z-index` (`z-20` for button, `z-10` for menu) to ensure correct layering.
+
+### How to Revert
+To revert the subscriber removal, remove the `Trash2` button and `handleRemoveSubscriber` logic. For the dropdown, revert the `top` and `motion` prop changes.
+
+---
+
 ## [Future Entry Template]
 ### File: `path/to/file`
 *   **Change:** Describe what was changed.

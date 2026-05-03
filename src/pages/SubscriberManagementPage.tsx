@@ -23,10 +23,11 @@ import {
   Copy,
   Download,
   ChevronDown,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listenToCollection, updateSubscriberStatus, markSubscriberMailed } from '../services/dbService';
+import { listenToCollection, updateSubscriberStatus, markSubscriberMailed, deleteSubscriber } from '../services/dbService';
 import toast from 'react-hot-toast';
 import CustomDropdown from '../components/CustomDropdown';
 
@@ -36,6 +37,7 @@ const SubscriberManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeTo, setComposeTo] = useState<string[]>([]);
@@ -63,6 +65,23 @@ const SubscriberManagementPage: React.FC = () => {
     } else {
       toast.error('Failed to update status');
       // Realtime will restore
+    }
+  };
+
+  const handleRemoveSubscriber = async () => {
+    if (!confirmDeleteId) return;
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+
+    // Optimistic update
+    setSubscribers(prev => prev.filter(s => s.id !== id));
+    setSelectedUsers(prev => prev.filter(uid => uid !== id));
+
+    const success = await deleteSubscriber(id);
+    if (success) {
+      toast.success('Subscriber removed from stream');
+    } else {
+      toast.error('Failed to remove subscriber');
     }
   };
 
@@ -343,6 +362,13 @@ const SubscriberManagementPage: React.FC = () => {
                           >
                             {entry.status === 'active' ? <Ban className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                           </button>
+                          <button 
+                            onClick={() => setConfirmDeleteId(entry.id)}
+                            className="p-2 lg:p-2.5 bg-gray-50 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg lg:rounded-xl transition-all border border-gray-100"
+                            title="Remove Subscriber"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </motion.div>
@@ -474,6 +500,50 @@ const SubscriberManagementPage: React.FC = () => {
                     Transmit Signal
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDeleteId && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmDeleteId(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[2rem] shadow-2xl border border-white overflow-hidden p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-100 shadow-sm">
+                <Trash2 className="w-8 h-8 text-rose-500" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase">Remove Node?</h3>
+              <p className="text-[11px] text-gray-400 font-bold mt-2 leading-relaxed">
+                Are you sure you want to remove <strong>{subscribers.find(s => s.id === confirmDeleteId)?.email}</strong> from the protocol stream? This action cannot be undone.
+              </p>
+              
+              <div className="flex gap-3 mt-8">
+                <button 
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="flex-1 py-4 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRemoveSubscriber}
+                  className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-rose-200"
+                >
+                  Remove
+                </button>
               </div>
             </motion.div>
           </div>
