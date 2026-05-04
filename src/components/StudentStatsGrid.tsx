@@ -18,7 +18,7 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
 
     const fetchStats = async () => {
       try {
-        const { getAttendance, getStudentLeaderboardStats, getTodayDateStr } = await import('../services/dbService');
+        const { getAttendance, getStudentLeaderboardStats, getTodayDateStr, getGeofenceSchedules } = await import('../services/dbService');
         
         // 1. Fetch all attendance logs for real-time session count & streak
         const logs = await getAttendance(user.id);
@@ -30,6 +30,7 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
         if (logs.length > 0) {
           const sorted = [...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           const today = getTodayDateStr();
+          const schedules = await getGeofenceSchedules();
           
           let checkDate = new Date();
           // If not checked in today, start checking from yesterday
@@ -38,14 +39,27 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
              checkDate.setDate(checkDate.getDate() - 1);
           }
 
+          // Check last 30 days
           for (let i = 0; i < 30; i++) {
             const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-            const log = sorted.find(l => l.date === dateStr);
-            if (log && ['Present', 'Late'].includes(log.status)) {
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][checkDate.getDay()];
+            
+            // Is there at least one session scheduled for this day?
+            const hasScheduledSession = schedules.some(s => s.days?.includes(dayName));
+            
+            if (!hasScheduledSession) {
+              // No session scheduled (weekend/holiday) -> skip this day, don't break streak
+              checkDate.setDate(checkDate.getDate() - 1);
+              continue;
+            }
+
+            const hasRecord = sorted.some(l => l.date === dateStr && ['Present', 'Late'].includes(l.status));
+            
+            if (hasRecord) {
               streak++;
               checkDate.setDate(checkDate.getDate() - 1);
             } else {
-              // Streak broken (ignore weekends if needed? No, let's keep it simple for now)
+              // Streak broken only on days with scheduled sessions
               break;
             }
           }
@@ -58,9 +72,9 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
 
         if (!isMounted) return;
 
-        const streakTag = streak >= 10 ? 'LEGENDARY' : streak >= 5 ? 'IRON WILL' : streak >= 3 ? 'ON FIRE' : 'STARTING UP';
-        const attendanceTag = totalSessions >= 20 ? 'MASTER' : totalSessions >= 10 ? 'EXCELLENT' : totalSessions >= 5 ? 'REGULAR' : 'VERIFIED';
-        const pointsTag = totalPoints >= 200 ? 'ELITE CLASS' : totalPoints >= 100 ? 'PRO LEVEL' : totalPoints >= 50 ? 'RISING' : 'NOVICE';
+        const streakTag = streak >= 10 ? 'LEGENDARY' : streak >= 5 ? 'ELITE' : streak >= 3 ? 'ON FIRE' : streak >= 1 ? 'ACTIVE' : 'STARTING UP';
+        const attendanceTag = totalSessions >= 40 ? 'MASTER' : totalSessions >= 20 ? 'EXCELLENT' : totalSessions >= 10 ? 'REGULAR' : 'VERIFIED';
+        const pointsTag = totalPoints >= 500 ? 'ELITE CLASS' : totalPoints >= 200 ? 'PRO LEVEL' : totalPoints >= 50 ? 'RISING' : 'NOVICE';
         
         let rankStr = myRank === 1 ? '1st' : myRank === 2 ? '2nd' : myRank === 3 ? '3rd' : `${myRank}th`;
         if (myRank === 0) rankStr = 'N/A';
@@ -69,7 +83,7 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
         setStats([
           { label: 'STREAK', value: `${streak}d`, icon: Flame, color: 'text-orange-500', bg: 'bg-orange-400', iconBg: 'bg-orange-100/50', insight: streakTag },
           { label: 'SESSIONS', value: `${totalSessions}s`, icon: Calendar, color: 'text-blue-500', bg: 'bg-blue-400', iconBg: 'bg-blue-100/50', insight: attendanceTag },
-          { label: 'POINTS', value: totalPoints.toString(), icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-400', iconBg: 'bg-yellow-100/50', insight: pointsTag },
+          { label: 'POINTS', value: totalPoints.toFixed(1), icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-400', iconBg: 'bg-yellow-100/50', insight: pointsTag },
           { label: 'RANK', value: rankStr, icon: Trophy, color: 'text-purple-500', bg: 'bg-purple-400', iconBg: 'bg-purple-100/50', insight: rankTag }
         ]);
         setLoading(false);
