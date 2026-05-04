@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, Trophy, AlertTriangle, User, Search, History } from 'lucide-react';
+import { 
+  FileText, CheckCircle, Clock, XCircle, Plus, Calendar, Loader2, 
+  Trophy, AlertTriangle, User, Search, History, Trash2, Briefcase, 
+  MessageSquare as MessageSquareIcon, Info, Mail 
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import LeaveReports from '../components/LeaveReports';
 import StatCard from '../components/StatCard';
 import { listenToCollection, addLeaveRequest, updateLeaveRequestStatus, bulkUpdateLeaveRequestStatus } from '../services/dbService';
@@ -10,7 +15,6 @@ import CustomDropdown from '../components/CustomDropdown';
 import CustomDateInput from '../components/CustomDateInput';
 import CustomInput from '../components/CustomInput';
 import CustomTextarea from '../components/CustomTextarea';
-import { Mail, MessageSquare as MessageSquareIcon, Briefcase, Info } from 'lucide-react';
 
 function SkeletonLeaveRow({ cols }: { cols: number }) {
   return (
@@ -35,12 +39,15 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Form state
   const [leaveType, setLeaveType] = useState('Casual Leave');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [activeTab, setActiveTab] = useState<'history' | 'apply'>('history');
+  
+  // Admin-specific state
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [targetStudentId, setTargetStudentId] = useState('');
 
   useEffect(() => {
     setIsLoading(true);
@@ -64,6 +71,28 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   }, [role, user]);
 
   useEffect(() => {
+    if (role === 'admin') {
+      const fetchStudents = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, roll_no, course')
+          .eq('role', 'student')
+          .order('name');
+        
+        if (data) {
+          setAllStudents(data.map(s => ({
+            id: s.id,
+            name: s.name,
+            rollNo: s.roll_no,
+            course: s.course
+          })));
+        }
+      };
+      fetchStudents();
+    }
+  }, [role]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('apply') === 'true') {
       setActiveTab('apply');
@@ -76,7 +105,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     const matchesStatus = statusFilter === 'All Status' || r.status === statusFilter;
     const matchesType = typeFilter === 'All Types' || r.type === typeFilter;
     const matchesCourse = courseFilter === 'All Courses' || r.course === courseFilter;
-    
+
     // Timeline filtering
     let matchesTimeline = true;
     const today = new Date();
@@ -117,20 +146,52 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const rejectedCount = leaveRequests.filter(r => r.status === 'Rejected').length;
   const totalRequests = leaveRequests.length || 1;
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} records?`)) return;
+
+    const idsToProcess = Array.from(selectedIds);
+    const loadingToast = toast.loading(`Deleting ${idsToProcess.length} records...`);
+
+    // Optimistic update
+    setLeaveRequests(prev => prev.filter(r => !idsToProcess.includes(r.id)));
+    setSelectedIds(new Set());
+
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.from('leave_requests').delete().in('id', idsToProcess);
+      if (error) throw error;
+      toast.success(`Successfully deleted ${idsToProcess.length} records`, { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to delete some records", { id: loadingToast });
+    }
+  };
+
   const handleSubmitRequest = async () => {
-    if (!fromDate || !toDate || !reason || !user) return;
+    if (!fromDate || !toDate || !reason) return;
+    
+    let targetUser = user;
+    if (role === 'admin') {
+      if (!targetStudentId) {
+        toast.error("Please select a student first");
+        return;
+      }
+      targetUser = allStudents.find(s => s.id === targetStudentId);
+    }
+
+    if (!targetUser) return;
 
     const tempRequest = {
       id: `lr-temp-${Date.now()}`,
-      userId: user.uid || user.id,
-      userName: user.name,
-      rollNo: user.rollNo,
-      course: user.course || 'N/A',
+      userId: targetUser.uid || targetUser.id,
+      userName: targetUser.name,
+      rollNo: targetUser.rollNo,
+      course: targetUser.course || 'N/A',
       fromDate,
       toDate,
       type: leaveType,
       reason,
-      status: 'Pending',
+      status: role === 'admin' ? 'Approved' : 'Pending',
       appliedOn: new Date().toISOString(),
     };
 
@@ -144,19 +205,34 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
     setFromDate('');
     setToDate('');
     setReason('');
+    setTargetStudentId('');
 
     try {
       await addLeaveRequest(tempRequest);
-      toast.success("Leave request submitted successfully!");
+      toast.success(role === 'admin' ? "Leave recorded successfully!" : "Leave request submitted successfully!");
     } catch (err) {
       console.error("Failed to submit request:", err);
-      toast.error("Failed to submit leave request. Please try again.");
+      toast.error("Failed to process leave. Please try again.");
       // Rollback
       setLeaveRequests(prev => prev.filter(r => r.id !== tempRequest.id));
       setFromDate(prevFrom);
       setToDate(prevTo);
       setReason(prevReason);
       setActiveTab('apply');
+    }
+  };
+
+  const handleDeleteRequest = async (id: string) => {
+    if (!id || !confirm("Are you sure you want to delete this leave request?")) return;
+    
+    // Optimistic
+    setLeaveRequests(prev => prev.filter(r => r.id !== id));
+    try {
+      const { deleteLeaveRequest } = await import('../services/dbService');
+      await deleteLeaveRequest(id);
+      toast.success("Request deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete request");
     }
   };
 
@@ -180,7 +256,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
   const handleBulkApprove = async () => {
     if (selectedIds.size === 0) return;
     const idsToProcess = Array.from(selectedIds);
-    
+
     // Optimistic update
     setLeaveRequests(prev => prev.map(r => idsToProcess.includes(r.id) ? { ...r, status: 'Approved' } : r));
     setProcessingIds(prev => {
@@ -229,7 +305,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
             </h2>
             <p className="text-sm text-gray-500 mt-2 font-medium">Apply for leave and track your request status in real-time.</p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -273,21 +349,19 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         <div className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-2xl mb-6 w-full sm:w-fit">
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'history' 
-                ? 'bg-white text-blue-600 shadow-sm' 
+            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'history'
+                ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             My History
           </button>
           <button
             onClick={() => setActiveTab('apply')}
-            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeTab === 'apply' 
-                ? 'bg-white text-blue-600 shadow-sm' 
+            className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'apply'
+                ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             Apply Now
           </button>
@@ -352,8 +426,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                       </td>
                       <td className="py-2.5 px-6 sm:py-3 text-right">
                         <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${leave.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                            leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                              'bg-red-50 text-red-700 border-red-100'
+                          leave.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                            'bg-red-50 text-red-700 border-red-100'
                           }`}>
                           {leave.status}
                         </span>
@@ -383,15 +457,15 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                       transition={{ delay: i * 0.05 }}
                       key={leave.id || i}
                       className={`bg-gradient-to-br p-4 rounded-3xl border shadow-sm transition-all active:scale-[0.98] ${leave.status === 'Approved' ? 'from-green-50/50 to-green-100/20 border-green-100/50' :
-                          leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
-                            'from-red-50/50 to-red-100/20 border-red-100/50'
+                        leave.status === 'Pending' ? 'from-orange-50/50 to-orange-100/20 border-orange-100/50' :
+                          'from-red-50/50 to-red-100/20 border-red-100/50'
                         }`}
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:rotate-6 ${leave.status === 'Approved' ? 'bg-green-500 text-white shadow-green-100' :
-                              leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
-                                'bg-red-500 text-white shadow-red-100'
+                            leave.status === 'Pending' ? 'bg-orange-500 text-white shadow-orange-100' :
+                              'bg-red-500 text-white shadow-red-100'
                             }`}>
                             {leave.status === 'Approved' ? <CheckCircle className="w-4 h-4" /> :
                               leave.status === 'Pending' ? <Clock className="w-4 h-4" /> :
@@ -400,8 +474,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                           <div>
                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Status</p>
                             <h4 className={`text-xs font-black uppercase tracking-tight ${leave.status === 'Approved' ? 'text-green-900' :
-                                leave.status === 'Pending' ? 'text-orange-900' :
-                                  'text-red-900'
+                              leave.status === 'Pending' ? 'text-orange-900' :
+                                'text-red-900'
                               }`}>{leave.status}</h4>
                           </div>
                         </div>
@@ -455,6 +529,22 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
 
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-1 gap-6">
+                {role === 'admin' && (
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Select Student</label>
+                    <select
+                      value={targetStudentId}
+                      onChange={(e) => setTargetStudentId(e.target.value)}
+                      className="w-full p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-600 bg-gray-50/30 text-sm outline-none transition-all"
+                    >
+                      <option value="">-- Choose Student --</option>
+                      {allStudents.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.rollNo || 'No Roll No'})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Leave Category</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -467,11 +557,10 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                       <button
                         key={type.id}
                         onClick={() => setLeaveType(type.id)}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${
-                          leaveType === type.id 
-                            ? `border-blue-600 bg-blue-50/50 shadow-md` 
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${leaveType === type.id
+                            ? `border-blue-600 bg-blue-50/50 shadow-md`
                             : 'border-gray-100 hover:border-gray-200 bg-gray-50/30'
-                        }`}
+                          }`}
                       >
                         <type.icon className={`w-5 h-5 ${leaveType === type.id ? 'text-blue-600' : 'text-gray-400'}`} />
                         <span className={`text-[10px] font-black uppercase tracking-tight ${leaveType === type.id ? 'text-blue-700' : 'text-gray-500'}`}>
@@ -543,9 +632,28 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
             <p className="text-sm text-gray-500 font-bold mt-1">Review and process student leave applications with full control</p>
           </div>
 
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <button
+              onClick={() => setActiveTab(activeTab === 'history' ? 'apply' : 'history')}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white text-sm font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-95 hover:-translate-y-0.5"
+            >
+              {activeTab === 'history' ? (
+                <>
+                  <Plus className="w-5 h-5" />
+                  Add Leave Record
+                </>
+              ) : (
+                <>
+                  <History className="w-5 h-5" />
+                  View History
+                </>
+              )}
+            </button>
+          </div>
+
           <AnimatePresence>
             {selectedIds.size > 0 && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -553,13 +661,19 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
               >
                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{selectedIds.size} Selected</p>
                 <div className="h-8 w-px bg-gray-100 mx-1" />
-                <button 
+                <button
                   onClick={handleBulkApprove}
                   className="px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95"
                 >
-                  Bulk Approve
+                  Approve
                 </button>
-                <button 
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-6 py-2.5 bg-red-50 text-red-600 border border-red-100 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition-all active:scale-95"
+                >
+                  Delete
+                </button>
+                <button
                   onClick={() => setSelectedIds(new Set())}
                   className="px-4 py-2.5 text-gray-400 hover:text-gray-600 text-[10px] font-black uppercase tracking-widest transition-all"
                 >
@@ -571,108 +685,131 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
-        <StatCard
-          title="Total Requests" value={leaveRequests.length.toString()} total="50" percentage="90%" trend="" trendUp={true}
-          icon={<FileText className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500"
-        />
-        <StatCard
-          title="Pending" value={pendingCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((pendingCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
-          icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400"
-        />
-        <StatCard
-          title="Approved" value={approvedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((approvedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
-          icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500"
-        />
-        <StatCard
-          title="Rejected" value={rejectedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((rejectedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={false}
-          icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400"
-        />
+      <div className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-2xl mb-6 w-full sm:w-fit lg:hidden">
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+        >
+          History
+        </button>
+        <button
+          onClick={() => setActiveTab('apply')}
+          className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'apply' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+        >
+          Add New
+        </button>
       </div>
+
+      {activeTab === 'history' ? (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+            <StatCard
+              title="Total Requests" value={leaveRequests.length.toString()} total="50" percentage="90%" trend="" trendUp={true}
+              icon={<FileText className="h-6 w-6 text-blue-600" />} colorClass="text-blue-600" bgClass="bg-blue-50" progressColorClass="bg-blue-500"
+            />
+            <StatCard
+              title="Pending" value={pendingCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((pendingCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
+              icon={<Clock className="h-6 w-6 text-orange-400" />} colorClass="text-orange-400" bgClass="bg-orange-50" progressColorClass="bg-orange-400"
+            />
+            <StatCard
+              title="Approved" value={approvedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((approvedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={true}
+              icon={<CheckCircle className="h-6 w-6 text-green-500" />} colorClass="text-green-500" bgClass="bg-green-50" progressColorClass="bg-green-500"
+            />
+            <StatCard
+              title="Rejected" value={rejectedCount.toString()} total={leaveRequests.length.toString()} percentage={`${Math.round((rejectedCount / Math.max(1, leaveRequests.length)) * 100)}%`} trend="" trendUp={false}
+              icon={<XCircle className="h-6 w-6 text-red-500" />} colorClass="text-red-500" bgClass="bg-red-50" progressColorClass="bg-red-400"
+            />
+          </div>
 
       <div className={`grid grid-cols-1 gap-4 sm:gap-8 mb-8 ${pendingCount > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
         {pendingCount > 0 && <LeaveReports />}
-        <div className={`bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col ${pendingCount > 0 ? 'lg:col-span-2' : ''}`}>
-          <div className="p-3 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              Leave History
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
-            </h3>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-64">
+        <div className={`bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col relative z-30 ${pendingCount > 0 ? 'lg:col-span-2' : ''}`}>
+          <div className="p-3 sm:p-6 border-b border-gray-100 flex flex-col gap-4 relative z-30">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-[950] text-gray-800 tracking-tight flex items-center gap-2">
+                Leave History
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+              </h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:block">Filtered History</p>
+            </div>
+            
+            <div className="flex flex-col lg:flex-row items-center gap-3 w-full">
+              <div className="relative w-full lg:flex-1 min-w-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search ID, Name, Roll No..."
+                  placeholder="Search by ID, Name, Roll No or Reason..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm bg-gray-50/50"
                 />
               </div>
-              <CustomDropdown
-                options={[
-                  { value: 'All Time', label: 'All Time' },
-                  { value: 'Active Leaves', label: 'Currently Active' },
-                  { value: 'Upcoming', label: 'Upcoming Only' },
-                  { value: 'Past', label: 'Historical' }
-                ]}
-                value={timelineFilter}
-                onChange={setTimelineFilter}
-                className="w-full sm:w-40"
-              />
-              <CustomDropdown
-                options={[
-                  { value: 'All Courses', label: 'All Courses' },
-                  ...Array.from(new Set(leaveRequests.map(r => r.course).filter(Boolean)))
-                    .map(c => ({ value: c, label: c }))
-                ]}
-                value={courseFilter}
-                onChange={setCourseFilter}
-                className="w-full sm:w-40"
-              />
-              <CustomDropdown
-                options={[
-                  { value: 'All Types', label: 'All Types' },
-                  { value: 'Casual Leave', label: 'Casual' },
-                  { value: 'Sick Leave', label: 'Sick' },
-                  { value: 'Emergency', label: 'Emergency' }
-                ]}
-                value={typeFilter}
-                onChange={setTypeFilter}
-                className="w-full sm:w-40"
-              />
-              <CustomDropdown
-                options={[
-                  { value: 'All Status', label: 'All Status' },
-                  { value: 'Approved', label: 'Approved' },
-                  { value: 'Pending', label: 'Pending' },
-                  { value: 'Rejected', label: 'Decline' }
-                ]}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                className="w-full sm:w-40"
-              />
+              <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
+                <CustomDropdown
+                  options={[
+                    { value: 'All Time', label: 'All Time' },
+                    { value: 'Active Leaves', label: 'Currently Active' },
+                    { value: 'Upcoming', label: 'Upcoming Only' },
+                    { value: 'Past', label: 'Historical' }
+                  ]}
+                  value={timelineFilter}
+                  onChange={setTimelineFilter}
+                  className="w-full sm:w-32 lg:w-40"
+                />
+                <CustomDropdown
+                  options={[
+                    { value: 'All Courses', label: 'All Courses' },
+                    ...Array.from(new Set(leaveRequests.map(r => r.course).filter(Boolean)))
+                      .map(c => ({ value: c, label: c }))
+                  ]}
+                  value={courseFilter}
+                  onChange={setCourseFilter}
+                  className="w-full sm:w-32 lg:w-40"
+                />
+                <CustomDropdown
+                  options={[
+                    { value: 'All Types', label: 'All Types' },
+                    { value: 'Casual Leave', label: 'Casual' },
+                    { value: 'Sick Leave', label: 'Sick' },
+                    { value: 'Emergency', label: 'Emergency' }
+                  ]}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  className="w-full sm:w-28 lg:w-32"
+                />
+                <CustomDropdown
+                  options={[
+                    { value: 'All Status', label: 'All Status' },
+                    { value: 'Approved', label: 'Approved' },
+                    { value: 'Pending', label: 'Pending' },
+                    { value: 'Rejected', label: 'Decline' }
+                  ]}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  className="w-full sm:w-28 lg:w-32"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-x-auto custom-scrollbar">
             {/* Desktop Table View */}
-            <div className="hidden md:block table-fixed-height overflow-y-auto custom-scrollbar">
+            <div className="hidden md:block min-w-[800px] table-fixed-height overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-gray-50/90 z-20 backdrop-blur-md shadow-[0_1px_0_0_#f9fafb]">
                   <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
                     <th className="pb-2 px-6 w-12">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         onChange={(e) => {
                           if (e.target.checked) {
-                            const pendingIds = filteredRequests.filter(r => r.status === 'Pending').map(r => r.id);
-                            setSelectedIds(new Set(pendingIds));
+                            const allVisibleIds = filteredRequests.map(r => r.id);
+                            setSelectedIds(new Set(allVisibleIds));
                           } else {
                             setSelectedIds(new Set());
                           }
                         }}
-                        checked={selectedIds.size > 0 && selectedIds.size === filteredRequests.filter(r => r.status === 'Pending').length}
+                        checked={selectedIds.size > 0 && selectedIds.size === filteredRequests.length}
                         className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </th>
@@ -698,14 +835,12 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                     adminItems.map((req, i) => (
                       <tr key={req.id || i} className={`text-[11px] sm:text-xs transition-all duration-500 hover:bg-blue-50/30 ${selectedIds.has(req.id) ? 'bg-blue-50/50' : ''}`}>
                         <td className="py-2.5 px-6 sm:py-3 text-center">
-                          {req.status === 'Pending' && (
-                            <input 
-                              type="checkbox" 
-                              checked={selectedIds.has(req.id)}
-                              onChange={() => toggleSelection(req.id)}
-                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                          )}
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(req.id)}
+                            onChange={() => toggleSelection(req.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
                         </td>
                         <td className="py-2.5 px-6 sm:py-3 text-gray-600 font-medium">
                           <div className="flex items-center gap-3">
@@ -743,7 +878,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                           <p className="font-bold text-gray-700">{req.type}</p>
                           <p className="text-[10px] text-gray-500 max-w-[200px] truncate">{req.reason}</p>
                         </td>
-                        <td className="py-2.5 px-6 sm:py-3 text-center">
+                        <td className="py-2.5 px-6 sm:py-3 text-center flex items-center justify-center gap-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -753,6 +888,16 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                             title="View Student Context"
                           >
                             <History className="w-4 h-4 group-hover/btn:rotate-[-45deg] transition-transform duration-500" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRequest(req.id);
+                            }}
+                            className="p-2 hover:bg-red-50 rounded-xl text-red-500 transition-all hover:scale-110 active:scale-95"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                         <td className="py-2.5 px-6 sm:py-3 text-right">
@@ -775,7 +920,7 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                             </div>
                           ) : (
                             <span className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                                'bg-red-50 text-red-700 border-red-100'
+                              'bg-red-50 text-red-700 border-red-100'
                               }`}>
                               {req.status}
                             </span>
@@ -813,8 +958,8 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
                         </div>
                       </div>
                       <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border shrink-0 ${req.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
-                          req.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                            'bg-red-50 text-red-700 border-red-100'
+                        req.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                          'bg-red-50 text-red-700 border-red-100'
                         }`}>
                         {req.status}
                       </span>
@@ -862,6 +1007,106 @@ export default function LeaveRequestsPage({ role = 'admin', user }: { role?: 'ad
           </div>
         </div>
       </div>
+    </>
+  ) : (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col max-w-2xl mx-auto"
+        >
+          {/* Modal Header style but integrated */}
+          <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
+            <div className="relative z-10">
+              <h3 className="text-2xl font-[950] tracking-tight mb-1">Record Student Leave</h3>
+              <p className="text-blue-100 text-xs font-medium uppercase tracking-[0.2em]">Manual Entry Portal</p>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Select Student</label>
+                <select
+                  value={targetStudentId}
+                  onChange={(e) => setTargetStudentId(e.target.value)}
+                  className="w-full p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-600 bg-gray-50/30 text-sm outline-none transition-all"
+                >
+                  <option value="">-- Choose Student --</option>
+                  {allStudents.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.rollNo || 'No Roll No'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Leave Category</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'Casual Leave', label: 'Casual', icon: Briefcase, color: 'blue' },
+                    { id: 'Sick Leave', label: 'Sick', icon: AlertTriangle, color: 'orange' },
+                    { id: 'Emergency', label: 'Emergency', icon: Clock, color: 'purple' },
+                    { id: 'Personal Leave', label: 'Personal', icon: User, color: 'indigo' }
+                  ].map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => setLeaveType(type.id)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${leaveType === type.id
+                          ? `border-blue-600 bg-blue-50/50 shadow-md`
+                          : 'border-gray-100 hover:border-gray-200 bg-gray-50/30'
+                        }`}
+                    >
+                      <type.icon className={`w-5 h-5 ${leaveType === type.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-tight ${leaveType === type.id ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {type.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <CustomDateInput
+                  label="From Date"
+                  value={fromDate}
+                  onChange={setFromDate}
+                />
+                <CustomDateInput
+                  label="To Date"
+                  value={toDate}
+                  onChange={setToDate}
+                />
+              </div>
+
+              <CustomTextarea
+                label="Application Reason"
+                icon={MessageSquareIcon}
+                rows={4}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Please provide detailed justification for this leave record..."
+              />
+            </div>
+
+            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase tracking-wider">
+                This leave will be automatically approved and recorded in the student's history.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+            <button
+              onClick={handleSubmitRequest}
+              disabled={!fromDate || !toDate || !reason || !targetStudentId}
+              className="w-full py-5 bg-blue-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:grayscale active:scale-95"
+            >
+              Record Leave
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

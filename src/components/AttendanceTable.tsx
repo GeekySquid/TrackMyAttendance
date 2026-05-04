@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, Download, Search, Info, CalendarDays, History, Loader2, MapPin, Navigation, Clock, FileText, FileSpreadsheet, FileIcon as FilePdf, MessageSquare, X, Copy } from 'lucide-react';
-import { listenToCollection, updateAttendance } from '../services/dbService';
+import { motion, AnimatePresence } from 'framer-motion';
+import { listenToCollection, updateAttendance, getTodayDateStr } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = getTodayDateStr();
 
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 function SkeletonRow() {
@@ -118,7 +119,7 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `attendance_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `attendance_report_${getTodayDateStr()}.csv`;
     link.click();
     toast.success('CSV exported successfully!');
   };
@@ -136,7 +137,7 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-    XLSX.writeFile(workbook, `attendance_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `attendance_report_${getTodayDateStr()}.xlsx`);
     toast.success('Excel exported successfully!');
   };
 
@@ -161,7 +162,7 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
       styles: { fontSize: 8 },
       headStyles: { fillColor: [37, 99, 235] }
     });
-    doc.save(`attendance_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`attendance_report_${getTodayDateStr()}.pdf`);
     toast.success('PDF exported successfully!');
   };
 
@@ -451,18 +452,36 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
 
                     <td className="py-2.5 px-1 sm:py-3 sm:px-2" data-label="Status">
                       {record.status === 'Late' ? (
-                        <div className="relative flex justify-end sm:justify-start">
+                        <div className="relative flex justify-end sm:justify-start group">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRecord(record);
                               setShowReasonModal(true);
                             }}
-                            className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all border border-orange-100 shadow-sm group"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-100 transition-all border border-orange-100 shadow-sm relative"
                           >
-                            <span className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
-                            <span className="text-[9px] font-black uppercase">Late</span>
-                            <MessageSquare className="w-2.5 h-2.5 ml-0.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Late</span>
+                            <MessageSquare className="w-3 h-3 ml-0.5 opacity-60" />
+
+                            {/* Glass Tooltip */}
+                            <AnimatePresence>
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                whileHover={{ opacity: 1, y: 0, scale: 1 }}
+                                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-4 bg-white/80 backdrop-blur-xl rounded-[1.5rem] shadow-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 z-50 border border-white/20 text-slate-900"
+                              >
+                                <div className="flex items-center gap-2 mb-2 border-b border-black/5 pb-2">
+                                  <div className="p-1 bg-orange-500/10 rounded">
+                                    <MessageSquare className="w-3 h-3 text-orange-600" />
+                                  </div>
+                                  <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Late Reason</span>
+                                </div>
+                                <div className="font-medium leading-relaxed italic text-[11px]">"{record.lateReason || 'No reason provided'}"</div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white/80" />
+                              </motion.div>
+                            </AnimatePresence>
                           </button>
                         </div>
                       ) : record.status === 'Present' ? (

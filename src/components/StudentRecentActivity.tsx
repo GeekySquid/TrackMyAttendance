@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import { listenToCollection } from '../services/dbService';
+import { listenToCollection, getTodayDateStr } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export default function StudentRecentActivity({ user }: { user?: any }) {
@@ -26,13 +26,13 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       const studentLogs = uniqueRecords
         .filter(r => r.userId === uid)
         .sort((a, b) => {
-          // Sort by date DESC, then by checkInTime DESC
-          const dateA = new Date(a.date).getTime();
-          const dateB = new Date(b.date).getTime();
+          // Sort by date DESC, then by createdAt DESC (most authoritative timestamp)
+          const dateA = new Date(a.rawDate || a.date).getTime();
+          const dateB = new Date(b.rawDate || b.date).getTime();
           if (dateA !== dateB) return dateB - dateA;
 
-          const timeA = a.checkInTime ? new Date(a.checkInTime).getTime() : 0;
-          const timeB = b.checkInTime ? new Date(b.checkInTime).getTime() : 0;
+          const timeA = new Date(a.createdAt).getTime();
+          const timeB = new Date(b.createdAt).getTime();
           return timeB - timeA;
         })
         .map(r => {
@@ -65,9 +65,17 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
           return {
             id: r.id,
             displayDate: safeDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' }),
-            rawDate: r.date, // Store YYYY-MM-DD for accurate filtering
-            in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-            out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+            rawDate: r.date, 
+            in: (() => {
+              if (!r.checkInTime) return '--';
+              const d = new Date(r.checkInTime);
+              return isNaN(d.getTime()) ? '--' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            })(),
+            out: (() => {
+              if (!r.checkOutTime) return '--';
+              const d = new Date(r.checkOutTime);
+              return isNaN(d.getTime()) ? '--' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            })(),
             rawInTime: r.checkInTime,
             status: r.status,
             locationName: cleanName,
@@ -159,7 +167,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `activity_log_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `activity_log_${getTodayDateStr()}.csv`;
       link.click();
       toast.success('CSV Exported Successfully');
     } catch (e) {
@@ -172,7 +180,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
       const worksheet = XLSX.utils.json_to_sheet(filteredLogs);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Activity Log");
-      XLSX.writeFile(workbook, `activity_log_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(workbook, `activity_log_${getTodayDateStr()}.xlsx`);
       toast.success('Excel Exported Successfully');
     } catch (e) {
       toast.error('Failed to export Excel');
@@ -192,7 +200,7 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
         headStyles: { fillColor: [37, 99, 235] }
       });
 
-      doc.save(`activity_log_${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`activity_log_${getTodayDateStr()}.pdf`);
       toast.success('PDF Exported Successfully');
     } catch (e) {
       toast.error('Failed to export PDF');
@@ -404,26 +412,45 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                           </td>
                           <td className="py-2.5 px-5 text-right whitespace-nowrap relative">
                             <div className="flex justify-end items-center group/status">
-                              <span className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center cursor-help transition-all duration-300 hover:scale-105 ${log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200' :
-                                  log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 ring-2 ring-transparent hover:ring-orange-200' :
-                                    'bg-red-50 text-red-700 border-red-200'
+                              <button 
+                                onClick={() => {
+                                  if (log.status === 'Late') {
+                                    window.dispatchEvent(new CustomEvent('trigger-late-modal', { detail: { log } }));
+                                  }
+                                }}
+                                className={`inline-flex ml-auto text-xs font-bold px-2.5 py-1.5 rounded-lg border items-center transition-all duration-300 hover:scale-105 ${
+                                  log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-200 cursor-default' :
+                                  log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-200 ring-2 ring-transparent hover:ring-orange-200 cursor-pointer active:scale-95' :
+                                  'bg-red-50 text-red-700 border-red-200 cursor-default'
                                 }`}>
                                 <span className={`w-1.5 h-1.5 rounded-full mr-2 ${log.status === 'Present' ? 'bg-green-500' : log.status === 'Late' ? 'bg-orange-500' : 'bg-red-500'}`} />
                                 {log.status}
-                              </span>
+                              </button>
                               {log.status === 'Late' && log.lateReason && (
-                                <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 w-64 p-4 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 opacity-0 group-hover/status:opacity-100 pointer-events-none transition-all duration-300 transform translate-x-2 group-hover/status:translate-x-0 scale-95 group-hover/status:scale-100 backdrop-blur-sm">
-                                  <div className="flex items-center gap-2 mb-2 border-b border-gray-50 pb-2">
-                                    <Info className="w-4 h-4 text-orange-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Late Reason</span>
-                                  </div>
-                                  <p className="text-xs text-gray-700 font-medium leading-relaxed italic">"{log.lateReason}"</p>
-                                  {log.image && <img src={log.image} alt="Late Proof" className="mt-3 rounded-lg w-full h-24 object-cover border border-gray-100" />}
-                                  <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Check-in</span>
-                                    <span className="text-[10px] font-bold text-blue-600 uppercase">{log.in}</span>
-                                  </div>
-                                </div>
+                                <AnimatePresence>
+                                  <motion.div 
+                                    initial={{ opacity: 0, x: 10, scale: 0.95 }}
+                                    whileHover={{ opacity: 1, x: 0, scale: 1 }}
+                                    className="absolute right-full mr-4 top-1/2 -translate-y-1/2 w-64 p-5 bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 z-50 opacity-0 group-hover/status:opacity-100 pointer-events-none transition-all duration-300"
+                                  >
+                                    <div className="flex items-center gap-2 mb-3 border-b border-black/5 pb-3">
+                                      <div className="p-1.5 bg-orange-500/10 rounded-lg">
+                                        <Info className="w-4 h-4 text-orange-500" />
+                                      </div>
+                                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Late Protocol</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-700 font-medium leading-relaxed italic">"{log.lateReason}"</p>
+                                    {log.image && (
+                                      <div className="mt-4 rounded-2xl overflow-hidden border border-black/5 shadow-inner">
+                                        <img src={log.image} alt="Proof" className="w-full h-24 object-cover" />
+                                      </div>
+                                    )}
+                                    <div className="mt-4 pt-3 border-t border-black/5 flex justify-between items-center">
+                                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Recorded At</span>
+                                      <span className="text-[10px] font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full">{log.in}</span>
+                                    </div>
+                                  </motion.div>
+                                </AnimatePresence>
                               )}
                             </div>
                             {log.rejoins && log.rejoins.length > 0 && (
@@ -474,12 +501,20 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date</span>
                       <span className="text-sm font-black text-gray-800">{log.displayDate}</span>
                     </div>
-                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider ${log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-100' :
-                        log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                          'bg-red-50 text-red-700 border-red-100'
+                    <button 
+                      onClick={() => {
+                        if (log.status === 'Late') {
+                          window.dispatchEvent(new CustomEvent('trigger-late-modal', { detail: { log } }));
+                        }
+                      }}
+                      className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider transition-all active:scale-95 ${
+                        log.out === '--' ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-100' :
+                        log.status === 'Present' ? 'bg-green-50 text-green-700 border-green-100' :
+                        log.status === 'Late' ? 'bg-orange-50 text-orange-700 border-orange-100 ring-1 ring-orange-200' :
+                        'bg-red-50 text-red-700 border-red-100'
                       }`}>
-                      {log.status}
-                    </span>
+                      {log.out === '--' ? 'LIVE SESSION' : log.status}
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-4">
@@ -492,9 +527,9 @@ export default function StudentRecentActivity({ user }: { user?: any }) {
                     </div>
                     <div>
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Check Out {log.sessionEndTime && <span className="text-gray-300 ml-1 font-mono">(Ends {log.sessionEndTime})</span>}</span>
-                      <div className="flex items-center gap-2 text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                        <Clock className="w-3.5 h-3.5 text-purple-500" />
-                        <span className="text-xs font-black">{log.out}</span>
+                      <div className={`flex items-center gap-2 p-2 rounded-xl border ${log.out === '--' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
+                        <Clock className={`w-3.5 h-3.5 ${log.out === '--' ? 'text-blue-500' : 'text-purple-500'}`} />
+                        <span className="text-xs font-black">{log.out === '--' ? 'ONGOING' : log.out}</span>
                       </div>
                     </div>
                     <div className="col-span-2">

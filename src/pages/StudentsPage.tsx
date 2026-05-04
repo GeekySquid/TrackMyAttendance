@@ -51,6 +51,7 @@ export default function StudentsPage() {
   const [newCourse, setNewCourse] = useState('MCA');
   const [newPhone, setNewPhone] = useState('');
   const [newMentorId, setNewMentorId] = useState('');
+  const [newBloodGroup, setNewBloodGroup] = useState('');
   const [mentors, setMentors] = useState<any[]>([]);
 
   useEffect(() => {
@@ -105,13 +106,26 @@ export default function StudentsPage() {
     });
   }, [students, attendanceSummary, monthlyWinnerId, searchQuery, courseFilter]);
 
-  // Handle automatic student selection
+  // Handle automatic student selection and real-time updates
   useEffect(() => {
     if (!isLoading && filteredStudents.length > 0) {
       const currentId = selectedStudent?.uid || selectedStudent?.id;
-      const stillInList = filteredStudents.find(s => (s.uid || s.id) === currentId);
       
-      if (!stillInList) {
+      if (!currentId) {
+        // Initial load: select the first student
+        setSelectedStudent(filteredStudents[0]);
+        return;
+      }
+
+      const updatedStudent = filteredStudents.find(s => (s.uid || s.id) === currentId);
+      
+      if (updatedStudent) {
+        // Update selected student data if it has changed (e.g. attendance update)
+        if (JSON.stringify(updatedStudent) !== JSON.stringify(selectedStudent)) {
+          setSelectedStudent(updatedStudent);
+        }
+      } else {
+        // Fallback to first student if current selection is no longer in the filtered list
         setSelectedStudent(filteredStudents[0]);
       }
     }
@@ -145,8 +159,10 @@ export default function StudentsPage() {
       status: 'Active',
       attendance: '100%',
       mentorId: newMentorId,
+      bloodGroup: newBloodGroup,
       createdAt: new Date().toISOString(),
       onboarded: true,
+      profileCompleted: true,
     };
 
     // Optimistic: add to list immediately
@@ -215,6 +231,7 @@ export default function StudentsPage() {
     setNewCourse('MCA');
     setNewPhone('');
     setNewMentorId('');
+    setNewBloodGroup('');
   };
 
   const uniqueCourses = ['All Courses', ...Array.from(new Set(students.map(s => s.course).filter(Boolean)))];
@@ -499,11 +516,8 @@ export default function StudentsPage() {
           </div>
         </div>
         <div className="col-span-1">
-          <div className="flex items-center gap-2 mb-4">
-            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Profile Detail</h4>
-          </div>
           <StudentProfile 
-            student={filteredStudents.find(s => (s.uid || s.id) === (selectedStudent?.uid || selectedStudent?.id))} 
+            student={selectedStudent} 
             onClose={() => setSelectedStudent(null)} 
             onNavigate={handleNavigateProfile}
             isAdmin={true}
@@ -581,16 +595,36 @@ export default function StudentsPage() {
                 />
               </div>
 
-              <div className="pt-2">
-                <CustomDropdown
-                  label="Assign Mentor"
-                  options={[
-                    { value: "", label: "No Mentor Assigned" },
-                    ...mentors.map(m => ({ value: m.id, label: m.name }))
-                  ]}
-                  value={newMentorId}
-                  onChange={setNewMentorId}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Blood Group</label>
+                  <select
+                    value={newBloodGroup}
+                    onChange={(e) => setNewBloodGroup(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Blood Group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+                <div className="pt-0">
+                  <CustomDropdown
+                    label="Assign Mentor"
+                    options={[
+                      { value: "", label: "No Mentor Assigned" },
+                      ...mentors.map(m => ({ value: m.id, label: m.name }))
+                    ]}
+                    value={newMentorId}
+                    onChange={setNewMentorId}
+                  />
+                </div>
               </div>
             </div>
 

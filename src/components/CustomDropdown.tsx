@@ -45,7 +45,7 @@ export default function CustomDropdown({
     <div className={className}>
       {label && <label className="block text-sm font-black text-gray-700 mb-2.5 ml-1 tracking-tight">{label}</label>}
       
-      <div className="relative isolate" ref={dropdownRef}>
+      <div className="relative" ref={dropdownRef}>
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
@@ -74,7 +74,7 @@ export default function CustomDropdown({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute z-10 top-[calc(100%+6px)] left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
+              className="absolute z-[100] top-[calc(100%+6px)] left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
             >
               <div className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar">
                 {options.length === 0 ? (

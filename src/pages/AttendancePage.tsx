@@ -8,7 +8,7 @@ import AnalyticsChart from '../components/AnalyticsChart';
 import StudentProfile from '../components/StudentProfile';
 import LateAppealsList from '../components/LateAppealsList';
 import QuickActions from '../components/QuickActions';
-import { listenToCollection } from '../services/dbService';
+import { listenToCollection, getTodayDateStr } from '../services/dbService';
 import toast from 'react-hot-toast';
 
 export default function AttendancePage({ user }: { user: any }) {
@@ -38,7 +38,7 @@ export default function AttendancePage({ user }: { user: any }) {
   const calculateInsights = () => {
     if (attendanceData.length === 0) return "Not enough data to generate insights yet.";
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateStr();
     const todayRecords = attendanceData.filter(r => r.date === today);
     const presentToday = todayRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
     
@@ -70,7 +70,7 @@ export default function AttendancePage({ user }: { user: any }) {
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `full_attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `full_attendance_report_${getTodayDateStr()}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -94,7 +94,7 @@ export default function AttendancePage({ user }: { user: any }) {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Report");
-    XLSX.writeFile(workbook, `full_attendance_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `full_attendance_report_${getTodayDateStr()}.xlsx`);
     toast.success('Excel exported successfully!');
   };
 
@@ -119,7 +119,7 @@ export default function AttendancePage({ user }: { user: any }) {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [37, 99, 235] }
     });
-    doc.save(`full_attendance_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`full_attendance_report_${getTodayDateStr()}.pdf`);
     toast.success('PDF exported successfully!');
   };
 

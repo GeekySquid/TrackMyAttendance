@@ -32,7 +32,7 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-  export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: SidebarProps) {
+export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: SidebarProps) {
   const location = useLocation();
   const basePath = role === 'admin' ? '/admin' : '';
   const [isHovered, setIsHovered] = useState(false);
@@ -116,11 +116,11 @@ interface SidebarProps {
         )}
       </AnimatePresence>
 
-      <motion.aside 
+      <motion.aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         initial={false}
-        animate={{ 
+        animate={{
           width: windowWidth < 1024 ? 280 : (isHovered ? 260 : 72),
           x: windowWidth < 1024 ? (isOpen ? 0 : -280) : 0
         }}
@@ -128,26 +128,26 @@ interface SidebarProps {
         className="fixed inset-y-0 left-0 z-50 bg-white/90 backdrop-blur-2xl border-r border-gray-100 flex flex-col shrink-0 lg:relative shadow-2xl lg:shadow-none overflow-hidden"
       >
         {/* Header Section */}
-        <div className="h-24 px-4 flex items-center shrink-0 relative overflow-hidden">
-          <div className="flex items-center w-full min-w-[220px]">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-100 border border-white/20 shrink-0">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-1.5" />
+        <div className="h-20 flex items-center shrink-0 relative overflow-hidden">
+          <div className={`flex items-center w-full transition-all duration-300 ${isHovered ? 'px-4 min-w-[220px]' : 'px-0 justify-center min-w-0'}`}>
+            <div className="w-11 h-11 bg-gradient-to-br from-white to-gray-100 rounded-xl flex items-center justify-center shadow-lg shadow-black/5 border border-white/50 shrink-0">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-sm" />
             </div>
             
-            <div className={`ml-3 transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-              <h1 className="font-black text-gray-900 text-[14px] tracking-tighter leading-tight whitespace-nowrap">
+            <div className={`transition-all duration-300 overflow-hidden ${isHovered ? 'ml-3 w-auto opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 pointer-events-none'}`}>
+              <h1 className="font-black text-gray-900 text-[15px] tracking-tight leading-tight whitespace-nowrap uppercase">
                 {renderStyledBranding(
                   sysSettings?.institution_name || 'TrackMYAttendance',
                   sysSettings?.brand_color_word,
                   sysSettings?.brand_color_type
                 )}
               </h1>
-              <p className="text-[7px] uppercase font-black text-blue-600 tracking-[0.2em] mt-0.5 opacity-60">
+              <p className="text-[9px] uppercase font-black text-blue-600 tracking-[0.15em] mt-0.5 opacity-80">
                 {role === 'admin' ? 'Management Suite' : 'Student Portal'}
               </p>
             </div>
           </div>
-          
+
           <button className="absolute top-4 right-4 lg:hidden text-gray-400 hover:text-gray-700 p-2" onClick={() => setIsOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -159,7 +159,8 @@ interface SidebarProps {
             if (role === 'admin') return true;
             if ((item as any).awardOnly && !user?.isAwardWinner) return false;
 
-            const perms = sysSettings?.role_permissions?.student || [];
+            const defaultPerms = ['dashboard', 'attendance', 'leave', 'leaderboard', 'awards', 'settings'];
+            const perms = sysSettings?.role_permissions?.student || defaultPerms;
             const moduleMapping: Record<string, string> = {
               '': 'dashboard',
               'track-my-attendance': 'attendance',
@@ -188,19 +189,17 @@ interface SidebarProps {
                 key={item.id}
                 to={itemPath}
                 onClick={() => setIsOpen(false)}
-                className={`group relative flex items-center h-11 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 ring-1 ring-blue-500/20' 
+                className={`group relative flex items-center h-11 rounded-xl transition-all duration-200 ${isActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 ring-1 ring-blue-500/20'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600'
-                }`}
+                  }`}
               >
                 <div className="w-[40px] flex items-center justify-center shrink-0 ml-1">
                   <Icon className={`h-[18px] w-[18px] transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
                 </div>
-                
-                <span className={`ml-2 whitespace-nowrap text-[12px] font-bold transition-all duration-300 ${
-                  isLabelsVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
-                }`}>
+
+                <span className={`ml-2 whitespace-nowrap text-[12px] font-bold transition-all duration-300 ${isLabelsVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+                  }`}>
                   {item.label}
                 </span>
 
@@ -210,7 +209,7 @@ interface SidebarProps {
                     <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45" />
                   </div>
                 )}
-                
+
                 {isActive && !isLabelsVisible && (
                   <div className="absolute right-0 w-1 h-4 bg-white rounded-l-full" />
                 )}
@@ -230,9 +229,8 @@ interface SidebarProps {
               <div className="w-[40px] flex items-center justify-center shrink-0 ml-1">
                 <Download className="h-4 w-4" />
               </div>
-              <span className={`ml-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}>
+              <span className={`ml-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}>
                 Install
               </span>
             </button>
@@ -246,9 +244,8 @@ interface SidebarProps {
             <div className="w-[40px] flex items-center justify-center shrink-0 ml-1">
               <LogOut className="h-4 w-4" />
             </div>
-            <span className={`ml-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}>
+            <span className={`ml-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}>
               Logout
             </span>
           </button>

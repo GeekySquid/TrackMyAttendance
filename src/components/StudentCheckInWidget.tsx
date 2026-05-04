@@ -12,6 +12,7 @@ import {
   addNotification,
   getLeaveRequests,
   updateLeaveRequestStatus,
+  getTodayDateStr
 } from '../services/dbService';
 import {
   Phone, AlertCircle, Send, X, ClipboardList, LogOut,
@@ -31,6 +32,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkedInStatus, setCheckedInStatus] = useState<string | null>(null);
+  const [processedAbsentSessions] = useState<Set<string>>(new Set());
   const [hasLoadedAttendance, setHasLoadedAttendance] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
   const [lastCheckOut, setLastCheckOut] = useState<string | null>(null);
@@ -51,69 +53,215 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   const [checkoutReasonState, setCheckoutReasonState] = useState<string | null>(null);
   const [checkoutDetails, setCheckoutDetails] = useState('');
   const [verificationState, setVerificationState] = useState<'IDLE' | 'SEARCHING' | 'READY'>('IDLE');
-  const [pendingCheckInData, setPendingCheckInData] = useState<any>(null);
   
   const [showRejoinReasonModal, setShowRejoinReasonModal] = useState(false);
   const [rejoinReasonText, setRejoinReasonText] = useState('');
   const [pendingRejoinLeaveId, setPendingRejoinLeaveId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(true);
+  const [todayLogs, setTodayLogs] = useState<any[]>([]);
 
   const userId = user?.id;
+
+  const getFastDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371000; // Earth's radius in meters
+    const x = (lon2 - lon1) * Math.PI / 180 * Math.cos((lat1 + lat2) * Math.PI / 360);
+    const y = (lat2 - lat1) * Math.PI / 180;
+    return Math.sqrt(x * x + y * y) * R;
+  };
+
+  const handleManualVerifyAndCheckIn = async () => {
+    if (isProcessing || !activeScheduleForCountdown || isCheckedIn) return;
+    
+    setVerificationState('SEARCHING');
+    setIsProcessing(true);
+    let hasVerified = false;
+    
+    const attemptCheckIn = (highAccuracy: boolean, timeout: number) => {
+      return new Promise<boolean>((resolve) => {
+        if (hasVerified) return resolve(true);
+
+        const sched = activeScheduleForCountdown;
+        const targetLat = parseFloat(sched.lat);
+        const targetLng = parseFloat(sched.lng);
+        const targetRadius = parseFloat(sched.radius);
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const dist = getFastDistance(latitude, longitude, targetLat, targetLng);
+          
+          const buffer = Math.max(20, targetRadius * 0.1);
+          
+          if (dist <= (targetRadius + buffer)) {
+            const now = new Date().toISOString();
+            const today = getTodayDateStr();
+            const startParts = sched.time.split(':');
+            const windowStart = new Date();
+            windowStart.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0);
+            
+            const settings = await getSystemSettings();
+            const graceMinutes = settings?.late_threshold_mins || 15; 
+            const graceEnd = new Date(windowStart.getTime() + graceMinutes * 60000);
+            const isLate = new Date() > graceEnd;
+
+            const checkInData = {
+              userId, 
+              userName: user.name, 
+              rollNo: user.rollNo, 
+              course: user.course,
+              date: today, 
+              checkInTime: now, 
+              status: isLate ? 'Late' : 'Present', 
+              locationName: sched.locationName,
+              locationCoords: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+              location: `${sched.locationName} | ${latitude.toFixed(6)}, ${longitude.toFixed(6)} | ${sched.endTime || 'N/A'}`
+            };
+
+            try {
+              // ─── DUPLICATE / REJOIN CHECK ───
+              const logs = await getAttendance(userId);
+              const existingRecord = logs.find(l => 
+                l.date === today && 
+                l.locationName === sched.locationName
+              );
+
+              if (existingRecord) {
+                if (!existingRecord.checkOutTime) {
+                  // Already active
+                  setIsCheckedIn(true);
+                  setVerificationState('IDLE');
+                  toast.success(`You are already checked in for ${sched.locationName}.`);
+                  return;
+                } else {
+                  // REJOIN
+                  const rejoinEntry = {
+                    time: now,
+                    reason: 'Manual Rejoin',
+                    coords: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+                  };
+                  await updateAttendance(existingRecord.id, {
+                    checkOutTime: null,
+                    rejoins: [...(existingRecord.rejoins || []), rejoinEntry]
+                  });
+                  setIsCheckedIn(true);
+                  setVerificationState('IDLE');
+                  toast.success(`Rejoined session: ${sched.locationName}`);
+                  return;
+                }
+              }
+
+              const recordedData = await addAttendance(checkInData);
+              setIsCheckedIn(true);
+              setVerificationState('IDLE');
+              setIsOutsideZone(false);
+              
+              if (recordedData.status === 'Late') {
+                setPendingLateData(recordedData);
+                setShowLateModal(true);
+              } else {
+                toast.success(`Instant Match! Verified for ${sched.locationName}.`);
+              }
+            } catch (err) {
+              console.error('[ManualVerify] DB Error:', err);
+              toast.error('Sync error. Action queued.');
+              setVerificationState('IDLE');
+            }
+
+            hasVerified = true;
+            resolve(true);
+          } else {
+            setIsOutsideZone(true);
+            resolve(false);
+          }
+        }, (err) => {
+          console.error('[Geolocation] Error:', err);
+          toast.error('Could not get GPS signal.');
+          resolve(false);
+        }, { 
+          enableHighAccuracy: highAccuracy, 
+          timeout: timeout, 
+          maximumAge: highAccuracy ? 0 : 60000 
+        });
+      });
+    };
+
+    try {
+      const instantVerified = await attemptCheckIn(false, 3000); 
+      if (!instantVerified) {
+        await attemptCheckIn(true, 5000);
+      }
+    } catch (e) { 
+      console.error('[ManualVerify] Error:', e);
+    } finally { 
+      setIsProcessing(false); 
+    }
+  };
+
+  // Global listener for manual reason trigger
+  const handleTriggerLateModal = (e: any) => {
+    if (e.detail?.log) {
+      setPendingLateData(e.detail.log);
+      setLateReasonText(e.detail.log.lateReason || '');
+      setShowLateModal(true);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
     const syncAttendance = async () => {
-      const todayLogs = await getAttendance(userId);
-      const today = new Date().toISOString().split('T')[0];
-      const activeLog = todayLogs.slice().reverse().find((log: any) => log.date === today && log.status !== 'Absent');
-      if (activeLog) {
-        setIsCheckedIn(!activeLog.checkOutTime);
-        setLastCheckOut(activeLog.checkOutTime || null);
-        setCheckedInStatus(activeLog.status);
-        setCheckoutReasonState(activeLog.checkoutReason || null);
+      try {
+        const today = getTodayDateStr();
+        const todayLogs = await getAttendance(userId);
+        const activeLog = todayLogs.slice().reverse().find((log: any) => log.date === today && log.status !== 'Absent');
+        
+        if (activeLog && !activeLog.checkOutTime) {
+          setIsCheckedIn(true);
+          setLastCheckIn(activeLog.checkInTime);
+          setCheckedInStatus(activeLog.status);
+          setCheckoutReasonState(activeLog.checkoutReason || null);
+        }
+      } finally {
+        setIsSyncing(false);
       }
     };
     syncAttendance();
 
     const unsub = listenToCollection('attendance', (logs) => {
-      const activeLog = logs.find((l: any) => l.userId === userId && !l.checkOutTime);
+      const today = getTodayDateStr();
+      const filtered = logs.filter((l: any) => l.userId === userId && l.date === today);
+      setTodayLogs(filtered);
+
+      const activeLog = filtered.find((l: any) => !l.checkOutTime && l.status !== 'Absent');
       
       if (activeLog) {
-        // If we have an active session, check if this log is stale (from a previous session today)
-        let isStale = false;
-        if (activeScheduleForCountdown) {
-          const [h, m] = activeScheduleForCountdown.time.split(':').map(Number);
-          const sessionStart = new Date();
-          sessionStart.setHours(h, m, 0, 0);
-          const logTime = new Date(activeLog.checkInTime);
-          if (logTime < sessionStart && activeLog.checkOutTime) {
-            isStale = true;
-          }
-        }
+        setIsCheckedIn(true);
+        setLastCheckIn(activeLog.checkInTime || null);
+        setLastCheckOut(null);
+        setCheckedInStatus(activeLog.status);
+        setCheckoutReasonState(activeLog.checkoutReason || null);
 
-        if (isStale) {
-          setIsCheckedIn(false);
-          setLastCheckIn(null);
-          setLastCheckOut(null);
-          setCheckedInStatus(null);
-          setCheckoutReasonState(null);
-        } else {
-          setIsCheckedIn(!activeLog.checkOutTime);
-          setLastCheckIn(activeLog.checkInTime || null);
-          setLastCheckOut(activeLog.checkOutTime || null);
-          setCheckedInStatus(activeLog.status);
-          setCheckoutReasonState(activeLog.checkoutReason || null);
+        // AUTO-PROMPT LATE REASON IF MISSING
+        if (activeLog.status === 'Late' && !activeLog.lateReason && !showLateModal) {
+          setPendingLateData(activeLog);
+          setShowLateModal(true);
         }
       } else {
-        setIsCheckedIn(false);
-        setLastCheckIn(null);
-        setLastCheckOut(null);
-        setCheckedInStatus(null);
-        setCheckoutReasonState(null);
+        // Only reset if we are not in the middle of a manual re-join or initial sync
+        if (!isSyncing) {
+          setIsCheckedIn(false);
+          setLastCheckIn(null);
+          setCheckedInStatus(null);
+        }
       }
       setHasLoadedAttendance(true);
     }, userId);
-    return () => unsub();
-  }, [userId, activeScheduleForCountdown]);
+
+    window.addEventListener('trigger-late-modal', handleTriggerLateModal);
+
+    return () => {
+      unsub();
+      window.removeEventListener('trigger-late-modal', handleTriggerLateModal);
+    };
+  }, [userId]); // Only depend on userId for data listeners
 
   useEffect(() => {
     if (!userId) return;
@@ -129,13 +277,14 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
     });
 
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+
     return () => {
       unsubSchedules();
       clearInterval(clockInterval);
     };
-  }, [userId]);
+  }, [userId]); // Only depend on userId for system listeners
 
-  // Recalculate schedule every second based on `currentTime`
+  // Recalculate schedule every second and handle AUTO-CHECKOUT
   useEffect(() => {
     if (!allGeofences.length) {
        setWindowOpen(false);
@@ -163,7 +312,84 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
       setGraceSecondsLeft(null);
       setActiveScheduleForCountdown(null);
     }
-  }, [currentTime, allGeofences, sysSettings]);
+
+    // ─── AUTO-CHECKOUT ON SESSION END ───
+    const checkAutoCheckout = async () => {
+      if (isCheckedIn && !isSyncing) {
+        const activeLog = todayLogs.find(l => !l.checkOutTime && l.status !== 'Absent');
+        
+        if (activeLog) {
+          let sessionEndTime = null;
+          if (activeLog.location?.includes('|')) {
+            const parts = activeLog.location.split('|');
+            sessionEndTime = parts[parts.length - 1].trim();
+          }
+
+          if (sessionEndTime && sessionEndTime !== 'N/A') {
+            const [endH, endM] = sessionEndTime.split(':').map(Number);
+            const endTimeDate = new Date();
+            endTimeDate.setHours(endH, endM, 0);
+
+            if (currentTime > endTimeDate) {
+              await updateAttendance(activeLog.id, { 
+                checkOutTime: new Date().toISOString(),
+                checkoutReason: 'Session Auto-Closed'
+              });
+              setIsCheckedIn(false);
+              toast('Session ended. Checkout complete.', { icon: '⏰' });
+            }
+          }
+        }
+      }
+    };
+
+    // ─── AUTO-ABSENT ON SESSION MISSED ───
+    const checkAbsentSessions = async () => {
+      if (isSyncing || !allGeofences.length) return;
+      
+      const today = getTodayDateStr();
+      
+      for (const sched of allGeofences) {
+        // 1. Must be a schedule that has ended
+        if (!sched.endTime || sched.endTime === 'N/A') continue;
+        
+        const [endH, endM] = sched.endTime.split(':').map(Number);
+        const endTimeDate = new Date();
+        endTimeDate.setHours(endH, endM, 0);
+        
+        if (currentTime > endTimeDate) {
+          // 2. Must not already have an attendance record for this session (either in DB or locally processed)
+          const sessionKey = `${today}_${sched.locationName}`;
+          const alreadyInLogs = todayLogs.some(l => l.locationName === sched.locationName);
+          const alreadyProcessed = processedAbsentSessions.has(sessionKey);
+          
+          if (!alreadyInLogs && !alreadyProcessed) {
+            console.log(`[AutoAbsent] Recording absence for ${sched.locationName}`);
+            processedAbsentSessions.add(sessionKey);
+            
+            const absentRecord = {
+              userId,
+              userName: user.name,
+              rollNo: user.rollNo,
+              course: user.course,
+              date: today,
+              checkInTime: null,
+              status: 'Absent',
+              locationName: sched.locationName,
+              location: `${sched.locationName} | Missed Session`
+            };
+            await addAttendance(absentRecord);
+          }
+        }
+      }
+    };
+
+    checkAutoCheckout();
+    // Run absent check less frequently (e.g., every 30 seconds or when minute changes)
+    if (currentTime.getSeconds() % 30 === 0) {
+      checkAbsentSessions();
+    }
+  }, [currentTime, allGeofences, sysSettings, isCheckedIn, isSyncing, userId, todayLogs]);
 
   useEffect(() => {
     if (graceSecondsLeft !== null && graceSecondsLeft > 0) {
@@ -173,148 +399,13 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   }, [graceSecondsLeft]);
 
   useEffect(() => {
-    if (hasLoadedAttendance && windowOpen && !isCheckedIn && !isProcessing && !lastCheckOut && verificationState === 'IDLE') {
-      handleAutoCheckIn();
-    }
     if (!windowOpen) {
       setVerificationState('IDLE');
-      setPendingCheckInData(null);
+      setIsOutsideZone(false);
     }
-  }, [hasLoadedAttendance, windowOpen, isCheckedIn, isProcessing, lastCheckOut, verificationState]);
+  }, [windowOpen]);
 
-  const handleAutoCheckIn = async () => {
-    if (isProcessing || !activeScheduleForCountdown || isCheckedIn) return;
-    
-    setVerificationState('SEARCHING');
-    setIsProcessing(true);
-    let hasCheckedInLocally = false;
-    let locallyOutsideZone = false;
-    
-    const attemptCheckIn = (highAccuracy: boolean) => {
-      return new Promise<void>((resolve) => {
-        if (hasCheckedInLocally) return resolve(); // Skip if already successful
 
-        const sched = activeScheduleForCountdown;
-        const targetLat = parseFloat(sched.lat);
-        const targetLng = parseFloat(sched.lng);
-        const targetRadius = parseFloat(sched.radius);
-
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          const dist = getFastDistance(latitude, longitude, targetLat, targetLng);
-          
-          if (dist <= targetRadius) {
-            locallyOutsideZone = false;
-            setIsOutsideZone(false);
-            const now = new Date().toISOString();
-            const startParts = sched.time.split(':');
-            const windowStart = new Date();
-            windowStart.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0);
-            
-            // Re-fetch or use cached grace period
-            const settings = await getSystemSettings();
-            const graceMinutes = settings?.late_threshold_mins || 15; 
-            const graceEnd = new Date(windowStart.getTime() + graceMinutes * 60000);
-            const isLate = new Date() > graceEnd;
-
-            const checkInData = {
-              userId, 
-              userName: user.name, 
-              rollNo: user.rollNo, 
-              course: user.course,
-              date: new Date().toISOString().split('T')[0], 
-              checkInTime: now, 
-              status: isLate ? 'Late' : 'Present', 
-              locationName: sched.locationName,
-              locationCoords: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-            };
-
-            if (lastCheckOut) {
-              // It's a rejoin, set to READY and wait for manual click
-              setPendingCheckInData(checkInData);
-              setVerificationState('READY');
-              toast.success('Ready to Re-join!');
-            } else {
-              // First time check-in, automate it
-              try {
-                const recordedData = await addAttendance(checkInData);
-                setIsCheckedIn(true);
-                setVerificationState('IDLE');
-                if (isLate) {
-                  setPendingLateData(recordedData);
-                  setShowLateModal(true);
-                } else {
-                  toast.success('Attendance Automated: Verified!');
-                }
-              } catch (err) {
-                console.error('[AutoCheckIn] DB Save failed:', err);
-                toast.error('Auto-checkin failed. Retrying...');
-              }
-            }
-            hasCheckedInLocally = true;
-            setIsProcessing(false);
-            resolve();
-          } else {
-            locallyOutsideZone = true;
-            setIsOutsideZone(true);
-            setIsProcessing(false);
-            resolve();
-          }
-        }, (err) => {
-          console.warn(`[AutoCheckIn] Geolocation attempt (HighAcc: ${highAccuracy}) failed:`, err.message);
-          resolve(); // Resolve anyway to allow next steps or cleanup
-        }, { 
-          enableHighAccuracy: highAccuracy, 
-          timeout: highAccuracy ? 10000 : 15000, 
-          maximumAge: highAccuracy ? 0 : 30000 
-        });
-      });
-    };
-
-    try {
-      // Step 1: Try High Accuracy
-      await attemptCheckIn(true);
-      
-      // Step 2: If still not checked in and not outside zone (meaning it likely timed out or accuracy was poor), try standard
-      if (!hasCheckedInLocally && !locallyOutsideZone) {
-        await attemptCheckIn(false);
-      }
-    } catch (e) { 
-    } finally { 
-      setIsProcessing(false); 
-    }
-  };
-
-  const performFinalCheckIn = async () => {
-    if (!pendingCheckInData || isProcessing) return;
-    setIsProcessing(true);
-    try {
-      const recordedData = await addAttendance(pendingCheckInData);
-      setIsCheckedIn(true);
-      setVerificationState('IDLE');
-      
-      if (recordedData.status === 'Late') {
-        setPendingLateData(recordedData);
-        setShowLateModal(true);
-      } else {
-        toast.success('Check-in Activated Successfully!');
-      }
-    } catch (err) {
-      console.error('[StudentCheckInWidget] Final check-in failed:', err);
-      toast.error('Failed to activate check-in. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Best Mathematical Approach: Equirectangular approximation
-  // Significantly faster than Haversine for small geofences (campus level)
-  const getFastDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371000; // Earth's radius in meters
-    const x = (lon2 - lon1) * Math.PI / 180 * Math.cos((lat1 + lat2) * Math.PI / 360);
-    const y = (lat2 - lat1) * Math.PI / 180;
-    return Math.sqrt(x * x + y * y) * R;
-  };
 
   const handleConfirmLateCheckIn = async () => {
     if (!lateReasonText.trim()) {
@@ -343,7 +434,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   const handleConfirmCheckout = async () => {
     setIsProcessing(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateStr();
       const logs = await getAttendance(userId);
       const activeLog = logs.find((l: any) => l.date === today && !l.checkOutTime);
       if (activeLog) {
@@ -395,7 +486,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
 
     setIsProcessing(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateStr();
       const leaves = await getLeaveRequests(userId);
       const todayEmergencyLeave = leaves.find((l: any) => l.fromDate === today && l.type === 'Emergency');
       
@@ -416,7 +507,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   const proceedWithRejoin = async (reason: string) => {
     setIsProcessing(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateStr();
       
       if (pendingRejoinLeaveId) {
         await updateLeaveRequestStatus(pendingRejoinLeaveId, 'Cancelled');
@@ -665,15 +756,28 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
             ) : (
               <motion.button 
                 key="checkin"
-                onClick={() => { if (verificationState === 'READY') performFinalCheckIn(); }} 
+                onClick={() => {
+                  if (!isCheckedIn && !isProcessing) {
+                    handleManualVerifyAndCheckIn();
+                  }
+                }} 
                 initial={{ opacity: 0, scale: 0.9 }} 
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`btn-master ${verificationState === 'READY' ? 'btn-master-primary' : 'btn-master-disabled'}`}
+                className={`btn-master ${isOutsideZone ? 'bg-red-50 text-red-600 border-red-100' : 'btn-master-primary'}`}
               >
-                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : (verificationState === 'READY' ? <Zap className="w-5 h-5 text-yellow-400" /> : <Navigation className="w-5 h-5" />)}
-                {verificationState === 'READY' ? 'INITIALIZE CHECK-IN' : 'SCANNING ZONE...'}
+                {isProcessing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isOutsideZone ? (
+                  <MapPin className="w-5 h-5 text-red-500" />
+                ) : (
+                  <Navigation className="w-5 h-5" />
+                )}
+                
+                {isProcessing ? 'SCANNING ZONE...' : 
+                 isOutsideZone ? 'OUTSIDE ZONE - RE-VERIFY' : 
+                 'VERIFY & CHECK-IN'}
               </motion.button>
             )}
           </AnimatePresence>
@@ -728,28 +832,31 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
       )}
 
       {showLateModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white/90 backdrop-blur-md rounded-[40px] shadow-2xl w-full max-w-sm overflow-hidden border border-white/20"
+          >
             <div className="p-10">
-              <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-8 border border-orange-100">
+              <div className="w-20 h-20 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-8 border border-orange-200/50">
                 <AlertCircle className="w-10 h-10 text-orange-600" />
               </div>
-              <h3 className="text-2xl font-black text-center text-black-force mb-2 uppercase tracking-tighter">Late Check-in</h3>
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-        <p className="text-center text-red-700 text-xs font-bold uppercase tracking-wider">
-          CRITICAL WARNING
-        </p>
-        <p className="text-center text-red-600 text-[10px] mt-1 font-medium">
-          You missed the grace period. Your check-in time has been recorded, but you <strong className="font-black">MUST</strong> provide a valid reason below. <strong className="font-black underline">Failure to provide a reason will result in your attendance being marked as ABSENT by the administration.</strong>
-        </p>
-      </div>
+              <h3 className="text-2xl font-black text-center text-slate-900 mb-2 uppercase tracking-tighter">Action Required</h3>
+              <p className="text-[10px] text-center font-black text-orange-600 uppercase tracking-widest mb-6">Late Arrival Protocol</p>
+              
+              <div className="bg-orange-50/50 backdrop-blur-sm border border-orange-200/50 rounded-2xl p-5 mb-8">
+                <p className="text-center text-slate-700 text-[11px] font-medium leading-relaxed">
+                  You missed the <span className="font-black text-orange-600">grace period</span>. To access your dashboard and confirm your attendance, please provide a valid reason below.
+                </p>
+              </div>
               
               <div className="space-y-4 mb-8">
                 <CustomTextarea
-                  label="Reason for being late"
+                  label="What was the reason for delay?"
                   value={lateReasonText}
                   onChange={(e) => setLateReasonText(e.target.value)}
-                  placeholder="E.g., Traffic, Transport issue..."
+                  placeholder="E.g., Transportation delay, medical issue..."
                   required
                 />
               </div>
@@ -758,20 +865,14 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
                 <button 
                   onClick={handleConfirmLateCheckIn}
                   disabled={isProcessing || !lateReasonText.trim()}
-                  className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-2xl font-black transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                  className="w-full py-5 bg-slate-900 hover:bg-black disabled:opacity-50 text-white rounded-2xl font-black transition-all text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-slate-200"
                 >
                   {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Submit & Verify Check-in
-                </button>
-                <button 
-                  onClick={() => setShowLateModal(false)} 
-                  className="text-gray-400 hover:text-black text-center w-full font-black text-[11px] uppercase tracking-widest"
-                >
-                  Cancel
+                  Confirm & Unlock Dashboard
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
       {showRejoinReasonModal && (

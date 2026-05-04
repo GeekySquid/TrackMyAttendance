@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   RefreshCw,
   Trophy,
-  Sparkles
+  Sparkles,
+  Mail
 } from 'lucide-react';
 import {
   listenToCollection,
@@ -71,6 +72,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
   });
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
+    email: user?.email || '',
     phone: user?.phone || '',
     gender: user?.gender || '',
     bloodGroup: user?.bloodGroup || '',
@@ -88,6 +90,7 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
     if (user) {
       setProfileForm({
         name: user.name || '',
+        email: user.email || '',
         phone: user.phone || '',
         gender: user.gender || '',
         bloodGroup: user.bloodGroup || '',
@@ -960,6 +963,16 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                       icon={Phone}
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <CustomInput
+                      label="Email Address (Official)"
+                      icon={Mail}
+                      value={profileForm.email}
+                      readOnly
+                      className="opacity-80 bg-gray-50 border-gray-200"
+                      placeholder="No email provided"
                     />
                   </div>
                   <div>

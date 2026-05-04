@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf, History } from 'lucide-react';
-import { listenToCollection } from '../services/dbService';
+import { listenToCollection, getTodayDateStr } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -144,7 +144,7 @@ export default function ReportsPage() {
     }
 
     setShowExportOptions(false);
-    const dateToday = new Date().toISOString().split('T')[0];
+    const dateToday = getTodayDateStr();
 
     if (type === 'csv') {
       const headers = activeColumns.map(([_, col]) => col.label);
@@ -221,7 +221,7 @@ export default function ReportsPage() {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         setStartDate(firstDay);
-        setEndDate(new Date().toISOString().split('T')[0]);
+        setEndDate(getTodayDateStr());
         setStatusFilter('All');
         setSelectedStudent('All');
         setSelectedCourse('All');
@@ -238,7 +238,7 @@ export default function ReportsPage() {
     }
 
     let csvContent = "";
-    const dateToday = new Date().toISOString().split('T')[0];
+    const dateToday = getTodayDateStr();
 
     if (title === 'Monthly Attendance Summary') {
       const now = new Date();
@@ -512,7 +512,7 @@ export default function ReportsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600" data-label="Course">{record.course}</td>
                     <td className="px-4 py-3 text-gray-600 font-bold" data-label="In">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                    <td className="px-4 py-3 text-gray-600" data-label="Out">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
+                    <td className="px-4 py-3 text-gray-600 font-bold" data-label="Out">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
 
                     <td className="px-4 py-3 text-right" data-label="Status">
                       <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${

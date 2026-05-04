@@ -18,18 +18,45 @@ const StudentStatsGrid = ({ user }: StudentStatsGridProps) => {
 
     const fetchStats = async () => {
       try {
-        // Fetch authoritative server-side stats from the leaderboard view
-        // Import this dynamically to avoid circular dependencies if any
-        const { getStudentLeaderboardStats } = await import('../services/dbService');
-        const data = await getStudentLeaderboardStats(user.id);
+        const { getAttendance, getStudentLeaderboardStats, getTodayDateStr } = await import('../services/dbService');
+        
+        // 1. Fetch all attendance logs for real-time session count & streak
+        const logs = await getAttendance(user.id);
+        const presentLogs = logs.filter(l => ['Present', 'Late'].includes(l.status));
+        const totalSessions = presentLogs.length;
 
-        if (!isMounted || !data) return;
+        // 2. Calculate current streak from logs
+        let streak = 0;
+        if (logs.length > 0) {
+          const sorted = [...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const today = getTodayDateStr();
+          
+          let checkDate = new Date();
+          // If not checked in today, start checking from yesterday
+          const hasToday = sorted.some(l => l.date === today && ['Present', 'Late'].includes(l.status));
+          if (!hasToday) {
+             checkDate.setDate(checkDate.getDate() - 1);
+          }
 
-        // Map server data to UI stats
-        const streak = data.current_streak || 0;
-        const totalSessions = data.present_count || 0;
-        const totalPoints = data.score || 0;
-        const myRank = data.rank || 0;
+          for (let i = 0; i < 30; i++) {
+            const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+            const log = sorted.find(l => l.date === dateStr);
+            if (log && ['Present', 'Late'].includes(log.status)) {
+              streak++;
+              checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+              // Streak broken (ignore weekends if needed? No, let's keep it simple for now)
+              break;
+            }
+          }
+        }
+
+        // 3. Fetch leaderboard data for Rank and Points
+        const leaderboardData = await getStudentLeaderboardStats(user.id);
+        const totalPoints = leaderboardData?.score || (totalSessions * 10); // Fallback points
+        const myRank = leaderboardData?.rank || 0;
+
+        if (!isMounted) return;
 
         const streakTag = streak >= 10 ? 'LEGENDARY' : streak >= 5 ? 'IRON WILL' : streak >= 3 ? 'ON FIRE' : 'STARTING UP';
         const attendanceTag = totalSessions >= 20 ? 'MASTER' : totalSessions >= 10 ? 'EXCELLENT' : totalSessions >= 5 ? 'REGULAR' : 'VERIFIED';

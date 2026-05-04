@@ -102,9 +102,8 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
           newItems.forEach(n => {
             toast.custom((t) => (
               <div
-                className={`${
-                  t.visible ? 'animate-in slide-in-from-top-5 fade-in duration-300' : 'animate-out slide-out-to-top-5 fade-out duration-300'
-                } max-w-sm w-full bg-white/90 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[24px] pointer-events-auto flex border border-white/60 overflow-hidden`}
+                className={`${t.visible ? 'animate-in slide-in-from-top-5 fade-in duration-300' : 'animate-out slide-out-to-top-5 fade-out duration-300'
+                  } max-w-sm w-full bg-white/90 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-[24px] pointer-events-auto flex border border-white/60 overflow-hidden`}
               >
                 <div className="flex-1 w-0 p-4">
                   <div className="flex items-start gap-4">
@@ -263,7 +262,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                 icon: '🎉',
                 style: { borderRadius: '15px', background: '#333', color: '#fff' }
               });
-              
+
               // Trigger direct download
               import('../utils/generateCertificate').then(({ generateCertificate }) => {
                 const awardDate = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -279,7 +278,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
           >
             <Trophy className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] group-hover:scale-110 transition-transform" />
             <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            
+
             <span className="absolute -top-1 -right-1 flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
               <Sparkles className="relative inline-flex h-4 w-4 text-yellow-200" />

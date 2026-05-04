@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { listenToCollection } from '../services/dbService';
+import { listenToCollection, getTodayDateStr } from '../services/dbService';
+import { motion } from 'framer-motion';
 import CustomDropdown from './CustomDropdown';
 
 interface AnalyticsChartProps {
@@ -10,12 +11,14 @@ interface AnalyticsChartProps {
   onStudentSelect?: (studentName: string) => void;
   // Student mode: locked to this user's data
   userId?: string;
+  user?: any;
 }
 
 function AnalyticsChart({
   selectedStudent = 'All Students',
   onStudentSelect,
   userId,
+  user,
 }: AnalyticsChartProps) {
 
   const isStudentMode = !!userId;
@@ -57,7 +60,7 @@ function AnalyticsChart({
   // ── Analytics Algorithm (Inspired by Python Data Science patterns) ────────
   const processChartData = () => {
     const today = new Date();
-    const todayLocalStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const todayLocalStr = getTodayDateStr();
     const populationCount = isStudentMode ? 1 : (students.length > 0 ? students.length : 1);
 
     let rawData = [];
@@ -67,7 +70,7 @@ function AnalyticsChart({
       rawData = Array(7).fill(0).map((_, i) => {
         const d = new Date(today);
         d.setDate(d.getDate() - d.getDay() + i);
-        const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
         let dayRecords = attendanceData.filter((r: any) => r.date === dateStr);
         if (!isStudentMode && localSelectedStudent !== 'All Students') {
@@ -104,7 +107,7 @@ function AnalyticsChart({
         let validOperationDays = 0;
 
         for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
-          const dStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+          const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           weekDates.push(dStr);
           if (d.getDay() !== 0 && d.getDay() !== 6 && dStr <= todayLocalStr) {
             validOperationDays++;
@@ -182,7 +185,7 @@ function AnalyticsChart({
         type: 'spotlight',
         name: best?.name || '—',
         email: best?.email || '—',
-        id: best?.roll_no || best?.uid || best?.id || '—',
+        id: best?.rollNo || best?.roll_no || '—',
         department: (best as any)?.department || 'Student',
         score: `${best?.monthlyRate || 0}%`,
         presentDays: best?.presentDays || 0,
@@ -190,8 +193,8 @@ function AnalyticsChart({
         label: 'Best of Month'
       };
     } else {
-      const targetName = isStudentMode ? students.find(s => (s.uid || s.id) === userId)?.name : localSelectedStudent;
-      const targetUser = students.find(s => s.name === targetName) || (isStudentMode ? { id: userId, name: 'You' } : null);
+      const targetName = isStudentMode ? (user?.name || students.find(s => (s.uid || s.id) === userId)?.name || 'You') : localSelectedStudent;
+      const targetUser = students.find(s => s.name === targetName) || (isStudentMode ? (user || { id: userId, name: 'You' }) : null);
 
       if (!targetUser) return null;
 
@@ -211,7 +214,7 @@ function AnalyticsChart({
         type: 'analysis',
         name: targetUser.name,
         email: (targetUser as any)?.email || '—',
-        id: (targetUser as any)?.roll_no || (targetUser as any)?.uid || (targetUser as any)?.id || '—',
+        id: targetUser.rollNo || (targetUser as any)?.roll_no || '—',
         department: (targetUser as any)?.department || 'Student',
         photoURL: targetUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.name}`,
         rate: `${attendanceRate}%`,
@@ -228,7 +231,7 @@ function AnalyticsChart({
 
   return (
     <div className={`${isStudentMode ? '' : 'col-span-1 lg:col-span-2'} bg-white rounded-3xl border border-gray-100/80 shadow-sm p-3 sm:p-6`}>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4 relative z-50">
         <div>
           <h3 className="text-base font-bold text-gray-800">Attendance Analytics</h3>
           <p className="text-xs text-gray-500">
@@ -278,8 +281,8 @@ function AnalyticsChart({
                 <h4 className="text-sm font-black text-gray-900 leading-tight">{analysis.name}</h4>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                   <p className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-gray-300" />
-                    ID: {analysis.id}
+                    <span className="w-1 h-1 rounded-full bg-indigo-400 shadow-sm" />
+                    Roll No: {analysis.id}
                   </p>
                   <p className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-gray-300" />
@@ -303,10 +306,45 @@ function AnalyticsChart({
                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tight">Punctuality</p>
                     <p className="text-xs font-black text-emerald-700">{analysis.punctuality}</p>
                   </div>
-                  <div className="flex gap-1">
-                    <div className="bg-green-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-green-700">{analysis.present}P</div>
-                    <div className="bg-orange-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-orange-700">{analysis.late}L</div>
-                    <div className="bg-red-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-red-700">{analysis.missed}M</div>
+                  <div className="flex gap-2">
+                    <motion.div 
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      className="group relative"
+                    >
+                      <div className="bg-green-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-green-700 cursor-help border border-green-200/20">{analysis.present}P</div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50">
+                        <div className="bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl whitespace-nowrap">
+                          {analysis.present} Days Present
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    <motion.div 
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      className="group relative"
+                    >
+                      <div className="bg-orange-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-orange-700 cursor-help border border-orange-200/20">{analysis.late}L</div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50">
+                        <div className="bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl whitespace-nowrap">
+                          {analysis.late} Late Arrivals
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    <motion.div 
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      className="group relative"
+                    >
+                      <div className="bg-red-100/30 px-2 py-1 rounded-lg text-[10px] font-black text-red-700 cursor-help border border-red-200/20">{analysis.missed}M</div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50">
+                        <div className="bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl whitespace-nowrap">
+                          {analysis.missed} Days Missed
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      </div>
+                    </motion.div>
                   </div>
                 </>
               ) : (

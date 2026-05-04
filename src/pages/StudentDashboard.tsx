@@ -18,7 +18,7 @@ const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
   }, []);
 
   return (
-    <div className="flex items-center mb-1">
+    <div className="flex items-center mb-0.5">
       <h1 className="text-lg sm:text-3xl xl:text-5xl font-[950] text-slate-900 tracking-tighter sm:tracking-tight leading-none flex flex-wrap items-center gap-2 sm:gap-3">
         <span className="shrink-0">{greeting},</span>
         <span className="text-blue-600 flex items-center min-w-0">
@@ -96,13 +96,13 @@ export default function StudentDashboard({ user }: { user?: any }) {
         <AnimatedWelcome name={fullName} />
 
         {/* Welcome Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 sm:mb-12 relative flex flex-col md:flex-row md:items-end justify-between gap-4"
+          className="mb-4 sm:mb-8 relative flex flex-col md:flex-row md:items-end justify-between gap-4"
         >
           <div className="flex-1 min-w-0">
-            <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.2em] sm:tracking-[0.4em] mt-2 flex items-center gap-2 sm:gap-3 flex-nowrap overflow-x-auto no-scrollbar">
+            <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.2em] sm:tracking-[0.4em] mt-0.5 flex items-center gap-1 sm:gap-2 flex-nowrap overflow-x-auto no-scrollbar">
               <span className="shrink-0">{user?.course || 'Course'}</span>
               <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
               <span className="shrink-0">Roll: {user?.rollNo || 'N/A'}</span>
@@ -117,7 +117,7 @@ export default function StudentDashboard({ user }: { user?: any }) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="header-glass flex items-center gap-3 p-1.5 pr-4 rounded-2xl transition-all duration-500 cursor-default"
+              className="header-glass flex items-center gap-2.5 p-1 pr-3 rounded-2xl transition-all duration-500 cursor-default"
             >
               <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl group relative overflow-hidden">
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
@@ -136,32 +136,32 @@ export default function StudentDashboard({ user }: { user?: any }) {
           </div>
         </motion.div>
 
-      {/* Top Row: Check-in & Gamification Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-4 sm:mb-6">
-        <div className="col-span-1">
-          <StudentCheckInWidget user={user} />
+        {/* Top Row: Check-in & Gamification Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3 mb-3 sm:mb-4">
+          <div className="col-span-1">
+            <StudentCheckInWidget user={user} />
+          </div>
+          <div className="col-span-1">
+            <StudentStatsGrid user={user} />
+          </div>
         </div>
-        <div className="col-span-1">
-          <StudentStatsGrid user={user} />
-        </div>
-      </div>
 
-      {/* Middle Row: Recent Activity */}
-      <div className="grid grid-cols-1 gap-3 lg:gap-4 mb-4 sm:mb-6">
-        <div className="col-span-1">
-          <StudentRecentActivity user={user} />
+        {/* Middle Row: Recent Activity */}
+        <div className="grid grid-cols-1 gap-2 lg:gap-3 mb-3 sm:mb-4">
+          <div className="col-span-1">
+            <StudentRecentActivity user={user} />
+          </div>
         </div>
-      </div>
 
-      {/* Bottom Row: Analytics & Leave Balance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 mb-4 sm:mb-6">
-        <div className="col-span-1 lg:col-span-2">
-          {/* AnalyticsChart in student mode shows only this user's data */}
-          <AnalyticsChart userId={userId} />
-        </div>
-        <div className="col-span-1">
-          <StudentLeaveBalance userId={userId} />
-        </div>
+        {/* Bottom Row: Analytics & Leave Balance */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 mb-3 sm:mb-4">
+          <div className="col-span-1 lg:col-span-2">
+            {/* AnalyticsChart in student mode shows only this user's data */}
+            <AnalyticsChart userId={userId} user={user} />
+          </div>
+          <div className="col-span-1">
+            <StudentLeaveBalance userId={userId} />
+          </div>
         </div>
       </div>
     </div>

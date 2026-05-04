@@ -142,12 +142,12 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
                       animate={{ scale: 1, opacity: 1, rotate: 0 }}
                       exit={{ scale: 0, opacity: 0, rotate: 45 }}
                       className={`absolute inset-1 rounded-[1.5rem] z-0 blur-sm ${tab.id === 'dashboard' ? 'bg-gradient-to-br from-rose-400/20 to-rose-600/20' :
-                          tab.id === 'students' || tab.id === 'attendance' ? 'bg-gradient-to-br from-blue-400/20 to-blue-600/20' :
-                            tab.id === 'leave-requests' ? 'bg-gradient-to-br from-amber-400/20 to-amber-600/20' :
-                              tab.id === 'leaderboard' ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20' :
-                                tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-gradient-to-br from-emerald-400/20 to-emerald-600/20' :
-                                  tab.id === 'more' ? 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/20' :
-                                    'bg-gradient-to-br from-orange-400/20 to-orange-600/20'
+                        tab.id === 'students' || tab.id === 'attendance' ? 'bg-gradient-to-br from-blue-400/20 to-blue-600/20' :
+                          tab.id === 'leave-requests' ? 'bg-gradient-to-br from-amber-400/20 to-amber-600/20' :
+                            tab.id === 'leaderboard' ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20' :
+                              tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-gradient-to-br from-emerald-400/20 to-emerald-600/20' :
+                                tab.id === 'more' ? 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/20' :
+                                  'bg-gradient-to-br from-orange-400/20 to-orange-600/20'
                         }`}
                     />
                   )}
@@ -169,8 +169,8 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
                     }`} />
 
                   <Icon className={`w-5 h-5 transition-all duration-500 relative z-20 ${isActive
-                      ? 'text-gray-900 drop-shadow-sm scale-110'
-                      : 'text-gray-400 group-hover:text-gray-600'
+                    ? 'text-gray-900 drop-shadow-sm scale-110'
+                    : 'text-gray-400 group-hover:text-gray-600'
                     }`} />
                 </div>
 
@@ -178,12 +178,12 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
                   <motion.div
                     layoutId="activeLine"
                     className={`absolute bottom-0 w-4 h-1 rounded-full ${tab.id === 'dashboard' ? 'bg-rose-500' :
-                        tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500' :
-                          tab.id === 'leave-requests' ? 'bg-amber-500' :
-                            tab.id === 'leaderboard' ? 'bg-yellow-500' :
-                              tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500' :
-                                tab.id === 'more' ? 'bg-indigo-500' :
-                                  'bg-orange-500'
+                      tab.id === 'students' || tab.id === 'attendance' ? 'bg-blue-500' :
+                        tab.id === 'leave-requests' ? 'bg-amber-500' :
+                          tab.id === 'leaderboard' ? 'bg-yellow-500' :
+                            tab.id === 'geofencing' || tab.id === 'notifications' ? 'bg-emerald-500' :
+                              tab.id === 'more' ? 'bg-indigo-500' :
+                                'bg-orange-500'
                       }`}
                   />
                 )}

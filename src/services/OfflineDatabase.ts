@@ -31,12 +31,12 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('TrackMyAttendanceDB');
-    this.version(3).stores({
+    this.version(4).stores({
       profiles: 'id, email',
-      attendance: 'id, user_id, date',
-      leave_requests: 'id, user_id',
+      attendance: 'id, userId, date',
+      leave_requests: 'id, userId',
       geofence_schedules: 'id',
-      notifications: 'id, user_id',
+      notifications: 'id, userId',
       system_configuration: 'id',
       mentors: 'id',
       subscribers: 'id, email',

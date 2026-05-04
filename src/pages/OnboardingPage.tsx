@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Plus, CheckCircle, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+  import { Camera, Plus, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getMentors } from '../services/dbService';
 import toast from 'react-hot-toast';
 
 export default function OnboardingPage({ user, onComplete }: { user: any, onComplete: (data: any) => void }) {
@@ -11,8 +12,10 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
     phone: '',
     gender: '',
     bloodGroup: '',
+    mentorId: '',
     photoURL: user?.photoURL || ''
   });
+  const [mentors, setMentors] = useState<any[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -60,6 +63,14 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  useEffect(() => {
+    const fetchMentors = async () => {
+      const data = await getMentors();
+      setMentors(data || []);
+    };
+    fetchMentors();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +206,20 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
                 <option value="O-">O-</option>
                 <option value="AB+">AB+</option>
                 <option value="AB-">AB-</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Assigned Mentor</label>
+              <select 
+                required 
+                value={formData.mentorId}
+                onChange={(e) => setFormData({...formData, mentorId: e.target.value})}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Select Mentor</option>
+                {mentors.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
               </select>
             </div>
           </div>

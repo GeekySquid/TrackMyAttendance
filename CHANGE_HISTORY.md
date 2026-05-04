@@ -304,8 +304,14 @@ Move the state update logic (e.g., `setStudents(...)`) to inside the `try` block
     *   **Animation Stabilization**: Removed the `y` transform from the entry animation to prevent variable offsets in complex layouts.
     *   **Stacking Context**: Added `isolate` to the parent and explicit `z-index` (`z-20` for button, `z-10` for menu) to ensure correct layering.
 
+### 3. Modal Overflow Stability (Clipping Fix)
+*   **Change:** Enabled dropdown menus to overflow outside of modal boundaries in `AccessControlPage.tsx` and `StudentsPage.tsx`.
+*   **Key Fixes:**
+    *   **Removed `overflow-hidden`**: Stripped the overflow restriction from "Add User," "Add Role," and "Add Student" modal containers.
+    *   **Rationale**: Previously, the `CustomDropdown` menu would get cut off or "trapped" inside the modal's scroll area. Removing this restriction allows the menu to float freely above the entire UI, ensuring 100% visibility for role and mentor assignments.
+
 ### How to Revert
-To revert the subscriber removal, remove the `Trash2` button and `handleRemoveSubscriber` logic. For the dropdown, revert the `top` and `motion` prop changes.
+To revert the subscriber removal, remove the `Trash2` button and `handleRemoveSubscriber` logic. For the dropdown and modal fixes, restore `overflow-hidden` to the modal containers and revert the `top` prop in `CustomDropdown.tsx`.
 
 ---
 

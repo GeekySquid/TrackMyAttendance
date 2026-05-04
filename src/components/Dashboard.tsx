@@ -32,7 +32,8 @@ import {
   isScheduleActive,
   mapGeofence,
   updateGeofenceSchedule,
-  bulkUpdateGeofenceSchedules
+  bulkUpdateGeofenceSchedules,
+  getTodayDateStr
 } from '../services/dbService';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
@@ -478,7 +479,7 @@ export default function Dashboard({ user }: { user: any }) {
   const isAutoActive = autoActiveSchedules.length > 0;
 
   const totalStudents = students.length || 1; // Prevent division by zero
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateStr();
 
   // Get unique student records for today to prevent duplicates (no 400% logic)
   const todayRecords = attendance.filter(a => a.date === today);
@@ -954,6 +955,7 @@ export default function Dashboard({ user }: { user: any }) {
             <StudentProfile 
               student={students.find(s => s.name === selectedStudentName)} 
               isAdmin={true} 
+              isLoading={isLoading}
             />
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckSquare, Bell, X, Loader2, Send, Filter, Users, Search } from 'lucide-react';
 import CustomDropdown from './CustomDropdown';
-import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications, isScheduleActive, markBulkCheckOut } from '../services/dbService';
+import { bulkMarkAttendance, addNotification, broadcastNotification, bulkAddNotifications, isScheduleActive, markBulkCheckOut, getTodayDateStr } from '../services/dbService';
 import toast from 'react-hot-toast';
 import { MapPin, XCircle } from 'lucide-react';
 
@@ -47,7 +47,7 @@ export default function QuickActions({ students, attendance, adminProfile, sched
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateStr();
 
   // Filter students who haven't marked attendance today
   const absentStudentsToday = students.filter(s => {

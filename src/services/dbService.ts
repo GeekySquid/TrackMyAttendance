@@ -20,13 +20,24 @@ import { checkCacheVersion } from '../utils/cacheManager';
 
 // ─── TYPE DEFINITIONS ──────────────────────────────────────────────────────────
 
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+export function getTodayDateStr() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+const notifyCollectionChange = (name: string) => {
+  window.dispatchEvent(new CustomEvent(`collection-change:${name}`));
+};
+
 type UnsubFn = () => void;
 
 // ─── FIELD MAPPERS (DB snake_case → Frontend camelCase) ────────────────────────
 
 export function mapProfile(row: any) {
   if (!row) return null;
-  const isOnboarded = row.role === 'admin' || !!(row.phone) || !!(row.roll_no) || !!(row.profile_completed);
+  const isOnboarded = row.role === 'admin' || (!!(row.phone) && !!(row.roll_no) && !!(row.blood_group) && !!(row.gender));
   return {
     id: row.id,
     uid: row.id || row.uid,
@@ -74,6 +85,7 @@ export function mapAttendance(row: any) {
     userPhoto: row.profiles?.photo_url || row.user_photo || '',
     checkoutReason: row.checkout_reason || null,
     rejoins: row.rejoins || [],
+    createdAt: row.created_at || new Date().toISOString(),
   };
 }
 
@@ -361,6 +373,10 @@ export const updateProfile = async (userId: string, updates: Record<string, any>
       dbUpdates.mentor_id = updates.mentorId;
       delete dbUpdates.mentorId;
     }
+    if (updates.bloodGroup !== undefined) {
+      dbUpdates.blood_group = updates.bloodGroup;
+      delete dbUpdates.bloodGroup;
+    }
     if (updates.profileCompleted !== undefined) {
       dbUpdates.profile_completed = updates.profileCompleted;
       delete dbUpdates.profileCompleted;
@@ -405,12 +421,14 @@ export const updateUserProfile = async (
     gender: string;
     photoURL: string;
     status: string;
+    bloodGroup: string;
   }>
 ): Promise<void> => {
   const row: Record<string, any> = {};
   if (updates.name !== undefined) row.name = updates.name;
   if (updates.phone !== undefined) row.phone = updates.phone;
   if (updates.gender !== undefined) row.gender = updates.gender;
+  if (updates.bloodGroup !== undefined) row.blood_group = updates.bloodGroup;
   if (updates.photoURL !== undefined) row.photo_url = updates.photoURL;
   if (updates.status !== undefined) row.status = updates.status;
 
@@ -439,7 +457,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 export const getAttendance = async (userId?: string): Promise<any[]> => {
   // 1. Return local data first
   let localData = userId 
-    ? await localDb.attendance.where('user_id').equals(userId).reverse().sortBy('date')
+    ? await localDb.attendance.where('userId').equals(userId).reverse().sortBy('date')
     : await localDb.attendance.reverse().sortBy('date');
 
   // 2. Background sync from network
@@ -463,14 +481,10 @@ export const addAttendance = async (record: any): Promise<any> => {
   try {
     const combinedLocation = record.location || (record.locationName ? `${record.locationName}${record.locationCoords ? ` | ${record.locationCoords}` : ''}` : null);
     
-    // Generate a temporary ID for local storage if one doesn't exist
+    // Generate a temporary ID for local storage fallback
     const tempId = record.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const mappedRecord = { ...record, id: tempId, location: combinedLocation };
+    const mappedForLocal = { ...record, id: tempId, location: combinedLocation };
 
-    // 1. Save to local DB immediately
-    await localDb.attendance.put(mappedRecord);
-
-    // 2. Queue for server sync via RPC
     const params = {
       p_user_id: record.userId,
       p_user_name: record.userName || null,
@@ -481,10 +495,28 @@ export const addAttendance = async (record: any): Promise<any> => {
       p_status: record.status,
       p_location: combinedLocation,
       p_late_reason: record.lateReason || null,
-      p_late_reason_image: record.lateReasonImage || null,
-      p_rejoin_reason: record.rejoinReason || null
+      p_late_reason_image: record.lateReasonImage || null
     };
 
+    // Online-First approach
+    if (navigator.onLine) {
+      const { data, error } = await supabase.rpc('record_attendance', params);
+      if (!error && data && !data.error) {
+        // Success! Use the real row from server
+        const realRow = mapAttendance(data);
+        if (realRow) {
+          await localDb.attendance.put(realRow);
+          notifyCollectionChange('attendance');
+          return realRow;
+        }
+      } else {
+        console.warn('[dbService] record_attendance online failed, falling back to sync queue:', error?.message || data?.error);
+      }
+    }
+
+    // Fallback: Save locally and queue
+    await localDb.attendance.put(mappedForLocal);
+    notifyCollectionChange('attendance');
     await syncService.queueAction({
       table: 'attendance',
       action: 'RPC',
@@ -492,7 +524,7 @@ export const addAttendance = async (record: any): Promise<any> => {
       data: params
     });
 
-    return mappedRecord;
+    return mappedForLocal;
   } catch (err) {
     console.error('[dbService] addAttendance exception:', err);
     throw err;
@@ -503,6 +535,21 @@ export const updateAttendance = async (
   id: string,
   updates: any
 ): Promise<void> => {
+  // 1. Update Local DB immediately
+  const localUpdate: any = {};
+  if (updates.checkOutTime !== undefined) localUpdate.checkOutTime = updates.checkOutTime;
+  if (updates.status !== undefined) localUpdate.status = updates.status;
+  if (updates.lateReason !== undefined) localUpdate.lateReason = updates.lateReason;
+  if (updates.lateReasonStatus !== undefined) localUpdate.lateReasonStatus = updates.lateReasonStatus;
+  if (updates.lateReasonImage !== undefined) localUpdate.lateReasonImage = updates.lateReasonImage;
+  if (updates.checkoutReason !== undefined) localUpdate.checkoutReason = updates.checkoutReason;
+  
+  if (Object.keys(localUpdate).length > 0) {
+    await localDb.attendance.update(id, localUpdate);
+    notifyCollectionChange('attendance');
+  }
+
+  // 2. Prepare Server Row
   const row: Record<string, any> = {};
   if (updates.checkOutTime !== undefined) row.check_out_time = updates.checkOutTime;
   if (updates.status !== undefined) row.status = updates.status;
@@ -518,8 +565,20 @@ export const updateAttendance = async (
   if (updates.lateReasonImage !== undefined) row.late_reason_image = updates.lateReasonImage;
   if (updates.checkoutReason !== undefined) row.checkout_reason = updates.checkoutReason;
 
-  if (Object.keys(row).length === 0) return; // nothing to update
+  if (Object.keys(row).length === 0) return;
 
+  // 3. Handle Temporary IDs (Skip server call, queue instead)
+  if (id.startsWith('temp-')) {
+    await syncService.queueAction({
+      table: 'attendance',
+      action: 'UPDATE',
+      primaryKey: id,
+      data: row
+    });
+    return;
+  }
+
+  // 4. Server Update
   const { data, error } = await supabase
     .from('attendance')
     .update(row)
@@ -532,7 +591,7 @@ export const updateAttendance = async (
     throw error;
   }
 
-  // ── Automated Trigger: Late Reason Status Update ──
+  // 5. Automated Trigger: Late Reason Status Update
   if (updates.lateReasonStatus && data) {
     try {
       await addNotification({
@@ -659,6 +718,17 @@ export const getLeaveRequests = async (userId?: string): Promise<any[]> => {
   return (data || []).map(mapLeaveRequest);
 };
 
+export const deleteLeaveRequest = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('leave_requests')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('[dbService] deleteLeaveRequest error:', error.message);
+    throw error;
+  }
+};
+
 export const addLeaveRequest = async (request: any): Promise<any> => {
   const tempId = request.id || `lr-temp-${Date.now()}`;
   const row = {
@@ -691,31 +761,38 @@ export const updateLeaveRequestStatus = async (
   id: string,
   status: string
 ): Promise<void> => {
-  const { data, error } = await supabase
+  // 1. Fetch current record to prevent duplicate notifications
+  const { data: current, error: fetchError } = await supabase
     .from('leave_requests')
-    .update({ status, reviewed_at: new Date().toISOString() })
+    .select('status, user_id, type')
     .eq('id', id)
-    .select('user_id, type')
     .single();
 
-  if (error) {
-    console.error('[dbService] updateLeaveRequestStatus error:', error.message);
+  if (fetchError || !current || current.status === status) {
+    return; // Already in that state or error
+  }
+
+  const { error: updateError } = await supabase
+    .from('leave_requests')
+    .update({ status, reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (updateError) {
+    console.error('[dbService] updateLeaveRequestStatus error:', updateError.message);
     return;
   }
 
   // ── Automated Trigger: Leave Request Update ──
-  if (data) {
-    try {
-      await addNotification({
-        userId: data.user_id,
-        type: status === 'Approved' ? 'success' : 'alert',
-        title: `Leave Request ${status}`,
-        message: `Your ${data.type || 'leave'} request has been ${status.toLowerCase()}.`,
-        data: { requestId: id }
-      });
-    } catch (e) {
-      console.warn('[dbService] Automated leave notification failed:', e);
-    }
+  try {
+    await addNotification({
+      userId: current.user_id,
+      type: status === 'Approved' ? 'success' : 'alert',
+      title: `Leave Request ${status}`,
+      message: `Your ${current.type || 'leave'} request has been ${status.toLowerCase()}.`,
+      data: { requestId: id }
+    });
+  } catch (e) {
+    console.warn('[dbService] Automated leave notification failed:', e);
   }
 };
 
@@ -727,27 +804,36 @@ export const bulkUpdateLeaveRequestStatus = async (
 
   const { data: records, error: fetchError } = await supabase
     .from('leave_requests')
-    .select('id, user_id, type')
+    .select('id, user_id, type, status')
     .in('id', ids);
 
-  if (fetchError) {
-    console.error('[dbService] bulkUpdateLeaveRequestStatus fetch error:', fetchError.message);
-    throw fetchError;
+  if (fetchError || !records) {
+    console.error('[dbService] bulkUpdateLeaveRequestStatus fetch error:', fetchError?.message);
+    throw fetchError || new Error('No records found');
   }
+
+  // Only update records that are actually changing status
+  const targetIds = records
+    .filter(r => r.status !== status)
+    .map(r => r.id);
+
+  if (targetIds.length === 0) return;
 
   const { error: updateError } = await supabase
     .from('leave_requests')
     .update({ status, reviewed_at: new Date().toISOString() })
-    .in('id', ids);
+    .in('id', targetIds);
 
   if (updateError) {
     console.error('[dbService] bulkUpdateLeaveRequestStatus update error:', updateError.message);
     throw updateError;
   }
 
-  // Bulk notifications
-  if (records && records.length > 0) {
-    const notifications = records.map(r => ({
+  // Bulk notifications for only those that CHANGED
+  const changedRecords = records.filter(r => targetIds.includes(r.id));
+  
+  if (changedRecords.length > 0) {
+    const notifications = changedRecords.map(r => ({
       user_id: r.user_id,
       type: status === 'Approved' ? 'success' : 'alert',
       title: `Leave Request ${status}`,
@@ -1199,7 +1285,7 @@ export const addNotification = async (notification: any): Promise<void> => {
   // 2. Database Guard: Prevent "Daily" duplicates (e.g., Attendance marked twice)
   if (notification.type === 'success' || notification.type === 'attendance') {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateStr();
       let query = supabase
         .from('notifications')
         .select('id')
@@ -1330,37 +1416,21 @@ export const markAllNotificationsRead = async (userId?: string): Promise<void> =
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getLeaderboard = async (): Promise<any[]> => {
-  const { data, error } = await supabase
-    .from('leaderboard')
-    .select('*, photo_url')
-    .order('score', { ascending: false })
-    .order('attendance_pct', { ascending: false })
-    .order('name', { ascending: true })
-    .limit(50);
-
-  if (error) {
-    console.error('[dbService] getLeaderboard error:', error.message);
-    return [];
-  }
-
-  return (data || []).map((entry, index) => ({
+  const leaderboard = await getMonthlyLeaderboard();
+  
+  // Map the new rigorous results to the format expected by the LeaderboardPage
+  return leaderboard.map((entry, index) => ({
     ...entry,
-    rank: entry.rank || index + 1
+    rank: index + 1,
+    // Ensure all expected fields are present
+    photo_url: entry.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(entry.name || 'Student')}`,
   }));
 };
 
 export const getStudentLeaderboardStats = async (userId: string): Promise<any> => {
-  const { data, error } = await supabase
-    .from('leaderboard')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[dbService] getStudentLeaderboardStats error:', error.message);
-    return null;
-  }
-  return data;
+  const leaderboard = await getLeaderboard();
+  const entry = leaderboard.find(e => e.user_id === userId);
+  return entry || null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1374,6 +1444,20 @@ export const listenToCollection = (
 ): UnsubFn => {
   const table = resolveTable(collectionName);
   const dexieTable = localDb[table as keyof typeof localDb] as any;
+
+  const mapRow = (tableName: string, row: any) => {
+    switch (tableName) {
+      case 'profiles':
+      case 'users': return mapProfile(row);
+      case 'attendance': return mapAttendance(row);
+      case 'leave_requests':
+      case 'leaveRequests': return mapLeaveRequest(row);
+      case 'notifications': return mapNotification(row);
+      case 'mentors': return mapMentor(row);
+      case 'geofence_schedules': return mapGeofence(row);
+      default: return row;
+    }
+  };
 
   const buildQuery = () => {
     let selectStr = '*';
@@ -1405,7 +1489,7 @@ export const listenToCollection = (
     try {
       let data;
       if (userId && (table === 'attendance' || table === 'leave_requests' || table === 'notifications')) {
-        data = await dexieTable.where('user_id').equals(userId).toArray();
+        data = await dexieTable.where('userId').equals(userId).toArray();
       } else {
         data = await dexieTable.toArray();
       }
@@ -1422,17 +1506,32 @@ export const listenToCollection = (
       if (data) {
         const mapped = data.map(row => mapRow(table, row));
         if (dexieTable) {
+          // Sync server data into local DB
           await dexieTable.bulkPut(mapped);
+          
+          // CRITICAL: Reload everything from local DB to ensure 
+          // pending (temp ID) records are merged with server records.
+          let consolidated;
+          if (userId && (table === 'attendance' || table === 'leave_requests' || table === 'notifications')) {
+            consolidated = await dexieTable.where('userId').equals(userId).toArray();
+          } else {
+            consolidated = await dexieTable.toArray();
+          }
+          callback(consolidated);
+        } else {
+          callback(mapped);
         }
-        callback(mapped);
       }
     } catch (e) {
-      // Fetch/Sync failed
+      console.warn('[dbService] fetchAndSync failed:', e);
     }
   };
 
   loadLocal();
   fetchAndSync();
+
+  const handleLocalChange = () => loadLocal();
+  window.addEventListener(`collection-change:${collectionName}`, handleLocalChange);
 
   const channelId = Math.random().toString(36).substring(2, 10);
   const channel = supabase
@@ -1444,6 +1543,7 @@ export const listenToCollection = (
 
   return () => {
     clearInterval(intervalId);
+    window.removeEventListener(`collection-change:${collectionName}`, handleLocalChange);
     supabase.removeChannel(channel);
   };
 };
@@ -1574,65 +1674,138 @@ export const getAttendanceSummary = async (): Promise<any[]> => {
 
 export const getMonthlyLeaderboard = async (): Promise<any[]> => {
   const now = new Date();
-  // Calculate start and end of PREVIOUS month
-  const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
-  const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+  
+  // 1. Fetch System Configuration for thresholds
+  const { data: config } = await supabase
+    .from('system_configuration')
+    .select('min_attendance_for_award, max_late_for_award, check_in_time')
+    .single();
 
-  const { data, error } = await supabase
+  const minAttendance = config?.min_attendance_for_award || 90;
+  const maxLates = config?.max_late_for_award || 2;
+  const standardTimeStr = config?.check_in_time || '09:00';
+  const [stdH, stdM] = standardTimeStr.split(':').map(Number);
+  const standardTimeMinutes = stdH * 60 + stdM;
+
+  // 2. Calculate date range (Current Month)
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+  // 3. Fetch All Student Profiles
+  const { data: allProfiles } = await supabase
+    .from('profiles')
+    .select('id, name, photo_url, roll_no, course')
+    .eq('role', 'student');
+
+  // 4. Fetch Attendance for Current Month
+  const { data: attendanceData, error } = await supabase
     .from('attendance')
     .select('user_id, status, check_in_time')
-    .gte('date', startOfPrevMonth)
-    .lte('date', endOfPrevMonth);
+    .gte('date', startOfMonth)
+    .lte('date', endOfMonth);
 
   if (error) {
     console.error('[dbService] getMonthlyLeaderboard error:', error.message);
     return [];
   }
 
-  const stats: Record<string, { total: number; present: number; late: number; punctuality: number[] }> = {};
-  data.forEach(record => {
-    if (!stats[record.user_id]) {
-      stats[record.user_id] = { total: 0, present: 0, late: 0, punctuality: [] };
-    }
+  const stats: Record<string, { total: number; present: number; late: number; punctuality: number[]; name: string; photo_url: string; roll_no: string; course: string }> = {};
+  
+  // Initialize stats with all profiles so everyone is included even with 0 points
+  if (allProfiles) {
+    allProfiles.forEach(p => {
+      stats[p.id] = {
+        total: 0,
+        present: 0,
+        late: 0,
+        punctuality: [],
+        name: p.name || 'Student',
+        photo_url: p.photo_url || '',
+        roll_no: p.roll_no || 'N/A',
+        course: p.course || 'N/A'
+      };
+    });
+  }
+
+  // Aggregate attendance data
+  attendanceData.forEach(record => {
+    if (!stats[record.user_id]) return; // Skip if user not in profiles
+    
     stats[record.user_id].total++;
-    if (record.status === 'Present') stats[record.user_id].present++;
-    if (record.status === 'Late') {
+    
+    if (record.status === 'Present' || record.status === 'Late' || record.status === 'Half Day') {
       stats[record.user_id].present++;
-      stats[record.user_id].late++;
+      if (record.status === 'Late') {
+        stats[record.user_id].late++;
+      }
     }
 
     if (record.check_in_time) {
-      const [h, m] = record.check_in_time.split(':').map(Number);
-      stats[record.user_id].punctuality.push(h * 60 + m);
+      let h = 0, m = 0;
+      if (record.check_in_time.includes('T') || record.check_in_time.includes('-')) {
+        const d = new Date(record.check_in_time);
+        h = d.getHours();
+        m = d.getMinutes();
+      } else {
+        const parts = record.check_in_time.split(':');
+        h = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10);
+      }
+      if (!isNaN(h) && !isNaN(m)) {
+        stats[record.user_id].punctuality.push(h * 60 + m);
+      }
     }
   });
 
   return Object.entries(stats)
-    .filter(([_, s]) => s.total >= 1) // ELIGIBILITY CRITERIA: Lowered for better visibility
     .map(([user_id, s]) => {
-      const attendancePct = (s.present / s.total) * 100;
+      const attendancePct = s.total > 0 ? (s.present / s.total) * 100 : 0;
       const avgTime = s.punctuality.length > 0 
         ? s.punctuality.reduce((a, b) => a + b, 0) / s.punctuality.length 
-        : 1440;
+        : standardTimeMinutes;
       
-      // STRONG MATHEMATICAL ANALYSIS:
-      // Primary Factor: Attendance % (Weight 1.0)
-      // Late Penalty: -10 points per Late
-      // Punctuality: Compare against 9:00 AM (540 mins). 
-      // Bonus: +0.5 points for every 10 mins earlier than 9:00 AM.
-      // Penalty: -1 point for every 10 mins later than 9:00 AM.
-      const punctualityFactor = (540 - avgTime) / 10;
-      const score = attendancePct - (s.late * 10) + punctualityFactor;
+      // MATHEMATICAL SCORING:
+      // A. Attendance Base (Present Sessions * 10)
+      const baseScore = s.present * 10;
+      
+      // B. Consistency Bonus (Multiplier based on percentage)
+      const consistencyBonus = (attendancePct / 10); 
+      
+      // C. Punctuality Factor (Rewards being earlier than standard)
+      const punctualityFactor = Math.max(0, (standardTimeMinutes - avgTime) / 2);
+      
+      // D. Penalties
+      const latePenalty = s.late * 5;
+
+      const totalScore = baseScore + consistencyBonus + punctualityFactor - latePenalty;
+
+      // ELIGIBILITY CHECK:
+      const isEligible = attendancePct >= minAttendance && s.late <= maxLates;
 
       return {
         user_id,
+        name: s.name,
+        roll_no: s.roll_no,
+        course: s.course,
+        photo_url: s.photo_url,
         attendance_pct: attendancePct,
+        total_present: s.present,
         late_count: s.late,
         avg_time: avgTime,
-        score: Math.max(0, score)
+        score: Math.round(Math.max(0, totalScore) * 10) / 10, // Round to 1 decimal place
+        is_eligible: isEligible
       };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      // 1. Primary Sort: Score
+      if (b.score !== a.score) return b.score - a.score;
+      // 2. Tie-breaker 1: Attendance Percentage
+      if (b.attendance_pct !== a.attendance_pct) return b.attendance_pct - a.attendance_pct;
+      // 3. Tie-breaker 2: Earlier average arrival
+      if (a.avg_time !== b.avg_time) return a.avg_time - b.avg_time;
+      // 4. Tie-breaker 3: Alphabetical
+      return a.name.localeCompare(b.name);
+    });
 };
 
 // ─── SYSTEM SETTINGS ────────────────────────────────────────────────────────

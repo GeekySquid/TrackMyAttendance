@@ -87,6 +87,13 @@ class SyncService {
       }
 
       if (result?.error) {
+        // If the error is 404 (Not Found) for an RPC, it usually means signature mismatch.
+        // We should skip these as retrying will not help.
+        if (action.action === 'RPC' && result.error.code === '404') {
+          console.warn('[SyncService] RPC 404 - possible signature mismatch. Skipping.', action);
+          return true; // Return true to allow deletion
+        }
+        
         // If the error is "Duplicate Key" (23505), it means the data is already there.
         // We can treat this as a success to allow the sync queue to proceed.
         if (result.error.code === '23505') {
@@ -97,6 +104,7 @@ class SyncService {
 
       return true;
     } catch (error) {
+      console.error('[SyncService] processAction exception:', error);
       return false;
     }
   }
