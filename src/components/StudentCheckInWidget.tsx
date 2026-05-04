@@ -34,6 +34,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
   const [checkedInStatus, setCheckedInStatus] = useState<string | null>(null);
   const [processedAbsentSessions] = useState<Set<string>>(new Set());
   const [hasLoadedAttendance, setHasLoadedAttendance] = useState(false);
+  const checkingOutIdRef = useRef<string | null>(null);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
   const [lastCheckOut, setLastCheckOut] = useState<string | null>(null);
   const [windowOpen, setWindowOpen] = useState(false);
@@ -318,7 +319,7 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
       if (isCheckedIn && !isSyncing) {
         const activeLog = todayLogs.find(l => !l.checkOutTime && l.status !== 'Absent');
         
-        if (activeLog) {
+        if (activeLog && checkingOutIdRef.current !== activeLog.id) {
           let sessionEndTime = null;
           if (activeLog.location?.includes('|')) {
             const parts = activeLog.location.split('|');
@@ -331,12 +332,18 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
             endTimeDate.setHours(endH, endM, 0);
 
             if (currentTime > endTimeDate) {
-              await updateAttendance(activeLog.id, { 
-                checkOutTime: new Date().toISOString(),
-                checkoutReason: 'Session Auto-Closed'
-              });
-              setIsCheckedIn(false);
-              toast('Session ended. Checkout complete.', { icon: '⏰' });
+              checkingOutIdRef.current = activeLog.id;
+              try {
+                await updateAttendance(activeLog.id, { 
+                  checkOutTime: new Date().toISOString(),
+                  checkoutReason: 'Session Auto-Closed'
+                });
+                setIsCheckedIn(false);
+                toast('Session ended. Checkout complete.', { icon: '⏰' });
+              } catch (err) {
+                console.error('[AutoCheckout] Failed:', err);
+                checkingOutIdRef.current = null; // Allow retry on failure
+              }
             }
           }
         }
