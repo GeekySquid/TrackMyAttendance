@@ -9,7 +9,7 @@ type User = { id: string; uid?: string; name: string; email: string; roleId: str
 type Role = { id: string; name: string; modules: string[] };
 
 const AVAILABLE_MODULES = [
-  'Dashboard', 'Students', 'Attendance', 'Leave Requests', 'Reports', 'Documents', 'Notifications', 'Settings', 'Geofencing'
+  'Students', 'Attendance', 'Leave Requests', 'Reports', 'Documents', 'Notifications', 'Access Control', 'Settings', 'Geofencing', 'Waitlist'
 ];
 
 const INITIAL_ROLES: Role[] = [
@@ -456,9 +456,10 @@ export default function AccessControlPage() {
               <div>
                 <CustomDropdown
                   label="Assign Initial Role"
+                  icon={Shield}
                   options={[
-                    { value: 'unassigned', label: 'Unassigned (Assign Later)' },
-                    ...roles.map(r => ({ value: r.id, label: r.name }))
+                    { value: 'unassigned', label: 'Unassigned (Assign Later)', icon: Users },
+                    ...roles.map(r => ({ value: r.id, label: r.name, icon: Shield }))
                   ]}
                   value={newUserRole || 'unassigned'}
                   onChange={setNewUserRole}

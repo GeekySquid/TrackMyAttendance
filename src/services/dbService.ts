@@ -73,8 +73,8 @@ export function mapAttendance(row: any) {
     rollNo: row.roll_no || '',
     course: row.course || '',
     date: row.date || row.created_at?.split('T')[0],
-    checkInTime: row.check_in_time || row.time || row.check_in || (row.created_at ? new Date(row.created_at).toLocaleTimeString() : ''),
-    checkOutTime: row.check_out_time || row.check_out || row.end_time,
+    checkInTime: row.check_in_time || null,
+    checkOutTime: row.check_out_time || null,
     status: row.status || 'Present',
     location: row.location || row.address || (row.location_lat ? `${row.location_lat},${row.location_lng}` : ''),
     locationName: row.location_name || row.location || 'Campus',
@@ -151,6 +151,7 @@ export function mapNotification(n: any) {
     isImportant: !!n.is_important,
     time: formatRelativeTime(n.created_at),
     data: n.data || null,
+    createdAt: n.created_at,
     senderId: n.sender_id,
   };
 }
@@ -656,7 +657,8 @@ export const markBulkCheckOut = async (checkoutTime?: string): Promise<void> => 
     const { data: records, error: fetchError } = await supabase
       .from('attendance')
       .select('id, user_id, user_name, course')
-      .is('check_out_time', null);
+      .is('check_out_time', null)
+      .in('status', ['Present', 'Late']);
 
     if (fetchError) {
       console.error('[dbService] markBulkCheckOut fetch error');
@@ -1471,6 +1473,9 @@ export const listenToCollection = (
     if (userId && (table === 'attendance' || table === 'leave_requests')) {
       query = query.eq('user_id', userId);
     }
+    if (userId && (table === 'profiles')) {
+      query = query.eq('id', userId);
+    }
     if (userId && table === 'notifications') {
       query = query.or(`user_id.eq.${userId},user_id.is.null`);
     }
@@ -1484,6 +1489,24 @@ export const listenToCollection = (
     return query;
   };
 
+  const sortData = (items: any[]) => {
+    if (!items || items.length === 0) return items;
+    const sorted = [...items];
+    if (table === 'attendance') {
+      sorted.sort((a, b) => {
+        const dateCompare = (b.date || '').localeCompare(a.date || '');
+        if (dateCompare !== 0) return dateCompare;
+        // Secondary sort by checkInTime DESC
+        return (b.checkInTime || '').localeCompare(a.checkInTime || '');
+      });
+    } else if (table === 'leave_requests') {
+      sorted.sort((a, b) => (b.appliedOn || '').localeCompare(a.appliedOn || ''));
+    } else if (table === 'notifications' || table === 'documents' || table === 'profiles') {
+      sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    }
+    return sorted;
+  };
+
   const loadLocal = async () => {
     if (!dexieTable) return;
     try {
@@ -1493,7 +1516,7 @@ export const listenToCollection = (
       } else {
         data = await dexieTable.toArray();
       }
-      if (data && data.length > 0) callback(data);
+      if (data && data.length > 0) callback(sortData(data));
     } catch (e) {
       console.warn('[dbService] Local load failed:', e);
     }
@@ -1509,17 +1532,15 @@ export const listenToCollection = (
           // Sync server data into local DB
           await dexieTable.bulkPut(mapped);
           
-          // CRITICAL: Reload everything from local DB to ensure 
-          // pending (temp ID) records are merged with server records.
           let consolidated;
           if (userId && (table === 'attendance' || table === 'leave_requests' || table === 'notifications')) {
             consolidated = await dexieTable.where('userId').equals(userId).toArray();
           } else {
             consolidated = await dexieTable.toArray();
           }
-          callback(consolidated);
+          callback(sortData(consolidated));
         } else {
-          callback(mapped);
+          callback(sortData(mapped));
         }
       }
     } catch (e) {

@@ -92,14 +92,31 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
     return () => unsubscribe();
   }, []);
 
+  const notificationsRef = useRef<any[]>([]);
+
   useEffect(() => {
-    let isFirstLoad = true;
+    let isInitialLoad = true;
     const unsubscribe = listenToCollection('notifications', (data) => {
-      if (!isFirstLoad) {
-        // Find notifications that weren't in the previous list
-        setNotifications(prev => {
-          const newItems = data.filter(n => !prev.some(p => p.id === n.id));
-          newItems.forEach(n => {
+      if (isInitialLoad) {
+        setNotifications(data);
+        notificationsRef.current = data;
+        isInitialLoad = false;
+        return;
+      }
+
+      // Find truly NEW notifications that weren't in the previous list
+      const newItems = data.filter(n => !notificationsRef.current.some(p => p.id === n.id));
+      
+      if (newItems.length > 0) {
+        newItems.forEach(n => {
+          // ── CRITICAL FIX: Recency and Unread Check ──
+          // Only toast if it's UNREAD and RECENT (within last 5 minutes)
+          // This prevents toasting a backlog of old notifications when logging in or syncing,
+          // while being resilient to clock drift.
+          const createdDate = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+          const isRecent = Math.abs(Date.now() - createdDate) < 300000; // 5 minutes threshold
+
+          if (n.unread && isRecent) {
             toast.custom((t) => (
               <div
                 className={`${t.visible ? 'animate-in slide-in-from-top-5 fade-in duration-300' : 'animate-out slide-out-to-top-5 fade-out duration-300'
@@ -142,12 +159,15 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                 </div>
               </div>
             ), { duration: 5000, position: 'top-center' });
-          });
-          return data;
+          }
         });
-      } else {
+        
         setNotifications(data);
-        isFirstLoad = false;
+        notificationsRef.current = data;
+      } else if (data.length !== notificationsRef.current.length) {
+        // Handle cases where notifications might have been deleted or changed without being "new"
+        setNotifications(data);
+        notificationsRef.current = data;
       }
     }, user?.uid || user?.id);
 

@@ -352,26 +352,48 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
 
     // ─── AUTO-ABSENT ON SESSION MISSED ───
     const checkAbsentSessions = async () => {
-      if (isSyncing || !allGeofences.length) return;
+      if (isSyncing || !allGeofences.length || !userId) return;
       
       const today = getTodayDateStr();
+      const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][currentTime.getDay()];
       
       for (const sched of allGeofences) {
-        // 1. Must be a schedule that has ended
-        if (!sched.endTime || sched.endTime === 'N/A') continue;
+        // 1. Must be an active schedule for TODAY
+        if (!sched.is_active || !sched.endTime || sched.endTime === 'N/A') continue;
+        
+        // Skip if not scheduled for today
+        if (sched.days && Array.isArray(sched.days) && !sched.days.includes(currentDay)) {
+          continue;
+        }
         
         const [endH, endM] = sched.endTime.split(':').map(Number);
-        const endTimeDate = new Date();
-        endTimeDate.setHours(endH, endM, 0);
+        const endTimeDate = new Date(currentTime);
+        endTimeDate.setHours(endH, endM, 0, 0);
         
+        // 2. Must be past the end time
         if (currentTime > endTimeDate) {
-          // 2. Must not already have an attendance record for this session (either in DB or locally processed)
+          // 3. Must not already have an attendance record for this session
+          // sessionKey ensures we don't process the same session twice in the current component lifecycle
           const sessionKey = `${today}_${sched.locationName}`;
-          const alreadyInLogs = todayLogs.some(l => l.locationName === sched.locationName);
-          const alreadyProcessed = processedAbsentSessions.has(sessionKey);
           
-          if (!alreadyInLogs && !alreadyProcessed) {
-            console.log(`[AutoAbsent] Recording absence for ${sched.locationName}`);
+          // CRITICAL: We check todayLogs (from server sync) AND processedAbsentSessions (local state)
+          const alreadyInLogs = todayLogs.some(l => 
+            l.locationName === sched.locationName && 
+            l.date === today && 
+            l.status !== 'Absent' // If they have any real activity, don't mark absent
+          );
+          
+          // Also check if an 'Absent' record already exists to prevent duplicates
+          const alreadyMarkedAbsent = todayLogs.some(l => 
+            l.locationName === sched.locationName && 
+            l.date === today && 
+            l.status === 'Absent'
+          );
+
+          const alreadyProcessedInSession = processedAbsentSessions.has(sessionKey);
+          
+          if (!alreadyInLogs && !alreadyMarkedAbsent && !alreadyProcessedInSession) {
+            console.log(`[AutoAbsent] Recording absence for ${sched.locationName} on ${today}`);
             processedAbsentSessions.add(sessionKey);
             
             const absentRecord = {
@@ -385,7 +407,13 @@ const StudentCheckInWidget = ({ user }: StudentCheckInWidgetProps) => {
               locationName: sched.locationName,
               location: `${sched.locationName} | Missed Session`
             };
-            await addAttendance(absentRecord);
+            
+            try {
+              await addAttendance(absentRecord);
+            } catch (err) {
+              console.error('[AutoAbsent] Failed to record:', err);
+              // We keep it in processedAbsentSessions to avoid infinite retry loops if the server is rejecting it
+            }
           }
         }
       }

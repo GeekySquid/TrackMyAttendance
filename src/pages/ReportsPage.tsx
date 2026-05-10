@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf, History } from 'lucide-react';
+import { BarChart2, Download, FileText, PieChart, TrendingUp, Users, Filter, Search, Calendar, ChevronDown, CheckSquare, Square, FileSpreadsheet, FileIcon as FilePdf, History, BookOpen, GraduationCap, User, Building, ClipboardList, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { listenToCollection, getTodayDateStr } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
@@ -322,7 +322,7 @@ export default function ReportsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto mobile-container-padding">
-      <div className="max-w-[1600px] mx-auto w-full">
+      <div className="max-w-[1800px] mx-auto w-full">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
             <div>
@@ -426,34 +426,40 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <CustomDropdown
             label="Student"
+            icon={User}
             options={[
-              { value: "All", label: "All Students" },
-              ...students.map(s => ({ value: s.uid || s.id, label: `${s.name} (${s.rollNo})` }))
+              { value: "All", label: "All Students", icon: Users },
+              ...students.map(s => ({ value: s.uid || s.id, label: `${s.name} (${s.rollNo})`, icon: User }))
             ]}
             value={selectedStudent}
             onChange={setSelectedStudent}
+            className="w-full"
           />
 
           <CustomDropdown
             label="Course"
+            icon={Building}
             options={[
-              { value: "All", label: "All Courses" },
-              ...courses.map(c => ({ value: c as string, label: c as string }))
+              { value: "All", label: "All Courses", icon: BookOpen },
+              ...courses.map(c => ({ value: c as string, label: c as string, icon: GraduationCap }))
             ]}
             value={selectedCourse}
             onChange={setSelectedCourse}
+            className="w-full"
           />
 
           <CustomDropdown
             label="Status"
+            icon={TrendingUp}
             options={[
-              { value: "All", label: "All Statuses" },
-              { value: "Present", label: "Present" },
-              { value: "Absent", label: "Absent" },
-              { value: "Late", label: "Late" }
+              { value: "All", label: "All Statuses", icon: ClipboardList },
+              { value: "Present", label: "Present", icon: CheckCircle },
+              { value: "Absent", label: "Absent", icon: XCircle },
+              { value: "Late", label: "Late", icon: Clock }
             ]}
             value={statusFilter}
             onChange={setStatusFilter}
+            className="w-full"
           />
           <CustomDateInput
             label="From Date"
@@ -471,24 +477,38 @@ export default function ReportsPage() {
         <div className="table-fixed-height border border-gray-100 rounded-lg">
           <table className="w-full text-left border-collapse table-responsive">
             <thead className="sticky top-0 z-20 bg-gray-50">
-              <tr className="border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400">
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('date')}>
-                  Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <tr className="border-b border-gray-50 text-[10px] uppercase tracking-widest text-gray-400">
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group" onClick={() => handleSort('date')}>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+                    Date {sortConfig?.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('userName')}>
-                  Student {sortConfig?.key === 'userName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group" onClick={() => handleSort('userName')}>
+                  <div className="flex items-center gap-2">
+                    <User className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+                    Student {sortConfig?.key === 'userName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('course')}>
-                  Course {sortConfig?.key === 'course' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group" onClick={() => handleSort('course')}>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+                    Course {sortConfig?.key === 'course' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkInTime')}>
-                  In {sortConfig?.key === 'checkInTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group" onClick={() => handleSort('checkInTime')}>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+                    In {sortConfig?.key === 'checkInTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('checkOutTime')}>
-                  Out {sortConfig?.key === 'checkOutTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group" onClick={() => handleSort('checkOutTime')}>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-gray-400 group-hover:text-blue-500" />
+                    Out {sortConfig?.key === 'checkOutTime' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-
-                <th className="px-4 py-3 font-black cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('status')}>
+                <th className="px-6 py-4 font-black cursor-pointer hover:bg-gray-100 transition-all group text-right" onClick={() => handleSort('status')}>
                   Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
               </tr>
@@ -496,35 +516,45 @@ export default function ReportsPage() {
             <tbody className="divide-y divide-gray-50">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">No records found for the selected filters.</td>
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500 text-sm italic">No records found for the selected filters.</td>
                 </tr>
               ) : (
                 visibleItems.map((record, i) => {
                   const recordName = record.userName || record.name || record.studentName || 'Unknown';
                   return (
-                  <tr key={record.id || i} className="hover:bg-gray-50/50 text-sm transition-colors">
-                    <td className="px-4 py-3 text-gray-600" data-label="Date">{record.date}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800" data-label="Student">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-left">{recordName}</span>
-                        <span className="text-[10px] text-gray-400 font-medium text-left">{record.rollNo}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600" data-label="Course">{record.course}</td>
-                    <td className="px-4 py-3 text-gray-600 font-bold" data-label="In">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                    <td className="px-4 py-3 text-gray-600 font-bold" data-label="Out">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-
-                    <td className="px-4 py-3 text-right" data-label="Status">
-                      <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                        record.status === 'Present' ? 'bg-green-50 text-green-700 border border-green-100' :
-                        record.status === 'Late' ? 'bg-orange-50 text-orange-700 border border-orange-100' :
-                        'bg-red-50 text-red-700 border border-red-100'
-                      }`}>
-                        {record.status}
-                      </span>
-                    </td>
-                  </tr>
-                )})
+                    <tr key={record.id || i} className="group hover:bg-blue-50/40 text-[11px] font-bold transition-all duration-300">
+                      <td className="px-6 py-4 text-gray-500" data-label="Date">{record.date}</td>
+                      <td className="px-6 py-4 text-gray-900" data-label="Student">
+                        <div className="flex flex-col">
+                          <span className="font-black group-hover:text-blue-600 transition-colors">{recordName}</span>
+                          <span className="text-[9px] text-gray-400 uppercase tracking-tight">{record.rollNo || 'ID: UNKNOWN'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4" data-label="Course">
+                        <span className="bg-gray-100/50 px-2 py-0.5 rounded-md text-gray-600 uppercase tracking-tighter">{record.course}</span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-700" data-label="In">
+                        {record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700" data-label="Out">
+                        {record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      </td>
+                      <td className="px-6 py-4 text-right" data-label="Status">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                          record.status === 'Present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                          record.status === 'Late' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                          'bg-rose-50 text-rose-700 border border-rose-100'
+                        }`}>
+                          <div className={`w-1 h-1 rounded-full mr-2 ${
+                            record.status === 'Present' ? 'bg-emerald-500' :
+                            record.status === 'Late' ? 'bg-amber-500' : 'bg-rose-500'
+                          }`} />
+                          {record.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -21,7 +21,14 @@ import {
   RefreshCw,
   Trophy,
   Sparkles,
-  Mail
+  Mail,
+  Globe,
+  Calendar,
+  FileText,
+  UserMinus,
+  CheckCircle,
+  GraduationCap,
+  BookOpen
 } from 'lucide-react';
 import {
   listenToCollection,
@@ -510,29 +517,31 @@ export default function SettingsPage({ role = 'admin', user, onUpdate }: { role?
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Timezone</label>
-                    <select
+                    <CustomDropdown
+                      label="Timezone"
+                      icon={Globe}
                       value={localSettings.timezone || ''}
-                      onChange={(e) => handleSettingsChange({ timezone: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
-                    >
-                      <option value="America/New_York (EST)">America/New_York (EST)</option>
-                      <option value="America/Los_Angeles (PST)">America/Los_Angeles (PST)</option>
-                      <option value="Europe/London (GMT)">Europe/London (GMT)</option>
-                      <option value="Asia/Kolkata (IST)">Asia/Kolkata (IST)</option>
-                    </select>
+                      onChange={(val) => handleSettingsChange({ timezone: val })}
+                      options={[
+                        { value: "America/New_York (EST)", label: "New York (EST)", icon: Globe },
+                        { value: "America/Los_Angeles (PST)", label: "Los Angeles (PST)", icon: Globe },
+                        { value: "Europe/London (GMT)", label: "London (GMT)", icon: Globe },
+                        { value: "Asia/Kolkata (IST)", label: "Kolkata (IST)", icon: Globe }
+                      ]}
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Date Format</label>
-                    <select
+                    <CustomDropdown
+                      label="Date Format"
+                      icon={Calendar}
                       value={localSettings.date_format || ''}
-                      onChange={(e) => handleSettingsChange({ date_format: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all shadow-sm"
-                    >
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    </select>
+                      onChange={(val) => handleSettingsChange({ date_format: val })}
+                      options={[
+                        { value: "MM/DD/YYYY", label: "MM/DD/YYYY", icon: Calendar },
+                        { value: "DD/MM/YYYY", label: "DD/MM/YYYY", icon: Calendar },
+                        { value: "YYYY-MM-DD", label: "YYYY-MM-DD", icon: Calendar }
+                      ]}
+                    />
                   </div>
                 </div>
               </div>

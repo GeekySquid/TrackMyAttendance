@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle, Loader2, Trash2, ChevronDown, History, Trophy } from 'lucide-react';
+import { Users, UserPlus, UserCheck, UserMinus, Plus, Search, Copy, XCircle, Loader2, Trash2, ChevronDown, History, Trophy, BookOpen, GraduationCap, User } from 'lucide-react';
 import CustomDropdown from '../components/CustomDropdown';
 import CustomDateInput from '../components/CustomDateInput';
 import StatCard from '../components/StatCard';
@@ -239,7 +239,7 @@ export default function StudentsPage() {
 
 
   return (
-    <div className="flex-1 mobile-container-padding relative">
+    <div className="flex-1 mobile-container-padding relative max-w-[1800px] mx-auto w-full">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
           <div>
@@ -298,10 +298,14 @@ export default function StudentsPage() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <CustomDropdown
-                  options={uniqueCourses.map(c => ({ value: c, label: c }))}
+                  options={uniqueCourses.map(c => ({ 
+                    value: c, 
+                    label: c,
+                    icon: c === 'All Courses' ? BookOpen : GraduationCap 
+                  }))}
                   value={courseFilter}
                   onChange={setCourseFilter}
-                  className="w-full sm:w-48"
+                  className="w-full sm:w-56"
                 />
                 <div className="relative flex-1 sm:w-64">
                   <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -316,17 +320,16 @@ export default function StudentsPage() {
               </div>
             </div>
             <div className="table-fixed-height">
-              {/* Desktop Table View */}
+              {/* Desktop Table View - High Density */}
               <table className="w-full text-left border-collapse hidden md:table">
-                <thead className="bg-gray-50/50 sticky top-0 z-10 backdrop-blur-md">
-                  <tr>
-                    <th className="py-4 px-6 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Student Info</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Roll No</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Course</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mentor</th>
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Attendance</th>
-
-                    <th className="py-4 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                <thead className="bg-gray-50/50 sticky top-0 z-20">
+                  <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                    <th className="py-4 px-6 w-1/3">Student Information</th>
+                    <th className="py-4 px-6">Major / Course</th>
+                    <th className="py-4 px-6">ID Number</th>
+                    <th className="py-4 px-6">Primary Mentor</th>
+                    <th className="py-4 px-6 text-center w-32">Attendance</th>
+                    <th className="py-4 px-6 text-right w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -334,86 +337,96 @@ export default function StudentsPage() {
                     Array(5).fill(0).map((_, i) => <SkeletonStudentRow key={i} />)
                   ) : filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-gray-500 text-sm italic">No students found matching your criteria.</td>
+                      <td colSpan={6} className="py-20 text-center text-gray-500 italic">No students found.</td>
                     </tr>
                   ) : (
                     visibleItems.map((student) => (
                       <tr
                         key={student.uid || student.id}
                         onClick={() => setSelectedStudent(student)}
-                        className={`hover:bg-blue-50/30 transition-colors cursor-pointer group ${selectedStudent?.uid === student.uid || selectedStudent?.id === student.id ? 'bg-blue-50' : ''}`}
+                        className={`group transition-all duration-300 cursor-pointer ${
+                          selectedStudent?.uid === student.uid || selectedStudent?.id === student.id
+                            ? 'bg-blue-50/80 shadow-[inset_4px_0_0_0_#2563eb]'
+                            : 'hover:bg-gray-50/60'
+                        }`}
                       >
                         <td className="py-4 px-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0 overflow-hidden border-2 border-white shadow-sm ring-1 ring-blue-50">
-                              {student.photoURL ? (
-                                <img src={student.photoURL} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span>{student.name?.charAt(0) || 'S'}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 overflow-hidden shadow-sm flex items-center justify-center text-[11px] font-black text-blue-600 transition-transform group-hover:scale-110">
+                                {student.photoURL ? <img src={student.photoURL} className="w-full h-full object-cover" /> : student.name?.charAt(0)}
+                              </div>
+                              {student.isAwardWinner && (
+                                <div className="absolute -top-1.5 -right-1.5 bg-amber-400 p-1 rounded-lg shadow-lg border border-white">
+                                  <Trophy className="w-2.5 h-2.5 text-white" />
+                                </div>
                               )}
                             </div>
-                             <div className="min-w-0">
-                               <div className="flex items-center gap-1.5">
-                                 <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{student.name}</p>
-                                 {student.isAwardWinner && (
-                                   <div className="relative group/trophy ml-1">
-                                     <div className="absolute inset-0 bg-orange-400 blur-md opacity-20 group-hover/trophy:opacity-40 animate-pulse"></div>
-                                     <Trophy className="w-4 h-4 text-orange-500 fill-orange-200 animate-bounce relative z-10" />
-                                   </div>
-                                 )}
-                               </div>
-                               <p className="text-[11px] text-gray-500 truncate">{student.email}</p>
-                             </div>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-black text-gray-900 leading-tight truncate">{student.name}</p>
+                              <p className="text-[10px] text-gray-400 font-bold tracking-tight truncate">{student.email}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="text-sm text-gray-600 font-mono font-medium">{student.rollNo}</span>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-blue-50 transition-colors">
+                              <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                            </div>
+                            <span className="text-[11px] font-black text-gray-700 uppercase tracking-tighter">{student.course || 'N/A'}</span>
+                          </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 uppercase tracking-wider">
-                            {student.course}
+                        <td className="py-4 px-6">
+                          <span className="text-[11px] font-mono font-bold text-gray-500 bg-gray-100/50 px-2 py-0.5 rounded-md">
+                            {student.rollNo}
                           </span>
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="text-xs font-bold text-gray-700">
-                            {student.mentors?.name || 'No Mentor'}
-                          </span>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-black text-indigo-600">
+                              {student.mentors?.name?.charAt(0) || 'M'}
+                            </div>
+                            <span className="text-[11px] font-black text-gray-700">
+                              {student.mentors?.name || 'Unassigned'}
+                            </span>
+                          </div>
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="inline-flex flex-col items-center gap-1">
-                            <span className={`text-xs font-black ${parseInt(student.attendance) >= 75 ? 'text-green-600' :
-                              parseInt(student.attendance) >= 60 ? 'text-orange-500' : 'text-red-500'
-                              }`}>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col items-center gap-1.5">
+                            <span className={`text-[11px] font-black ${
+                              parseInt(student.attendance) >= 75 ? 'text-emerald-600' :
+                              parseInt(student.attendance) >= 60 ? 'text-amber-500' : 'text-rose-500'
+                            }`}>
                               {student.attendance || '0%'}
                             </span>
-                            <div className="w-16 bg-gray-100 rounded-full h-1 overflow-hidden">
+                            <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden shadow-inner">
                               <div
-                                className={`h-full rounded-full transition-all duration-500 ${parseInt(student.attendance) >= 75 ? 'bg-green-500' :
-                                  parseInt(student.attendance) >= 60 ? 'bg-orange-400' : 'bg-red-400'
-                                  }`}
+                                className={`h-full rounded-full transition-all duration-700 ease-out ${
+                                  parseInt(student.attendance) >= 75 ? 'bg-emerald-500' :
+                                  parseInt(student.attendance) >= 60 ? 'bg-amber-400' : 'bg-rose-400'
+                                }`}
                                 style={{ width: student.attendance || '0%' }}
                               />
                             </div>
                           </div>
                         </td>
-
-                        <td className="py-4 px-4 text-right">
-                          <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigator.clipboard.writeText(`${student.name} - ${student.rollNo}`);
-                                toast.success('Copied!');
+                                toast.success('Details Copied!');
                               }}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl shadow-sm border border-transparent hover:border-gray-100 transition-all"
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white rounded-xl shadow-sm border border-transparent hover:border-blue-100 transition-all"
                             >
-                              <Copy className="w-4 h-4" />
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => handleDeleteStudent(student.uid || student.id, e)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-white rounded-xl shadow-sm border border-transparent hover:border-gray-100 transition-all"
+                              className="p-2 text-gray-400 hover:text-rose-600 hover:bg-white rounded-xl shadow-sm border border-transparent hover:border-rose-100 transition-all"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -617,9 +630,10 @@ export default function StudentsPage() {
                 <div className="pt-0">
                   <CustomDropdown
                     label="Assign Mentor"
+                    icon={Users}
                     options={[
-                      { value: "", label: "No Mentor Assigned" },
-                      ...mentors.map(m => ({ value: m.id, label: m.name }))
+                      { value: "", label: "No Mentor Assigned", icon: UserMinus },
+                      ...mentors.map(m => ({ value: m.id, label: m.name, icon: UserCheck }))
                     ]}
                     value={newMentorId}
                     onChange={setNewMentorId}

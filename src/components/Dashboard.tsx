@@ -518,7 +518,7 @@ export default function Dashboard({ user }: { user: any }) {
 
   return (
     <div className="flex-1 mobile-container-padding">
-      <div className="max-w-[1600px] mx-auto w-full">
+      <div className="max-w-[1800px] mx-auto w-full">
         <style>{`
           @keyframes wave {
             0%, 100% { transform: rotate(0deg); }

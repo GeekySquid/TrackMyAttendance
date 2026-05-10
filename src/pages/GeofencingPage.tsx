@@ -220,7 +220,7 @@ export default function GeofencingPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto mobile-container-padding">
+    <div className="flex-1 overflow-y-auto mobile-container-padding max-w-[1800px] mx-auto w-full">
       <div className="mb-4 sm:mb-6">
         <h2 className="text-xl font-bold text-gray-800">Geofencing Setup & Active Alarms</h2>
         <p className="text-sm text-gray-500">Configure spatial boundaries and automate class attendance windows</p>

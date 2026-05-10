@@ -244,33 +244,17 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
           </div>
 
           <div className="relative shrink-0">
-            <button
-              onClick={() => setShowFilter(!showFilter)}
-              className={`flex items-center px-3 py-1.5 text-[10px] sm:text-xs font-bold border rounded-lg transition-colors ${statusFilter !== 'All'
-                  ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-            >
-              <Filter className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 text-blue-600" />
-              {statusFilter === 'All' ? 'Filter' : statusFilter}
-            </button>
-            {showFilter && (
-              <>
-                <div className="fixed inset-0 z-[60]" onClick={() => setShowFilter(false)} />
-                <div className="absolute top-full right-0 mt-2 w-40 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[70] py-1 animate-in fade-in slide-in-from-top-2">
-                  {['All', 'Present', 'Late', 'Absent'].map(status => (
-                    <button
-                      key={status}
-                      onClick={() => { setStatusFilter(status); setShowFilter(false); }}
-                      className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-50 ${statusFilter === status ? 'text-blue-600' : 'text-gray-700'
-                        }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            <CustomDropdown
+              options={[
+                { value: 'All', label: 'All Status', icon: Filter },
+                { value: 'Present', label: 'Present', icon: CheckCircle },
+                { value: 'Late', label: 'Late', icon: Clock },
+                { value: 'Absent', label: 'Absent', icon: XCircle }
+              ]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              className="min-w-[120px]"
+            />
           </div>
 
           {onClose && (
@@ -302,15 +286,14 @@ export default function AttendanceTable({ onClose, onStudentSelect }: { onClose?
       <div className="flex-1 table-fixed-height">
         <table className="w-full table-responsive relative">
           <thead className="sticky top-0 bg-white z-10 shadow-[0_1px_0_0_#f9fafb]">
-            <tr className="text-left text-[9px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
-              <th className="pb-2 px-2">Student</th>
-              <th className="pb-2 px-2">Course</th>
-              <th className="pb-2 px-2">Date</th>
-              <th className="pb-2 px-2">Check-in</th>
-              <th className="pb-2 px-2">Check-out</th>
-              <th className="pb-2 px-2">Location</th>
-
-              <th className="pb-2 px-2">Status</th>
+            <tr className="text-left text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+              <th className="py-4 px-2 w-1/4">Student Info</th>
+              <th className="py-4 px-2">Major / Course</th>
+              <th className="py-4 px-2">Session Date</th>
+              <th className="py-4 px-2">Check-in</th>
+              <th className="py-4 px-2">Check-out</th>
+              <th className="py-4 px-2">Campus Zone</th>
+              <th className="py-4 px-2 text-right">Attendance Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">

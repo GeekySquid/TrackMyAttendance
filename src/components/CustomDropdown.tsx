@@ -74,7 +74,7 @@ export default function CustomDropdown({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute z-[100] top-[calc(100%+6px)] left-0 w-full bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
+              className="absolute z-[100] top-[calc(100%+6px)] right-0 lg:left-0 min-w-full w-max max-w-[280px] bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-2xl shadow-blue-900/15 overflow-hidden ring-1 ring-black/5"
             >
               <div className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar">
                 {options.length === 0 ? (
@@ -88,18 +88,18 @@ export default function CustomDropdown({
                         onChange(option.value);
                         setIsOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold transition-all duration-200 group
+                      className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold transition-all duration-200 group active:scale-[0.98]
                         ${value === option.value 
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
-                          : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}
+                          ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/30' 
+                          : 'text-gray-600 hover:bg-blue-50/80 hover:text-blue-600 hover:translate-x-1'}
                         mb-1 last:mb-0
                       `}
                     >
-                      <div className="flex items-center gap-3 truncate">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
                         {option.icon && (
                           <option.icon className={`w-4 h-4 transition-colors ${value === option.value ? 'text-white' : 'text-gray-400 group-hover:text-blue-500'}`} />
                         )}
-                        <span className="truncate">{option.label}</span>
+                        <span>{option.label}</span>
                       </div>
                       {value === option.value && (
                         <motion.div

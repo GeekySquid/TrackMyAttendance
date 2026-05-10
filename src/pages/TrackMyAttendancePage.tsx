@@ -33,15 +33,16 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
       const mappedData = data.map(r => {
         // Calculate hours for mapped display
         let hoursDisplay = '--';
-        if (r.checkInTime && r.checkOutTime) {
-          const checkIn = new Date(r.checkInTime);
-          const checkOut = new Date(r.checkOutTime);
-          
-          if (!isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
-            const diffMs = checkOut.getTime() - checkIn.getTime();
+        
+        const checkInDate = r.checkInTime ? new Date(r.checkInTime) : null;
+        const checkOutDate = r.checkOutTime ? new Date(r.checkOutTime) : null;
+
+        if (checkInDate && checkOutDate && !isNaN(checkInDate.getTime()) && !isNaN(checkOutDate.getTime()) && r.status !== 'Absent') {
+          const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+          if (diffMs > 0) {
             const h = Math.floor(diffMs / 3600000);
             const m = Math.floor((diffMs % 3600000) / 60000);
-            hoursDisplay = `${h}h ${m}m`;
+            hoursDisplay = h > 0 ? `${h}h ${m}m` : `${m}m`;
           }
         }
 
@@ -52,8 +53,8 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
           id: r.id,
           date: dateStr,
           rawDate: r.date || '',
-          in: r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-          out: r.checkOutTime ? new Date(r.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+          in: (checkInDate && !isNaN(checkInDate.getTime())) ? checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+          out: (checkOutDate && !isNaN(checkOutDate.getTime())) ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
           hours: hoursDisplay,
           location: locationStr,
           locationName: (locationStr.split('|')[0] || 'Campus').trim(),
@@ -169,7 +170,7 @@ export default function TrackMyAttendancePage({ userId }: { userId?: string }) {
 
   return (
     <div className="flex-1 overflow-y-auto mobile-container-padding bg-gray-50/50">
-      <div className="max-w-[1600px] mx-auto w-full">
+      <div className="max-w-[1800px] mx-auto w-full">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden w-full">
         {/* Header Section */}
         <div className="p-6 border-b border-gray-100 bg-white">

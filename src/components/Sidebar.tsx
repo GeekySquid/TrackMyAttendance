@@ -46,7 +46,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
 
   const adminNavItems = [
     { id: '', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'students', label: 'Student', icon: Users },
+    { id: 'students', label: 'Students', icon: Users },
     { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
     { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
     { id: 'reports', label: 'Reports', icon: BarChart2 },
@@ -71,6 +71,8 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [sysSettings, setSysSettings] = useState<any>(null);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('app_settings', (data) => {
@@ -78,8 +80,26 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
         setSysSettings(data[0]);
       }
     });
-    return () => unsubscribe();
+
+    const unsubscribeRoles = listenToCollection('roles', (data) => {
+      setRoles(data);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeRoles();
+    };
   }, []);
+
+  // Determine current user's role details
+  useEffect(() => {
+    if (user?.roleId && roles.length > 0) {
+      const foundRole = roles.find(r => r.id === user.roleId);
+      setCurrentUserRole(foundRole || null);
+    } else {
+      setCurrentUserRole(null);
+    }
+  }, [user?.roleId, roles]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -99,7 +119,22 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     }
   };
 
-  const navItems = role === 'admin' ? adminNavItems : studentNavItems;
+  // Filter nav items based on RBAC
+  const navItems = role === 'admin' 
+    ? adminNavItems.filter(item => {
+        // Super Admin (roleId null or specific name) or if no custom role assigned, show all by default? 
+        // Or if it's the primary admin email?
+        const isSuperAdmin = !user?.roleId || currentUserRole?.name === 'Super Admin';
+        if (isSuperAdmin) return true;
+
+        // Core items that should always be visible
+        const coreItems = ['Dashboard', 'Support'];
+        if (coreItems.includes(item.label)) return true;
+
+        // Check against role modules
+        return currentUserRole?.modules?.includes(item.label);
+      })
+    : studentNavItems;
 
   return (
     <>
@@ -159,6 +194,9 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
             if (role === 'admin') return true;
             if ((item as any).awardOnly && !user?.isAwardWinner) return false;
 
+            const AVAILABLE_MODULES = [
+              'Students', 'Attendance', 'Leave Requests', 'Reports', 'Documents', 'Notifications', 'Access Control', 'Settings', 'Geofencing', 'Waitlist'
+            ];
             const defaultPerms = ['dashboard', 'attendance', 'leave', 'leaderboard', 'awards', 'settings'];
             const perms = sysSettings?.role_permissions?.student || defaultPerms;
             const moduleMapping: Record<string, string> = {

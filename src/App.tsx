@@ -43,7 +43,7 @@ import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
 import NotificationStack from './components/notifications/NotificationStack';
 import CustomCursor from './components/CustomCursor';
-import { saveUser, getUserById } from './services/dbService';
+import { saveUser, getUserById, listenToCollection } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
 import { autoClearCache } from './utils/cacheManager';
@@ -216,6 +216,24 @@ function AppContent() {
 
     syncProfile();
   }, [isLoaded, isSignedIn, user]);
+
+  // ─── Real-time Profile Listener ───────────────────────────────────────────
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    const unsubscribe = listenToCollection('users', (data) => {
+      const updatedProfile = data.find(u => u.id === profile.id);
+      if (updatedProfile) {
+        // Only update if something meaningful changed to avoid loops
+        if (JSON.stringify(updatedProfile) !== JSON.stringify(profile)) {
+          console.log('[App] Profile updated via real-time listener');
+          setProfile(updatedProfile);
+        }
+      }
+    }, profile.id);
+    
+    return () => unsubscribe();
+  }, [profile?.id]);
 
   // ─── Demo login (bypasses Clerk, uses mock profile) ──────────────────────
   const handleDemoLogin = (role: 'admin' | 'student', userData?: any) => {

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  BookOpen, 
-  Search, 
-  ChevronRight, 
-  FileText, 
-  MapPin, 
-  Calendar, 
-  ShieldCheck, 
+import {
+  BookOpen,
+  Search,
+  ChevronRight,
+  FileText,
+  MapPin,
+  Calendar,
+  ShieldCheck,
   HelpCircle,
   MessageSquare,
   Mail,
@@ -116,9 +116,9 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
     }
   ];
 
-  const filteredFaqs = faqs.filter(faq => 
+  const filteredFaqs = faqs.filter(faq =>
     faq.role === role &&
-    faq.category === activeTab && 
+    faq.category === activeTab &&
     (faq.title.toLowerCase().includes(searchQuery.toLowerCase()) || faq.content.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -151,11 +151,10 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
                   <button
                     key={cat.id}
                     onClick={() => setActiveTab(cat.id)}
-                    className={`flex-shrink-0 snap-start flex items-center gap-3 px-5 py-3 rounded-xl transition-all whitespace-nowrap lg:whitespace-normal text-left ${
-                      activeTab === cat.id 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
+                    className={`flex-shrink-0 snap-start flex items-center gap-3 px-5 py-3 rounded-xl transition-all whitespace-nowrap lg:whitespace-normal text-left ${activeTab === cat.id
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
                         : 'text-gray-600 bg-white border border-gray-50 hover:bg-white hover:shadow-sm'
-                    }`}
+                      }`}
                   >
                     <Icon className={`w-5 h-5 ${activeTab === cat.id ? 'text-white' : 'text-gray-400'}`} />
                     <span className="font-bold text-sm">{cat.label}</span>
@@ -197,7 +196,7 @@ const SupportPage: React.FC<SupportPageProps> = ({ role }) => {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-4">
               {filteredFaqs.length > 0 ? (
                 filteredFaqs.map((faq, index) => (

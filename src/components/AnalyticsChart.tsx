@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Users, User, GraduationCap, Building } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { listenToCollection, getTodayDateStr } from '../services/dbService';
 import { motion } from 'framer-motion';
@@ -242,12 +242,13 @@ function AnalyticsChart({
           {!isStudentMode && (
             <CustomDropdown
               options={[
-                { value: "All Students", label: "All Students" },
-                ...students.map((s) => ({ value: s.name, label: s.name }))
+                { value: "All Students", label: "All Students", icon: Users },
+                ...students.map((s) => ({ value: s.name, label: s.name, icon: User }))
               ]}
               value={localSelectedStudent}
               onChange={handleStudentChange}
               className="w-full sm:w-48"
+              icon={GraduationCap}
             />
           )}
           <div className="bg-gray-100 p-1 rounded-lg flex shrink-0">
