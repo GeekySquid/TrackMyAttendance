@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from './lib/supabase';
 // ─── Browser Extension Error Fix ──────────────────────────────────────────
 // Suppress console errors from chrome-extension://invalid/ (third-party probes)
 if (typeof window !== 'undefined') {
