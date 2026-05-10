@@ -55,6 +55,8 @@ function NotificationManager({ profile }: { profile: any }) {
   return null;
 }
 
+import { ADMIN_EMAILS } from './constants/admin';
+
 function AppContent() {
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useAuth();
@@ -157,9 +159,8 @@ function AppContent() {
 
           if (!existing) {
             toast.loading('Creating your profile...', { id: 'sync-status' });
-            const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
             const userEmail = user.primaryEmailAddress?.emailAddress || '';
-            const role = adminEmails.includes(userEmail) ? 'admin' : 'student';
+            const role = ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'student';
 
             const newUserData = {
               id: clerkId,
@@ -183,15 +184,10 @@ function AppContent() {
           }
         } else {
           console.log('[App] Existing profile found:', existing.id);
-          const adminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
-          const shouldBeAdmin = adminEmails.includes(user.primaryEmailAddress?.emailAddress || '');
-          const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
-
-          if ((shouldBeAdmin && existing.role !== 'admin') || photoDiffers) {
+          if (photoDiffers) {
             toast.loading('Updating profile details...', { id: 'sync-status' });
             await saveUser({
               ...existing,
-              role: shouldBeAdmin ? 'admin' : existing.role,
               photoURL: user.imageUrl || existing.photoURL
             });
             existing = await getUserById(clerkId);
@@ -201,7 +197,7 @@ function AppContent() {
 
         if (existing) {
           // Priority: 1. DB Role, 2. Email-based fallback
-          const finalRole = existing.role || (adminEmails.includes(user.primaryEmailAddress?.emailAddress || '') ? 'admin' : 'student');
+          const finalRole = existing.role || (ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress || '') ? 'admin' : 'student');
           
           const enrichedProfile = {
             ...existing,

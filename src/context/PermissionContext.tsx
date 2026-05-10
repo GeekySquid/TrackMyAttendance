@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { listenToCollection } from '../services/dbService';
+import { ADMIN_EMAILS } from '../constants/admin';
 
 export interface Role {
   id: string;
@@ -39,9 +40,8 @@ export function PermissionProvider({ children, userProfile }: { children: React.
 
   const canAccess = (moduleName: string): boolean => {
     // 1. Super Admin Bypass (Email or Role Name)
-    const superAdminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
     const userEmail = userProfile?.email || '';
-    const isSuperAdminEmail = superAdminEmails.includes(userEmail);
+    const isSuperAdminEmail = ADMIN_EMAILS.includes(userEmail);
     
     const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || 
                              currentUserRole?.name === 'Supper Admin' || 
