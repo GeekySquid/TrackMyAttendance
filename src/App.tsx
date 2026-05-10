@@ -45,7 +45,7 @@ import MobileNavbar from './components/MobileNavbar';
 import toast, { Toaster } from 'react-hot-toast';
 import NotificationStack from './components/notifications/NotificationStack';
 import CustomCursor from './components/CustomCursor';
-import { saveUser, getUserById, listenToCollection } from './services/dbService';
+import { saveUser, getUserById, listenToCollection, mapProfile } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
 import { autoClearCache } from './utils/cacheManager';
