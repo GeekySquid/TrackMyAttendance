@@ -55,8 +55,15 @@ export function PermissionProvider({ children, userProfile }: { children: React.
 
     // 3. Role-based Check
     if (!currentUserRole || !currentUserRole.modules) {
-      // If user is a student but has no specific role assigned in DB, 
-      // allow default student modules as a fallback.
+      // Faculty: admin panel access with restricted modules
+      if (userProfile?.role === 'faculty') {
+        const facultyDefaults = [
+          'Dashboard', 'Attendance', 'Leave Requests',
+          'Geofencing', 'Notifications', 'Settings', 'Support'
+        ];
+        return facultyDefaults.map(m => m.toLowerCase()).includes(moduleName.toLowerCase());
+      }
+      // Student fallback modules
       if (userProfile?.role === 'student') {
         const studentDefaults = [
           'Dashboard', 'Attendance', 'Leave Requests', 

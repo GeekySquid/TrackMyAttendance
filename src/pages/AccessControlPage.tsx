@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, GripVertical, Check, Plus, XCircle, Loader2, ArrowRightCircle, UserPlus, MoreVertical, Trash2 } from 'lucide-react';
-import { listenToCollection, updateUserRole, saveUser, getRoles, saveRoles } from '../services/dbService';
+import { Shield, Users, GripVertical, Check, Plus, XCircle, Loader2, ArrowRightCircle, UserPlus, MoreVertical, Trash2, AlertTriangle } from 'lucide-react';
+import { listenToCollection, updateUserRole, saveUser, getRoles, saveRoles, deleteRole } from '../services/dbService';
 import CustomDropdown from '../components/CustomDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -31,12 +31,14 @@ export default function AccessControlPage() {
   const [isSavingRole, setIsSavingRole] = useState(false);
   const [selectingRoleForUser, setSelectingRoleForUser] = useState<User | null>(null);
   const [expandedRolePermissions, setExpandedRolePermissions] = useState<string | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('users', (data) => {
-      // Only show Faculty and Admins in Access Control (filter out students)
-      const staffUsers = (data as any[]).filter(u => u.role !== 'student');
-      setUsers(staffUsers as User[]);
+      // Only show Faculty members in Access Control (not students, not super-admins)
+      const facultyUsers = (data as any[]).filter(u => u.role === 'faculty');
+      setUsers(facultyUsers as User[]);
     });
 
     // Load roles
@@ -124,14 +126,45 @@ export default function AccessControlPage() {
     setIsSavingRole(false);
   };
 
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    setIsDeletingRole(true);
+    try {
+      // 1. Revoke approval for all faculty in this role
+      const affectedUsers = users.filter(u => u.roleId === roleToDelete.id);
+      for (const u of affectedUsers) {
+        await updateUserRole(u.id, null); // sets faculty_approved = false
+      }
+
+      // 2. Hard-delete the role from Supabase
+      const deleted = await deleteRole(roleToDelete.id);
+      if (!deleted) throw new Error('Delete failed');
+
+      // 3. Update local state
+      setRoles(prev => prev.filter(r => r.id !== roleToDelete.id));
+
+      toast.success(`Role "${roleToDelete.name}" deleted.${
+        affectedUsers.length > 0 ? ` ${affectedUsers.length} faculty moved to Awaiting Approval.` : ''
+      }`);
+    } catch (err) {
+      toast.error('Failed to delete role. Please try again.');
+    } finally {
+      setIsDeletingRole(false);
+      setRoleToDelete(null);
+    }
+  };
+
   const unassignedUsers = users.filter(u => u.roleId === null || u.roleId === undefined);
+  const approvedUsers = users.filter(u => u.roleId !== null && u.roleId !== undefined);
+  const [showPending, setShowPending] = useState(false);
+  const displayedFacultyUsers = showPending ? unassignedUsers : approvedUsers;
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden mobile-container-padding">
+    <div className="flex-1 flex flex-col h-full overflow-hidden mobile-container-padding !pb-0">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Role-Based Access Control</h2>
-          <p className="text-sm text-gray-500">Drag and drop users into roles and configure module access.</p>
+          <h2 className="text-xl font-bold text-gray-800">Faculty Access Control</h2>
+          <p className="text-sm text-gray-500">Approve faculty members by assigning them a role. Faculty without a role are blocked from the panel.</p>
         </div>
         <button
           onClick={() => setShowAddUserModal(true)}
@@ -142,64 +175,159 @@ export default function AccessControlPage() {
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 pb-6 lg:pb-0">
-        {/* Unassigned Users Pool - Premium Floating Design on Mobile */}
-        <div
-          className="w-full lg:w-80 bg-white/80 backdrop-blur-md rounded-3xl border border-gray-100 shadow-xl flex flex-col transition-all overflow-hidden shrink-0 lg:h-full max-h-[300px] lg:max-h-none"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, null)}
-        >
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
-              <Users className="w-4 h-4 text-gray-500" />
-            </div>
-            <h3 className="font-black text-gray-800 text-sm uppercase tracking-tight">Unassigned Pool</h3>
-            <span className="ml-auto bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg shadow-blue-100">
-              {unassignedUsers.length}
-            </span>
-          </div>
+      {/* ─── Main Content: sticky faculty panel + full-width roles grid ─── */}
+      <div className="flex flex-col lg:flex-row gap-0 lg:gap-6 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
 
-          <div className="p-4 flex-1 overflow-x-auto lg:overflow-y-auto flex lg:flex-col gap-3 custom-scrollbar min-h-0">
-            {unassignedUsers.length === 0 && (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-w-[200px]">
-                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-2">
-                  <Check className="w-6 h-6 text-green-500" />
+        {/* ─── Faculty Panel — sticky compact bar on mobile, sidebar on desktop ─ */}
+        <div
+          className="w-full lg:w-80 shrink-0 sticky top-0 z-10 lg:static lg:z-auto lg:h-full"
+          onDragOver={showPending ? handleDragOver : undefined}
+          onDrop={showPending ? (e) => handleDrop(e, null) : undefined}
+        >
+          <div className="bg-white/98 backdrop-blur-md border-b lg:border border-gray-100 shadow-sm lg:shadow-xl lg:rounded-3xl flex flex-col lg:h-full overflow-hidden">
+
+            {/* Panel Header */}
+            <div className="px-4 pt-2 pb-1.5 shrink-0">
+              {/* Title row — only show on desktop or when pending */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${showPending ? 'bg-amber-100' : 'bg-green-100'}`}>
+                    <Users className={`w-4 h-4 ${showPending ? 'text-amber-600' : 'text-green-600'}`} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-gray-800 text-sm uppercase tracking-tight">
+                      {showPending ? 'Pending Approval' : 'Approved Faculty'}
+                    </h3>
+                    <p className={`text-[9px] font-bold uppercase tracking-widest ${showPending ? 'text-amber-500' : 'text-green-600'}`}>
+                      {showPending ? 'Drag to a role to approve' : 'Active in Faculty Portal'}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-tight">All Users<br />Assigned</p>
+                <span className={`text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm ${showPending ? 'bg-amber-500 shadow-amber-100' : 'bg-green-500 shadow-green-100'}`}>
+                  {displayedFacultyUsers.length}
+                </span>
               </div>
-            )}
-            {unassignedUsers.map(user => (
-              <div
-                key={user.id}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, user.id)}
-                className="group relative bg-white border border-gray-100 rounded-2xl p-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-400 hover:shadow-xl hover:shadow-blue-900/5 transition-all flex items-center gap-3 shrink-0 lg:shrink-1 w-64 lg:w-full border-l-4 border-l-gray-300 hover:border-l-blue-500"
-              >
-                <div className="hidden lg:flex items-center justify-center text-gray-300 group-hover:text-blue-400 transition-colors">
-                  <GripVertical className="w-4 h-4" />
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-gray-700 font-black text-sm border border-gray-200">
-                  {user.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
-                  <p className="text-[9px] font-bold text-gray-400 truncate uppercase tracking-tighter">{user.email}</p>
-                </div>
-                {/* Mobile Quick Assign Button */}
+
+              {/* Toggle Pill — always visible */}
+              <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
                 <button
-                  onClick={() => setSelectingRoleForUser(user)}
-                  className="lg:hidden p-2 text-blue-600 bg-blue-50 rounded-xl active:scale-90 transition-all"
+                  onClick={() => setShowPending(false)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all ${!showPending ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  <ArrowRightCircle className="w-5 h-5" />
+                  <Check className="w-3 h-3" />
+                  Approved
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${!showPending ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
+                    {approvedUsers.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setShowPending(true)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all ${showPending ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <span className="text-xs">⏳</span>
+                  Pending
+                  {unassignedUsers.length > 0 && (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${showPending ? 'bg-amber-100 text-amber-600' : 'bg-amber-500 text-white'}`}>
+                      {unassignedUsers.length}
+                    </span>
+                  )}
                 </button>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Roles Grid */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
+            {/* Faculty List — hidden on mobile (Approved tab), shown when Pending or on desktop */}
+            <div className="px-3 pb-3 flex-1 min-h-0 custom-scrollbar flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto flex max-h-44 lg:max-h-none snap-x no-scrollbar">
+
+
+
+            {displayedFacultyUsers.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center p-5 text-center">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
+                  showPending ? 'bg-green-50' : 'bg-gray-50'
+                }`}>
+                  {showPending
+                    ? <Check className="w-6 h-6 text-green-500" />
+                    : <Users className="w-6 h-6 text-gray-300" />
+                  }
+                </div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                  {showPending ? 'All Faculty\nApproved!' : 'No Approved\nFaculty Yet'}
+                </p>
+                {!showPending && unassignedUsers.length > 0 && (
+                  <button
+                    onClick={() => setShowPending(true)}
+                    className="mt-3 text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-xl hover:bg-amber-100 transition-colors"
+                  >
+                    View {unassignedUsers.length} Pending →
+                  </button>
+                )}
+              </div>
+            )}
+
+            {displayedFacultyUsers.map(user => {
+              const assignedRole = showPending ? null : roles.find(r => r.id === user.roleId);
+              return showPending ? (
+                // ─── Pending Card (draggable, amber) ──────────────────────
+                <div
+                  key={user.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, user.id)}
+                  className="group relative bg-white border border-amber-100 rounded-2xl p-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-amber-400 hover:shadow-lg transition-all flex items-center gap-3 shrink-0 lg:shrink w-[280px] lg:w-full border-l-4 border-l-amber-400 snap-center"
+                >
+                  <div className="hidden lg:flex text-gray-300 group-hover:text-amber-400 transition-colors">
+                    <GripVertical className="w-4 h-4" />
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-amber-700 font-black text-sm border border-amber-200 shrink-0">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
+                    <p className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">⏳ Awaiting Role</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectingRoleForUser(user)}
+                    className="p-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl active:scale-90 transition-all shrink-0"
+                    title="Assign role"
+                  >
+                    <ArrowRightCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                // ─── Approved Card (static, green) ────────────────────────
+                <div
+                  key={user.id}
+                  className="bg-white border border-green-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 border-l-4 border-l-green-400 shrink-0 lg:shrink w-[280px] lg:w-full snap-center"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-green-700 font-black text-sm border border-green-200 shrink-0">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
+                    {assignedRole && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-0.5">
+                        <Shield className="w-2.5 h-2.5" />
+                        {assignedRole.name}
+                      </span>
+                    )}
+                  </div>
+                  {/* Revoke button */}
+                  <button
+                    onClick={() => setSelectingRoleForUser(user)}
+                    className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all shrink-0"
+                    title="Change or revoke role"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>{/* closes faculty list px-3 */}
+          </div>{/* closes inner card bg-white/98 */}
+        </div>{/* closes sticky wrapper */}
+
+        {/* ─── Roles Grid — full width on mobile ─────────────────────────── */}
+        <div className="flex-1 min-h-0 lg:overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-3 p-3 lg:p-0 lg:pr-2 pb-32 lg:pb-4">
             {roles.map(role => {
               const roleUsers = users.filter(u => u.roleId === role.id);
               return (
@@ -214,15 +342,18 @@ export default function AccessControlPage() {
                         <p className="text-[10px] font-bold text-blue-500 uppercase">{roleUsers.length} Members</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setExpandedRolePermissions(expandedRolePermissions === role.id ? null : role.id)}
-                      className="lg:hidden p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setRoleToDelete(role)}
+                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                        title="Delete this role"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="p-4 flex-1 flex flex-col gap-6">
+                  <div className="p-3.5 flex-1 flex flex-col gap-4">
                     {/* Drop Zone for Users */}
                     <div>
                       <div className="flex justify-between items-center mb-3">
@@ -230,7 +361,7 @@ export default function AccessControlPage() {
                         <UserPlus className="w-3.5 h-3.5 text-gray-300" />
                       </div>
                       <div
-                        className="min-h-[100px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
+                        className="min-h-[70px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-3 flex flex-col gap-2 transition-colors hover:border-blue-200"
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, role.id)}
                       >
@@ -252,7 +383,7 @@ export default function AccessControlPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-black text-gray-800 truncate">{user.name}</p>
-                              <p className="text-[8px] font-bold text-gray-400 uppercase truncate">Assigned User</p>
+                              <p className="text-[8px] font-bold text-green-500 uppercase truncate">✓ Approved · Faculty</p>
                             </div>
                             <button
                               onClick={async () => {
@@ -274,8 +405,8 @@ export default function AccessControlPage() {
                       </div>
                     </div>
 
-                    {/* Module Permissions */}
-                    <div className={`${expandedRolePermissions === role.id ? 'block' : 'hidden lg:block'} animate-in fade-in slide-in-from-top-2 duration-300`}>
+                    {/* Module Permissions — always visible */}
+                    <div>
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Module Access Control</h4>
                         <div className="h-px bg-gray-100 flex-1 ml-4" />
@@ -481,6 +612,85 @@ export default function AccessControlPage() {
           </div>
         </div>
       )}
+      {/* ─── Delete Role Confirmation Modal ─────────────────────────── */}
+      <AnimatePresence>
+        {roleToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-[3px] z-[200] flex items-center justify-center p-4"
+            onClick={() => !isDeletingRole && setRoleToDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 16 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm border border-gray-100 overflow-hidden"
+            >
+              {/* Red danger header */}
+              <div className="bg-gradient-to-br from-red-500 to-rose-600 p-6 text-center relative">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-lg font-black text-white">Delete Role?</h3>
+                <p className="text-red-100 text-xs mt-1">This action cannot be undone</p>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                {/* Role info chip */}
+                <div className="flex items-center gap-3 bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+                    <Shield className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-gray-800">{roleToDelete.name}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      {users.filter(u => u.roleId === roleToDelete.id).length} faculty assigned
+                    </p>
+                  </div>
+                </div>
+
+                {/* Warning details */}
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-4 space-y-2">
+                  <p className="text-xs font-black text-red-700 uppercase tracking-widest mb-1">What will happen:</p>
+                  <p className="text-xs text-red-600">⚠️ The role will be permanently deleted</p>
+                  {users.filter(u => u.roleId === roleToDelete.id).length > 0 && (
+                    <p className="text-xs text-red-600">
+                      🔒 {users.filter(u => u.roleId === roleToDelete.id).length} faculty will lose access and return to <strong>Awaiting Approval</strong>
+                    </p>
+                  )}
+                  <p className="text-xs text-red-600">🗑️ All module permissions for this role will be lost</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => setRoleToDelete(null)}
+                  disabled={isDeletingRole}
+                  className="flex-1 px-4 py-3 text-sm font-black text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteRole}
+                  disabled={isDeletingRole}
+                  className="flex-1 px-4 py-3 text-sm font-black text-white bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 rounded-2xl shadow-lg shadow-red-200 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {isDeletingRole
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Deleting...</>
+                    : <><Trash2 className="w-4 h-4" /> Delete Role</>
+                  }
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

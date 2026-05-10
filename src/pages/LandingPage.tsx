@@ -27,6 +27,7 @@ import {
   Search,
   Database,
   Layers,
+  FileText,
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';

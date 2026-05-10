@@ -37,7 +37,18 @@ type UnsubFn = () => void;
 
 export function mapProfile(row: any) {
   if (!row) return null;
-  const isOnboarded = row.role === 'admin' || (!!(row.phone) && !!(row.roll_no) && !!(row.blood_group) && !!(row.gender));
+
+  // A student is onboarded if they have phone + rollNo
+  const studentOnboarded = !!(row.phone) && !!(row.roll_no);
+  // A faculty is onboarded if they have phone + employee_id
+  const facultyOnboarded = !!(row.phone) && !!(row.employee_id);
+  // Admin is always considered onboarded
+  const isOnboarded =
+    row.profile_completed === true ||
+    row.role === 'admin' ||
+    row.role === 'faculty' && facultyOnboarded ||
+    studentOnboarded;
+
   return {
     id: row.id,
     uid: row.id || row.uid,
@@ -46,10 +57,16 @@ export function mapProfile(row: any) {
     photoURL: row.photo_url || row.avatar_url || '',
     role: row.role || 'student',
     rollNo: row.roll_no || row.roll_number || row.student_id || '',
-    course: row.course || row.department || '',
+    course: row.course || '',
     phone: row.phone || row.mobile || '',
     gender: row.gender || '',
     bloodGroup: row.blood_group || '',
+    // Faculty-specific fields
+    employeeId: row.employee_id || '',
+    department: row.department || '',
+    designation: row.designation || '',
+    experience: row.experience || '',
+    specialization: row.specialization || '',
     status: row.status || 'Active',
     attendance: row.attendance_pct != null ? `${Math.round(row.attendance_pct)}%` : '0%',
     attendance_pct: row.attendance_pct ?? 0,
@@ -58,6 +75,7 @@ export function mapProfile(row: any) {
     mentors: row.mentors || null,
     onboarded: isOnboarded,
     profileCompleted: row.profile_completed || false,
+    facultyApproved: row.faculty_approved || false,
     isAwardWinner: row.is_award_winner || false,
     createdAt: row.created_at || row.joined_at,
     updatedAt: row.updated_at,
@@ -312,28 +330,43 @@ export const saveUser = async (user: any): Promise<boolean> => {
     // 1. Update local DB immediately
     await localDb.profiles.put(mapped);
 
-    // 2. Queue for sync
+    // 2. Build the Supabase row — map ALL camelCase fields to snake_case
     const dbRow: Record<string, any> = {
       id: userId,
       name: user.name || '',
       email: user.email || '',
       updated_at: new Date().toISOString(),
     };
+
+    // Common fields
     if (user.photoURL !== undefined) dbRow.photo_url = user.photoURL;
     if (user.role !== undefined) dbRow.role = user.role;
-    if (user.rollNo !== undefined) dbRow.roll_no = user.rollNo;
-    if (user.course !== undefined) dbRow.course = user.course;
     if (user.phone !== undefined) dbRow.phone = user.phone;
-    if (user.gender !== undefined) dbRow.gender = user.gender;
-    if (user.bloodGroup !== undefined) dbRow.blood_group = user.bloodGroup;
     if (user.status !== undefined) dbRow.status = user.status;
     if (user.roleId !== undefined) dbRow.role_id = user.roleId || null;
-    if (user.mentorId !== undefined) dbRow.mentor_id = user.mentorId || null;
+
+    // Onboarding completion flags — CRITICAL for breaking the loop
+    if (user.onboarded !== undefined) dbRow.profile_completed = user.onboarded;
     if (user.profileCompleted !== undefined) dbRow.profile_completed = user.profileCompleted;
+
+    // Student-specific fields
+    if (user.rollNo !== undefined) dbRow.roll_no = user.rollNo;
+    if (user.course !== undefined) dbRow.course = user.course;
+    if (user.gender !== undefined) dbRow.gender = user.gender;
+    if (user.bloodGroup !== undefined) dbRow.blood_group = user.bloodGroup;
+    if (user.mentorId !== undefined) dbRow.mentor_id = user.mentorId || null;
+
+    // Faculty-specific fields
+    if (user.employeeId !== undefined) dbRow.employee_id = user.employeeId;
+    if (user.department !== undefined) dbRow.department = user.department;
+    if (user.designation !== undefined) dbRow.designation = user.designation;
+    if (user.experience !== undefined) dbRow.experience = user.experience;
+    if (user.specialization !== undefined) dbRow.specialization = user.specialization;
+    if (user.facultyApproved !== undefined) dbRow.faculty_approved = user.facultyApproved;
 
     await syncService.queueAction({
       table: 'profiles',
-      action: 'INSERT', // Upsert is handled by INSERT in our SyncService logic or Supabase triggers
+      action: 'INSERT', // profiles uses upsert in SyncService
       data: dbRow
     });
 
@@ -348,33 +381,46 @@ export const updateUserRole = async (
   userId: string,
   roleId: string | null
 ): Promise<void> => {
-  // Determine if the user should also have their base 'role' ('admin'|'student') updated.
-  // This ensures App.tsx routing switches instantly.
-  let newBaseRole: 'admin' | 'student' = 'student'; // Default to student if roleId is null
-  
-  if (roleId) {
-    const { data: roleData } = await supabase.from('roles').select('name').eq('id', roleId).maybeSingle();
-    if (roleData) {
-      const name = roleData.name.toLowerCase();
-      // If the role name implies admin privileges, promote them
-      if (name.includes('admin') || name.includes('manager')) {
-        newBaseRole = 'admin';
+  // First fetch the user's current base role so we preserve 'faculty'
+  const { data: currentUser } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const currentBaseRole = currentUser?.role || 'student';
+
+  // Only change base role for non-faculty users
+  // Faculty keep their 'faculty' base role — only their roleId (permission level) changes
+  let newBaseRole = currentBaseRole;
+  if (currentBaseRole !== 'faculty') {
+    newBaseRole = 'student'; // default
+    if (roleId) {
+      const { data: roleData } = await supabase.from('roles').select('name').eq('id', roleId).maybeSingle();
+      if (roleData) {
+        const name = roleData.name.toLowerCase();
+        if (name.includes('admin') || name.includes('manager')) {
+          newBaseRole = 'admin';
+        }
       }
     }
   }
 
-  const updates: any = { 
+  const updates: any = {
     role_id: roleId,
-    role: newBaseRole 
+    role: newBaseRole,
+    // Approve faculty when a role is assigned, revoke when removed
+    ...(currentBaseRole === 'faculty' ? { faculty_approved: roleId !== null } : {})
   };
 
   const { error } = await supabase
     .from('profiles')
     .update(updates)
     .eq('id', userId);
-    
+
   if (error) console.error('[dbService] updateUserRole error:', error.message);
 };
+
 
 export const updateProfile = async (userId: string, updates: Record<string, any>): Promise<boolean> => {
   try {
@@ -900,6 +946,18 @@ export const saveRoles = async (roles: any[]): Promise<void> => {
     .from('roles')
     .upsert(rows, { onConflict: 'id' });
   if (error) console.error('[dbService] saveRoles error:', error.message);
+};
+
+export const deleteRole = async (roleId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('roles')
+    .delete()
+    .eq('id', roleId);
+  if (error) {
+    console.error('[dbService] deleteRole error:', error.message);
+    return false;
+  }
+  return true;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

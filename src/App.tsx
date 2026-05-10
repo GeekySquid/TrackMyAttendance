@@ -71,7 +71,8 @@ function AppContent() {
   const { role: notificationRole, setRole } = useNotifications();
 
   const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
-  const currentRole: 'admin' | 'student' = profile?.role === 'admin' ? 'admin' : 'student';
+  // Faculty gets admin-panel routing with restricted permissions
+  const currentRole: 'admin' | 'student' = (profile?.role === 'admin' || profile?.role === 'faculty') ? 'admin' : 'student';
 
   // ─── Automatic Cache Management & Offline Sync ───────────────────────────
   useEffect(() => {
@@ -278,24 +279,22 @@ function AppContent() {
       profileCompleted: true
     };
 
-    // Optimistic Update
-    const prevProfile = profile;
-    const prevOnboarded = onboarded;
+    // Optimistic Update — set state FIRST so the UI stops showing onboarding immediately
     setProfile(updatedData);
     setOnboarded(true);
     localStorage.setItem('tm_onboarded', 'true');
+    // Persist the session right away so a page refresh doesn't loop back
+    localStorage.setItem('tm_persistent_session', JSON.stringify({
+      profile: updatedData,
+      timestamp: new Date().getTime()
+    }));
+
+    const prevProfile = profile;
+    const prevOnboarded = onboarded;
 
     try {
       const success = await saveUser(updatedData);
       if (success) {
-        // Update persistent session
-        const savedSession = localStorage.getItem('tm_persistent_session');
-        if (savedSession) {
-          localStorage.setItem('tm_persistent_session', JSON.stringify({
-            profile: updatedData,
-            timestamp: new Date().getTime()
-          }));
-        }
         toast.success('Profile created successfully!');
       } else {
         throw new Error('Save failed');
@@ -430,7 +429,7 @@ function AppContent() {
   const isUserOnboarded = profile.onboarded;
 
   // 4. Force Onboarding for Students and Faculty if not completed
-  const isMasterAdmin = ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress || '');
+  const isMasterAdmin = ADMIN_EMAILS.includes(user?.primaryEmailAddress?.emailAddress || profile?.email || '');
   if (!isMasterAdmin && !isUserOnboarded) {
     // Merge Clerk's live user data (name from registration form) into the profile
     // so OnboardingPage pre-fills the name field correctly for new users
@@ -443,6 +442,46 @@ function AppContent() {
       <>
         {globalElements}
         <OnboardingPage user={onboardingUser} onComplete={handleOnboardingComplete} />
+      </>
+    );
+  }
+
+  // 5. Faculty Approval Gate — must wait for admin to assign a role
+  const isFaculty = profile?.role === 'faculty';
+  if (isFaculty && !profile?.facultyApproved) {
+    return (
+      <>
+        {globalElements}
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-10 max-w-md w-full text-center">
+            {/* Animated waiting icon */}
+            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+              <div className="absolute inset-0 rounded-full border-4 border-amber-200 border-t-amber-500 animate-spin" />
+              <span className="text-3xl">🎓</span>
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Approval Pending</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Welcome, <span className="font-bold text-gray-700">{profile?.name}</span>! Your faculty account is under review.<br />
+              An admin will assign your access level shortly.
+            </p>
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-6 text-left space-y-2">
+              <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-2">What happens next?</p>
+              <p className="text-xs text-gray-600">✅ Your profile has been saved</p>
+              <p className="text-xs text-gray-600">⏳ Admin reviews your faculty details</p>
+              <p className="text-xs text-gray-600">🔓 You get access based on assigned role</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              Waiting for admin approval...
+            </div>
+            <button
+              onClick={handleLogout}
+              className="mt-6 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors underline"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
       </>
     );
   }
@@ -469,7 +508,20 @@ function AppContent() {
             onLogout={handleLogout}
           />
           <Routes>
-            {role === 'admin' ? (
+            {role === 'admin' && profile?.role === 'faculty' ? (
+              // ─── Faculty Panel: Admin UI with restricted routes ──────────────
+              <>
+                <Route path="/admin" element={<Dashboard user={profile} />} />
+                <Route path="/admin/attendance" element={<AttendancePage user={profile} />} />
+                <Route path="/admin/leave-requests" element={<LeaveRequestsPage role="admin" user={profile} />} />
+                <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
+                <Route path="/admin/geofencing" element={<GeofencingPage />} />
+                <Route path="/admin/settings" element={<SettingsPage role="faculty" user={profile} onUpdate={setProfile} />} />
+                <Route path="/admin/support" element={<SupportPage role="admin" />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+              </>
+            ) : role === 'admin' ? (
+              // ─── Full Admin Panel ────────────────────────────────────────────
               <>
                 <Route path="/admin" element={<Dashboard user={profile} />} />
                 <Route path="/admin/students" element={<StudentsPage />} />
@@ -504,7 +556,7 @@ function AppContent() {
           </Routes>
         </main>
         <InstallPWA />
-        {profile && <MobileNavbar role={role} userId={profile.id} />}
+        {profile && <MobileNavbar role={role} userId={profile.id} userRole={profile.role} />}
       </div>
       </PermissionProvider>
     </>

@@ -16,7 +16,6 @@ export default function LoginPage({
   const navigate = useNavigate();
   const [isDemoLoading, setIsDemoLoading] = useState<'admin' | 'student' | null>(null);
   const [error, setError] = useState('');
-  const [authMode, setAuthMode] = useState<'student' | 'admin'>('student');
   const [authTab, setAuthTab] = useState<'login' | 'signup'>(initialTab);
 
   // Sync authTab with initialTab prop if it changes
@@ -83,28 +82,11 @@ export default function LoginPage({
             Track<span className="text-blue-300">MY</span>Attendance
           </h1>
           <p className="text-blue-100 text-sm font-medium">
-            {authMode === 'admin' ? 'Administrative Control Panel' : 'Student Attendance Portal'}
+            Authorized Attendance Tracking System
           </p>
         </div>
-
-        {/* Auth Mode Toggle */}
-        <div className="flex p-1 bg-gray-100 mx-8 mt-6 rounded-xl border border-gray-200">
-          <button 
-            onClick={() => setAuthMode('student')}
-            className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'student' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            Student
-          </button>
-          <button 
-            onClick={() => setAuthMode('admin')}
-            className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'admin' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            Admin
-          </button>
-        </div>
-
         {/* Auth Type Toggle (Login/Signup) */}
-        <div className="flex p-1 bg-blue-50 mx-8 mt-4 rounded-xl border border-blue-100">
+        <div className="flex p-1 bg-blue-50 mx-8 mt-6 rounded-xl border border-blue-100">
           <button 
             onClick={() => handleTabChange('login')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authTab === 'login' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-400 hover:text-blue-600'}`}
@@ -126,16 +108,6 @@ export default function LoginPage({
               {error}
             </div>
           )}
-
-          {authMode === 'admin' && (
-            <div className="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-xl text-center">
-              <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-1">Notice</p>
-              <p className="text-xs text-purple-600 font-medium leading-relaxed">
-                Use your authorized institutional email (e.g., <strong>ramkrishna0x0@gmail.com</strong>) to sign up as an administrator.
-              </p>
-            </div>
-          )}
-
           {/* Clerk Universal Auth Widget */}
           <div className="w-full flex justify-center mb-4 clerk-container-override overflow-visible min-h-[500px]">
             {authTab === 'login' ? (

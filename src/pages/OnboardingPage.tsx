@@ -147,8 +147,8 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
     setStep('form');
   };
 
-  const inputClass = "w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-gray-800 focus:bg-white focus:border-blue-500 outline-none transition-all";
-  const labelClass = "block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1.5";
+  const inputClass = "w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-700 placeholder:text-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all hover:border-gray-300 cursor-pointer appearance-none";
+  const labelClass = "block text-[11px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2 flex items-center gap-1.5";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8 flex justify-center items-center font-sans">
@@ -164,7 +164,7 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
             >
               {/* Header */}
               <div className="mb-4">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
+                <div className="w-16 h-16 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-900/5">
                   <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
                 </div>
                 <h2 className="text-3xl font-black text-gray-900 tracking-tight">Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</h2>
@@ -313,12 +313,13 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
 
                       <div>
                         <label className={labelClass}>Course / Stream *</label>
-                        <select
-                          required
-                          value={formData.course}
-                          onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                          className={inputClass}
-                        >
+                        <div className="relative">
+                          <select
+                            required
+                            value={formData.course}
+                            onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                            className={inputClass}
+                          >
                           <option value="">Select Course</option>
                           <option value="MCA">MCA</option>
                           <option value="B.Tech CS">B.Tech CS</option>
@@ -327,31 +328,41 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
                           <option value="M.Tech">M.Tech</option>
                           <option value="MBA">MBA</option>
                           <option value="BSc">BSc</option>
-                        </select>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
 
                       <div>
                         <label className={labelClass}>Gender *</label>
-                        <select
-                          required
-                          value={formData.gender}
-                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                          className={inputClass}
-                        >
+                        <div className="relative">
+                          <select
+                            required
+                            value={formData.gender}
+                            onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                            className={inputClass}
+                          >
                           <option value="">Select Gender</option>
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
                           <option value="Other">Other</option>
-                        </select>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
 
                       <div>
                         <label className={labelClass}>Blood Group</label>
-                        <select
-                          value={formData.bloodGroup}
-                          onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                          className={inputClass}
-                        >
+                        <div className="relative">
+                          <select
+                            value={formData.bloodGroup}
+                            onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
+                            className={inputClass}
+                          >
                           <option value="">Select Blood Group</option>
                           <option value="A+">A+</option>
                           <option value="A-">A-</option>
@@ -361,24 +372,33 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
                           <option value="O-">O-</option>
                           <option value="AB+">AB+</option>
                           <option value="AB-">AB-</option>
-                        </select>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
 
                       <div className="sm:col-span-2">
                         <label className={labelClass}>Assigned Mentor {mentors.length === 0 ? '(None available yet)' : '*'}</label>
-                        <select
-                          required={mentors.length > 0}
-                          value={formData.mentorId}
-                          onChange={(e) => setFormData({ ...formData, mentorId: e.target.value })}
-                          className={inputClass}
-                        >
+                        <div className="relative">
+                          <select
+                            required={mentors.length > 0}
+                            value={formData.mentorId}
+                            onChange={(e) => setFormData({ ...formData, mentorId: e.target.value })}
+                            className={inputClass}
+                          >
                           <option value="">
                             {mentors.length === 0 ? 'No mentors available — will be assigned later' : 'Select your mentor'}
                           </option>
                           {mentors.map(m => (
                             <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
-                        </select>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
                     </>
                   )}
@@ -400,12 +420,13 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
 
                       <div>
                         <label className={labelClass}>Department *</label>
-                        <select
-                          required
-                          value={formData.department}
-                          onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                          className={inputClass}
-                        >
+                        <div className="relative">
+                          <select
+                            required
+                            value={formData.department}
+                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                            className={inputClass}
+                          >
                           <option value="">Select Department</option>
                           <option value="Computer Science">Computer Science</option>
                           <option value="Information Technology">Information Technology</option>
@@ -413,7 +434,11 @@ export default function OnboardingPage({ user, onComplete }: { user: any, onComp
                           <option value="Management">Management</option>
                           <option value="Electronics">Electronics</option>
                           <option value="Physics">Physics</option>
-                        </select>
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
+                        </div>
                       </div>
 
                       <div>

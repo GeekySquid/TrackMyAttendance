@@ -22,9 +22,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface MobileNavbarProps {
   role: 'admin' | 'student';
   userId?: string;
+  userRole?: string; // actual DB role (admin | student | faculty)
 }
 
-export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
+export default function MobileNavbar({ role, userId, userRole }: MobileNavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -35,6 +36,15 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
     { id: 'geofencing', label: 'Map', icon: MapPin, path: '/admin/geofencing' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
     { id: 'more', label: 'More', icon: MoreHorizontal, path: '#more' },
+  ];
+
+  // Faculty mobile nav — no Students, no Access Control
+  const facultyTabs = [
+    { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: '/admin' },
+    { id: 'attendance', label: 'Attend.', icon: ClipboardList, path: '/admin/attendance' },
+    { id: 'leave-requests', label: 'Leave', icon: FileText, path: '/admin/leave-requests' },
+    { id: 'geofencing', label: 'Map', icon: MapPin, path: '/admin/geofencing' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   const studentTabs = [
@@ -55,7 +65,8 @@ export default function MobileNavbar({ role, userId }: MobileNavbarProps) {
     { id: 'support', label: 'Support', icon: Headphones, path: '/admin/support' },
   ];
 
-  const tabs = role === 'admin' ? adminTabs : studentTabs;
+  const isFaculty = userRole === 'faculty';
+  const tabs = isFaculty ? facultyTabs : (role === 'admin' ? adminTabs : studentTabs);
 
   const getActiveTab = () => {
     const currentPath = location.pathname;

@@ -60,6 +60,17 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
   ];
 
+  // Faculty: same admin-panel routes but only allowed modules
+  const facultyNavItems = [
+    { id: '', label: 'Dashboard', icon: LayoutDashboard, module: 'Dashboard' },
+    { id: 'attendance', label: 'Attendance', icon: CalendarCheck, module: 'Attendance' },
+    { id: 'leave-requests', label: 'Leave Requests', icon: FileText, module: 'Leave Requests' },
+    { id: 'geofencing', label: 'Geofencing', icon: MapPin, module: 'Geofencing' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, module: 'Notifications' },
+    { id: 'settings', label: 'Settings', icon: Settings, module: 'Settings' },
+    { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
+  ];
+
   const studentNavItems = [
     { id: '', label: 'My Dashboard', icon: LayoutDashboard, module: 'Dashboard' },
     { id: 'track-my-attendance', label: 'My Attendance', icon: ClipboardList, module: 'Attendance' },
@@ -106,8 +117,14 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     }
   };
 
+  const isFaculty = user?.role === 'faculty';
+
   // Filter nav items based on RBAC using global PermissionContext
-  const navItems = (role === 'admin' ? adminNavItems : studentNavItems).filter(item => canAccess(item.module));
+  const navItems = (
+    role === 'admin'
+      ? (isFaculty ? facultyNavItems : adminNavItems)
+      : studentNavItems
+  ).filter(item => canAccess(item.module));
 
   return (
     <>
@@ -151,7 +168,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
                 )}
               </h1>
               <p className="text-[9px] uppercase font-black text-blue-600 tracking-[0.15em] mt-0.5 opacity-80">
-                {role === 'admin' ? 'Management Suite' : 'Student Portal'}
+                {isFaculty ? 'Faculty Portal' : role === 'admin' ? 'Management Suite' : 'Student Portal'}
               </p>
             </div>
           </div>
