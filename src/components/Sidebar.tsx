@@ -45,28 +45,28 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
   }, []);
 
   const adminNavItems = [
-    { id: '', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'students', label: 'Students', icon: Users },
-    { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-    { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
-    { id: 'reports', label: 'Reports', icon: BarChart2 },
-    { id: 'documents', label: 'Documents', icon: Folder },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'access-control', label: 'Access Control', icon: Shield },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'geofencing', label: 'Geofencing', icon: MapPin },
-    { id: 'subscribers', label: 'Waitlist', icon: Mail },
-    { id: 'support', label: 'Support', icon: HelpCircle },
+    { id: '', label: 'Dashboard', icon: LayoutDashboard, module: 'Dashboard' },
+    { id: 'students', label: 'Students', icon: Users, module: 'Students' },
+    { id: 'attendance', label: 'Attendance', icon: CalendarCheck, module: 'Attendance' },
+    { id: 'leave-requests', label: 'Leave Requests', icon: FileText, module: 'Leave Requests' },
+    { id: 'reports', label: 'Reports', icon: BarChart2, module: 'Reports' },
+    { id: 'documents', label: 'Documents', icon: Folder, module: 'Documents' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, module: 'Notifications' },
+    { id: 'access-control', label: 'Access Control', icon: Shield, module: 'Access Control' },
+    { id: 'settings', label: 'Settings', icon: Settings, module: 'Settings' },
+    { id: 'geofencing', label: 'Geofencing', icon: MapPin, module: 'Geofencing' },
+    { id: 'subscribers', label: 'Waitlist', icon: Mail, module: 'Waitlist' },
+    { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
   ];
 
   const studentNavItems = [
-    { id: '', label: 'My Dashboard', icon: LayoutDashboard },
-    { id: 'track-my-attendance', label: 'My Attendance', icon: ClipboardList },
-    { id: 'leave-requests?apply=true', label: 'Leave Requests', icon: FileText },
-    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-    { id: 'certificates', label: 'My Certificates', icon: Award, awardOnly: true },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'support', label: 'Support', icon: HelpCircle },
+    { id: '', label: 'My Dashboard', icon: LayoutDashboard, module: 'Dashboard' },
+    { id: 'track-my-attendance', label: 'My Attendance', icon: ClipboardList, module: 'Attendance' },
+    { id: 'leave-requests?apply=true', label: 'Leave Requests', icon: FileText, module: 'Leave Requests' },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, module: 'Reports' },
+    { id: 'certificates', label: 'My Certificates', icon: Award, awardOnly: true, module: 'Documents' },
+    { id: 'settings', label: 'Settings', icon: Settings, module: 'Settings' },
+    { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
   ];
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -93,13 +93,16 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
 
   // Determine current user's role details
   useEffect(() => {
-    if (user?.roleId && roles.length > 0) {
-      const foundRole = roles.find(r => r.id === user.roleId);
+    if (roles.length > 0) {
+      // Priority 1: assigned roleId from DB
+      // Priority 2: fallback to default role (id === 'admin' or 'student')
+      const targetRoleId = user?.roleId || user?.role;
+      const foundRole = roles.find(r => r.id === targetRoleId);
       setCurrentUserRole(foundRole || null);
     } else {
       setCurrentUserRole(null);
     }
-  }, [user?.roleId, roles]);
+  }, [user?.roleId, user?.role, roles]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -120,21 +123,20 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
   };
 
   // Filter nav items based on RBAC
-  const navItems = role === 'admin' 
-    ? adminNavItems.filter(item => {
-        // Super Admin (roleId null or specific name) or if no custom role assigned, show all by default? 
-        // Or if it's the primary admin email?
-        const isSuperAdmin = !user?.roleId || currentUserRole?.name === 'Super Admin';
-        if (isSuperAdmin) return true;
+  const navItems = (role === 'admin' ? adminNavItems : studentNavItems).filter(item => {
+    // 1. Super Admin Bypass (Primary emails or "Super Admin" role)
+    const superAdminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
+    const isSuperAdminEmail = superAdminEmails.includes(user?.email || '');
+    const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || currentUserRole?.name === 'Supper Admin';
+    if (isSuperAdminEmail || isSuperAdminRole) return true;
 
-        // Core items that should always be visible
-        const coreItems = ['Dashboard', 'Support'];
-        if (coreItems.includes(item.label)) return true;
+    // 2. Core items that should always be visible
+    const coreModules = ['Dashboard', 'Support'];
+    if (coreModules.includes(item.module)) return true;
 
-        // Check against role modules
-        return currentUserRole?.modules?.includes(item.label);
-      })
-    : studentNavItems;
+    // 3. Check against role modules
+    return currentUserRole?.modules?.includes(item.module);
+  });
 
   return (
     <>
@@ -193,27 +195,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
           {navItems.filter(item => {
             if (role === 'admin') return true;
             if ((item as any).awardOnly && !user?.isAwardWinner) return false;
-
-            const AVAILABLE_MODULES = [
-              'Students', 'Attendance', 'Leave Requests', 'Reports', 'Documents', 'Notifications', 'Access Control', 'Settings', 'Geofencing', 'Waitlist'
-            ];
-            const defaultPerms = ['dashboard', 'attendance', 'leave', 'leaderboard', 'awards', 'settings'];
-            const perms = sysSettings?.role_permissions?.student || defaultPerms;
-            const moduleMapping: Record<string, string> = {
-              '': 'dashboard',
-              'track-my-attendance': 'attendance',
-              'leave-requests': 'leave',
-              'notifications': 'notifications',
-              'leaderboard': 'leaderboard',
-              'certificates': 'awards',
-              'documents': 'documents',
-              'settings': 'settings'
-            };
-            const baseId = item.id.split('?')[0];
-            const moduleId = moduleMapping[baseId] || baseId;
-            const coreItems = ['support'];
-            if (coreItems.includes(item.id)) return true;
-            return perms.includes(moduleId);
+            return true;
           }).map((item) => {
             const Icon = item.icon;
             const itemPathPart = item.id.split('?')[0];
