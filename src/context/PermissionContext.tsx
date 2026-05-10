@@ -54,7 +54,19 @@ export function PermissionProvider({ children, userProfile }: { children: React.
     if (coreModules.includes(moduleName)) return true;
 
     // 3. Role-based Check
-    if (!currentUserRole || !currentUserRole.modules) return false;
+    if (!currentUserRole || !currentUserRole.modules) {
+      // If user is a student but has no specific role assigned in DB, 
+      // allow default student modules as a fallback.
+      if (userProfile?.role === 'student') {
+        const studentDefaults = [
+          'Dashboard', 'Attendance', 'Leave Requests', 
+          'Reports', 'Documents', 'Notifications', 
+          'Settings', 'Support'
+        ];
+        return studentDefaults.map(m => m.toLowerCase()).includes(moduleName.toLowerCase());
+      }
+      return false;
+    }
     
     const normalizedModules = currentUserRole.modules.map(m => m.toLowerCase());
     return normalizedModules.includes(moduleName.toLowerCase());
