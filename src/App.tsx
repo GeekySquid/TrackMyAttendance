@@ -432,10 +432,17 @@ function AppContent() {
   // 4. Force Onboarding for Students and Faculty if not completed
   const isMasterAdmin = ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress || '');
   if (!isMasterAdmin && !isUserOnboarded) {
+    // Merge Clerk's live user data (name from registration form) into the profile
+    // so OnboardingPage pre-fills the name field correctly for new users
+    const onboardingUser = {
+      ...profile,
+      name: profile?.name || user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '',
+      photoURL: profile?.photoURL || user?.imageUrl || '',
+    };
     return (
       <>
         {globalElements}
-        <OnboardingPage user={profile} onComplete={handleOnboardingComplete} />
+        <OnboardingPage user={onboardingUser} onComplete={handleOnboardingComplete} />
       </>
     );
   }
