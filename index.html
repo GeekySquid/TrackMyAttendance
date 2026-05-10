@@ -16,21 +16,14 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // NUCLEAR RESET: Clear all caches and unregister service workers
+      // Register service worker
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for(let registration of registrations) { registration.unregister(); }
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.error('[SW] Registration failed:', err);
+          });
         });
       }
-      if ('caches' in window) {
-        caches.keys().then(names => {
-          for (let name of names) caches.delete(name);
-        });
-      }
-      // Re-register SW after clear
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js');
-      });
     </script>
   </body>
 </html>
