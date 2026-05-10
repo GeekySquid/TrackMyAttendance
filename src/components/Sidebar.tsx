@@ -125,7 +125,6 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
       </AnimatePresence>
 
       <motion.aside
-        key={role}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         initial={false}

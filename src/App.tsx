@@ -15,6 +15,7 @@ if (typeof window !== 'undefined') {
 
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
+import { PermissionProvider } from './context/PermissionContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -45,7 +46,6 @@ import NotificationStack from './components/notifications/NotificationStack';
 import CustomCursor from './components/CustomCursor';
 import { saveUser, getUserById, listenToCollection } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
-import { PermissionProvider } from './context/PermissionContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
 import { autoClearCache } from './utils/cacheManager';
 import { syncService } from './services/SyncService';

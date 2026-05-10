@@ -14,7 +14,8 @@ interface PermissionContextType {
   isLoading: boolean;
 }
 
-const PermissionContext = createContext<PermissionContextType | null>(null);
+// Named export for the context object itself (sometimes helps with minifier/bundler issues)
+export const PermissionContext = createContext<PermissionContextType | null>(null);
 
 export function PermissionProvider({ children, userProfile }: { children: React.ReactNode; userProfile: any }) {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -31,10 +32,9 @@ export function PermissionProvider({ children, userProfile }: { children: React.
   }, []);
 
   const currentUserRole = useMemo(() => {
-    if (!userProfile || roles.length === 0) return null;
+    if (!userProfile || !roles || roles.length === 0) return null;
     const targetRoleId = userProfile.roleId || userProfile.role;
-    const found = roles.find(r => r.id === targetRoleId);
-    return found || null;
+    return roles.find(r => r.id === targetRoleId) || null;
   }, [userProfile?.roleId, userProfile?.role, roles]);
 
   const canAccess = (moduleName: string): boolean => {
@@ -60,12 +60,13 @@ export function PermissionProvider({ children, userProfile }: { children: React.
     return normalizedModules.includes(moduleName.toLowerCase());
   };
 
+  // Memoize the context value to prevent unnecessary re-renders of consumers
   const value = useMemo(() => ({
     roles,
     currentUserRole,
     canAccess,
     isLoading
-  }), [roles, currentUserRole]);
+  }), [roles, currentUserRole, userProfile]);
 
   return (
     <PermissionContext.Provider value={value}>
@@ -76,8 +77,15 @@ export function PermissionProvider({ children, userProfile }: { children: React.
 
 export function usePermissions() {
   const context = useContext(PermissionContext);
-  if (context === undefined) {
-    throw new Error('usePermissions must be used within a PermissionProvider');
+  // Default fallback to prevent "cannot access before initialization" style crashes 
+  // if the hook is called in a very early lifecycle stage.
+  if (!context) {
+    return {
+      roles: [],
+      currentUserRole: null,
+      canAccess: () => false,
+      isLoading: true
+    };
   }
-  return context || { roles: [], currentUserRole: null, canAccess: () => false, isLoading: false };
+  return context;
 }
