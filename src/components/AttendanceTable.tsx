@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, Download, Search, Info, CalendarDays, History, Loader2, MapPin, Navigation, Clock, FileText, FileSpreadsheet, FileIcon as FilePdf, MessageSquare, X, Copy } from 'lucide-react';
+import { Filter, Download, Search, Info, CalendarDays, History, Loader2, MapPin, Navigation, Clock, FileText, FileSpreadsheet, FileIcon as FilePdf, MessageSquare, X, Copy, CheckCircle, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listenToCollection, updateAttendance, getTodayDateStr } from '../services/dbService';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import CustomDropdown from './CustomDropdown';
 
 const TODAY = getTodayDateStr();
 
