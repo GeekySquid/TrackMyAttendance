@@ -8,6 +8,7 @@ import { Zap, History, Trophy, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getMonthlyLeaderboard } from '../services/dbService';
+import { usePermissions } from '../context/PermissionContext';
 
 const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
   const greeting = React.useMemo(() => {
@@ -43,6 +44,7 @@ const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
 });
 
 export default function StudentDashboard({ user }: { user?: any }) {
+  const { canAccess } = usePermissions();
   const userId = user?.uid || user?.id;
   const fullName = (user?.name || 'Student').split(' ')[0];
   const [isWinner, setIsWinner] = React.useState(false);
@@ -138,9 +140,11 @@ export default function StudentDashboard({ user }: { user?: any }) {
 
         {/* Top Row: Check-in & Gamification Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3 mb-3 sm:mb-4">
-          <div className="col-span-1">
-            <StudentCheckInWidget user={user} />
-          </div>
+          {canAccess('Attendance') && (
+            <div className="col-span-1">
+              <StudentCheckInWidget user={user} />
+            </div>
+          )}
           <div className="col-span-1">
             <StudentStatsGrid user={user} />
           </div>
@@ -155,13 +159,16 @@ export default function StudentDashboard({ user }: { user?: any }) {
 
         {/* Bottom Row: Analytics & Leave Balance */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 mb-3 sm:mb-4">
-          <div className="col-span-1 lg:col-span-2">
-            {/* AnalyticsChart in student mode shows only this user's data */}
-            <AnalyticsChart userId={userId} user={user} />
-          </div>
-          <div className="col-span-1">
-            <StudentLeaveBalance userId={userId} />
-          </div>
+          {canAccess('Reports') && (
+            <div className="col-span-1 lg:col-span-2">
+              <AnalyticsChart userId={userId} user={user} />
+            </div>
+          )}
+          {canAccess('Leave Requests') && (
+            <div className="col-span-1">
+              <StudentLeaveBalance userId={userId} />
+            </div>
+          )}
         </div>
       </div>
     </div>

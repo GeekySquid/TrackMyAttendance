@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { renderStyledBranding } from '../utils/branding';
 import { listenToCollection } from '../services/dbService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePermissions } from '../context/PermissionContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -69,10 +70,10 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
   ];
 
+  const { canAccess } = usePermissions();
+
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [sysSettings, setSysSettings] = useState<any>(null);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [currentUserRole, setCurrentUserRole] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('app_settings', (data) => {
@@ -81,28 +82,8 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
       }
     });
 
-    const unsubscribeRoles = listenToCollection('roles', (data) => {
-      setRoles(data);
-    });
-
-    return () => {
-      unsubscribe();
-      unsubscribeRoles();
-    };
+    return () => unsubscribe();
   }, []);
-
-  // Determine current user's role details
-  useEffect(() => {
-    if (roles.length > 0) {
-      // Priority 1: assigned roleId from DB
-      // Priority 2: fallback to default role (id === 'admin' or 'student')
-      const targetRoleId = user?.roleId || user?.role;
-      const foundRole = roles.find(r => r.id === targetRoleId);
-      setCurrentUserRole(foundRole || null);
-    } else {
-      setCurrentUserRole(null);
-    }
-  }, [user?.roleId, user?.role, roles]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -122,21 +103,8 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     }
   };
 
-  // Filter nav items based on RBAC
-  const navItems = (role === 'admin' ? adminNavItems : studentNavItems).filter(item => {
-    // 1. Super Admin Bypass (Primary emails or "Super Admin" role)
-    const superAdminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
-    const isSuperAdminEmail = superAdminEmails.includes(user?.email || '');
-    const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || currentUserRole?.name === 'Supper Admin';
-    if (isSuperAdminEmail || isSuperAdminRole) return true;
-
-    // 2. Core items that should always be visible
-    const coreModules = ['Dashboard', 'Support'];
-    if (coreModules.includes(item.module)) return true;
-
-    // 3. Check against role modules
-    return currentUserRole?.modules?.includes(item.module);
-  });
+  // Filter nav items based on RBAC using global PermissionContext
+  const navItems = (role === 'admin' ? adminNavItems : studentNavItems).filter(item => canAccess(item.module));
 
   return (
     <>

@@ -37,6 +37,7 @@ import {
 } from '../services/dbService';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
+import { usePermissions } from '../context/PermissionContext';
 
 import { GoogleMap, useJsApiLoader, MarkerF, CircleF, Autocomplete } from '@react-google-maps/api';
 
@@ -91,6 +92,7 @@ const AnimatedWelcome = React.memo(({ name }: { name: string }) => {
 });
 
 export default function Dashboard({ user }: { user: any }) {
+  const { canAccess } = usePermissions();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -576,29 +578,30 @@ export default function Dashboard({ user }: { user: any }) {
               </div>
             )}
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleActionClick}
-                disabled={isToggling || !windowStatusLoaded}
-                className={`flex items-center justify-center gap-2 px-6 py-2.5 sm:px-8 sm:py-3 rounded-2xl font-black transition-all shadow-xl hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 ${currentlyAnyWindowOpen
-                  ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-rose-200 hover:shadow-rose-300'
-                  : 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white shadow-indigo-200 hover:shadow-indigo-300'
-                  }`}
-              >
-                {isToggling ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : currentlyAnyWindowOpen ? (
-                  <>
-                    <XCircle className="w-5 h-5" />
-                    Close Window
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-5 h-5" />
-                    Activate Window
-                  </>
-                )}
-              </button>
-
+              {canAccess('Attendance') && (
+                <button
+                  onClick={handleActionClick}
+                  disabled={isToggling || !windowStatusLoaded}
+                  className={`flex items-center justify-center gap-2 px-6 py-2.5 sm:px-8 sm:py-3 rounded-2xl font-black transition-all shadow-xl hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 ${currentlyAnyWindowOpen
+                    ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-rose-200 hover:shadow-rose-300'
+                    : 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white shadow-indigo-200 hover:shadow-indigo-300'
+                    }`}
+                >
+                  {isToggling ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : currentlyAnyWindowOpen ? (
+                    <>
+                      <XCircle className="w-5 h-5" />
+                      Close Window
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      Activate Window
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -933,24 +936,26 @@ export default function Dashboard({ user }: { user: any }) {
 
         {/* Layout Grid (Attendance & Leave Reports) */}
         <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
-          <AttendanceTable onStudentSelect={setSelectedStudentName} />
-          <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${pendingLeaveCount > 0 ? 'lg:grid-cols-2' : ''}`}>
+          {canAccess('Attendance') && <AttendanceTable onStudentSelect={setSelectedStudentName} />}
+          <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${(pendingLeaveCount > 0 && canAccess('Leave Requests')) ? 'lg:grid-cols-2' : ''}`}>
             <QuickActions
               students={students}
               attendance={attendance}
               adminProfile={user}
               schedules={schedules}
             />
-            {pendingLeaveCount > 0 && <LeaveReports />}
+            {pendingLeaveCount > 0 && canAccess('Leave Requests') && <LeaveReports />}
           </div>
         </div>
 
         {/* Bottom Section (Analytics & Profile) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 mb-12">
-          <AnalyticsChart
-            selectedStudent={selectedStudentName}
-            onStudentSelect={setSelectedStudentName}
-          />
+          {canAccess('Reports') && (
+            <AnalyticsChart
+              selectedStudent={selectedStudentName}
+              onStudentSelect={setSelectedStudentName}
+            />
+          )}
           <div className="lg:mt-0">
             <StudentProfile 
               student={students.find(s => s.name === selectedStudentName)} 

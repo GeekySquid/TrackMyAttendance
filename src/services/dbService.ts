@@ -327,6 +327,7 @@ export const saveUser = async (user: any): Promise<boolean> => {
     if (user.gender !== undefined) dbRow.gender = user.gender;
     if (user.bloodGroup !== undefined) dbRow.blood_group = user.bloodGroup;
     if (user.status !== undefined) dbRow.status = user.status;
+    if (user.roleId !== undefined) dbRow.role_id = user.roleId || null;
     if (user.mentorId !== undefined) dbRow.mentor_id = user.mentorId || null;
     if (user.profileCompleted !== undefined) dbRow.profile_completed = user.profileCompleted;
 
@@ -347,10 +348,30 @@ export const updateUserRole = async (
   userId: string,
   roleId: string | null
 ): Promise<void> => {
+  // Determine if the user should also have their base 'role' ('admin'|'student') updated.
+  // This ensures App.tsx routing switches instantly.
+  let newBaseRole: 'admin' | 'student' | undefined;
+  
+  if (roleId) {
+    const { data: roleData } = await supabase.from('roles').select('name').eq('id', roleId).maybeSingle();
+    if (roleData) {
+      const name = roleData.name.toLowerCase();
+      if (name.includes('admin') || name.includes('manager')) {
+        newBaseRole = 'admin';
+      } else if (name.includes('student')) {
+        newBaseRole = 'student';
+      }
+    }
+  }
+
+  const updates: any = { role_id: roleId };
+  if (newBaseRole) updates.role = newBaseRole;
+
   const { error } = await supabase
     .from('profiles')
-    .update({ role_id: roleId })
+    .update(updates)
     .eq('id', userId);
+    
   if (error) console.error('[dbService] updateUserRole error:', error.message);
 };
 

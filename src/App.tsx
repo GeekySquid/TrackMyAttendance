@@ -45,6 +45,7 @@ import NotificationStack from './components/notifications/NotificationStack';
 import CustomCursor from './components/CustomCursor';
 import { saveUser, getUserById, listenToCollection } from './services/dbService';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { PermissionProvider } from './context/PermissionContext';
 import { useSupabaseNotifications } from './hooks/useSupabaseNotifications';
 import { autoClearCache } from './utils/cacheManager';
 import { syncService } from './services/SyncService';
@@ -197,7 +198,17 @@ function AppContent() {
         }
 
         if (existing) {
-          setProfile(existing);
+          // Priority: 1. DB Role, 2. Email-based fallback
+          const finalRole = existing.role || (adminEmails.includes(user.primaryEmailAddress?.emailAddress || '') ? 'admin' : 'student');
+          
+          const enrichedProfile = {
+            ...existing,
+            role: finalRole
+          };
+
+          setProfile(enrichedProfile);
+          setRole(finalRole as 'admin' | 'student');
+
           if (existing.onboarded) {
             setOnboarded(true);
             localStorage.setItem('tm_onboarded', 'true');
@@ -228,6 +239,11 @@ function AppContent() {
         if (JSON.stringify(updatedProfile) !== JSON.stringify(profile)) {
           console.log('[App] Profile updated via real-time listener');
           setProfile(updatedProfile);
+          
+          // CRITICAL: Update local role state to trigger route switches (Admin <-> Student)
+          if (updatedProfile.role && updatedProfile.role !== role) {
+            setRole(updatedProfile.role as 'admin' | 'student');
+          }
         }
       }
     }, profile.id);
@@ -428,7 +444,8 @@ function AppContent() {
   return (
     <>
       {globalElements}
-      <div className="flex h-screen bg-white">
+      <PermissionProvider userProfile={profile}>
+        <div className="flex h-screen bg-white">
         <Sidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
@@ -478,6 +495,7 @@ function AppContent() {
         <InstallPWA />
         {profile && <MobileNavbar role={role} userId={profile.id} />}
       </div>
+      </PermissionProvider>
     </>
   );
 }
