@@ -120,9 +120,10 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
   const isFaculty = user?.role === 'faculty';
 
   // Filter nav items based on RBAC using global PermissionContext
+  // Use full admin list for faculty too, filtered by PermissionContext
   const navItems = (
     role === 'admin'
-      ? (isFaculty ? facultyNavItems : adminNavItems)
+      ? adminNavItems
       : studentNavItems
   ).filter(item => canAccess(item.module));
 

@@ -7,6 +7,7 @@ import { listenToCollection, markAllNotificationsRead, deleteNotification, getMo
 import SwipeableNotificationItem from './SwipeableNotificationItem';
 import { AnimatePresence, motion } from 'framer-motion';
 import { renderStyledBranding } from '../utils/branding';
+import { usePermissions } from '../context/PermissionContext';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -25,6 +26,9 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
   const { isSignedIn } = useUser();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAwardWinner, setIsAwardWinner] = useState(false);
+  const { currentUserRole } = usePermissions();
+  
+  const displayRole = currentUserRole?.name || (role === 'admin' ? 'Administrator' : 'Student');
 
   useEffect(() => {
     const checkAward = async () => {
@@ -374,7 +378,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
               <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: 'w-9 h-9' } }} />
               <div className="hidden sm:block text-left ml-3">
                 <p className="text-xs font-bold text-gray-800 leading-tight truncate max-w-[120px]">{user?.name}</p>
-                <p className="text-[10px] font-medium text-gray-500 capitalize">{role}</p>
+                <p className="text-[10px] font-medium text-gray-500 capitalize">{displayRole}</p>
               </div>
             </div>
           ) : (
@@ -390,7 +394,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                 />
                 <div className="hidden sm:block text-left">
                   <p className="text-xs font-bold text-gray-800 leading-tight">{user?.name || (role === 'admin' ? 'Admin User' : 'Alex Johnson')}</p>
-                  <p className="text-[10px] font-medium text-gray-500 capitalize">{role}</p>
+                  <p className="text-[10px] font-medium text-gray-500 capitalize">{displayRole}</p>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-gray-400 hidden sm:block transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} />
               </button>
@@ -411,7 +415,7 @@ export default function Header({ toggleSidebar, role = 'admin', user, onLogout }
                       />
                       <p className="text-sm font-bold text-gray-800 truncate w-full">{user?.name || (role === 'admin' ? 'Admin User' : 'Alex Johnson')}</p>
                       <p className="text-xs font-medium text-gray-500 truncate w-full">{user?.email || (role === 'admin' ? 'admin@trackmyattendance.com' : 'student@example.com')}</p>
-                      <span className="mt-2 bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{role}</span>
+                      <span className="mt-2 bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">{displayRole}</span>
                     </div>
 
                     <div className="px-2">

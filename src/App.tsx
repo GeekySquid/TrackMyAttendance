@@ -508,20 +508,8 @@ function AppContent() {
             onLogout={handleLogout}
           />
           <Routes>
-            {role === 'admin' && profile?.role === 'faculty' ? (
-              // ─── Faculty Panel: Admin UI with restricted routes ──────────────
-              <>
-                <Route path="/admin" element={<Dashboard user={profile} />} />
-                <Route path="/admin/attendance" element={<AttendancePage user={profile} />} />
-                <Route path="/admin/leave-requests" element={<LeaveRequestsPage role="admin" user={profile} />} />
-                <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
-                <Route path="/admin/geofencing" element={<GeofencingPage />} />
-                <Route path="/admin/settings" element={<SettingsPage role="faculty" user={profile} onUpdate={setProfile} />} />
-                <Route path="/admin/support" element={<SupportPage role="admin" />} />
-                <Route path="*" element={<Navigate to="/admin" replace />} />
-              </>
-            ) : role === 'admin' ? (
-              // ─── Full Admin Panel ────────────────────────────────────────────
+            {role === 'admin' ? (
+              // ─── Administrative Panel (Admin & Faculty) ──────────────────────
               <>
                 <Route path="/admin" element={<Dashboard user={profile} />} />
                 <Route path="/admin/students" element={<StudentsPage />} />
@@ -530,7 +518,7 @@ function AppContent() {
                 <Route path="/admin/reports" element={<ReportsPage />} />
                 <Route path="/admin/documents" element={<DocumentsPage user={{ role, data: profile }} />} />
                 <Route path="/admin/notifications" element={<NotificationsPage userId={profile?.id} />} />
-                <Route path="/admin/settings" element={<SettingsPage role="admin" user={profile} onUpdate={setProfile} />} />
+                <Route path="/admin/settings" element={<SettingsPage role={profile?.role || 'admin'} user={profile} onUpdate={setProfile} />} />
                 <Route path="/admin/geofencing" element={<GeofencingPage />} />
                 <Route path="/admin/access-control" element={<AccessControlPage />} />
                 <Route path="/admin/subscribers" element={<SubscriberManagementPage />} />

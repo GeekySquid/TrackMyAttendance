@@ -44,7 +44,6 @@ export function PermissionProvider({ children, userProfile }: { children: React.
     const isSuperAdminEmail = ADMIN_EMAILS.includes(userEmail);
     
     const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || 
-                             currentUserRole?.name === 'Supper Admin' || 
                              currentUserRole?.id === 'admin';
     
     if (isSuperAdminEmail || isSuperAdminRole) return true;
