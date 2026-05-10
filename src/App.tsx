@@ -65,8 +65,10 @@ function AppContent() {
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('tm_onboarded') === 'true');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const { role: notificationRole, setRole } = useNotifications();
 
   const isAuthPath = location.pathname === '/login' || location.pathname === '/register';
+  const currentRole: 'admin' | 'student' = profile?.role === 'admin' ? 'admin' : 'student';
 
   // ─── Automatic Cache Management & Offline Sync ───────────────────────────
   useEffect(() => {
@@ -241,7 +243,7 @@ function AppContent() {
           setProfile(updatedProfile);
           
           // CRITICAL: Update local role state to trigger route switches (Admin <-> Student)
-          if (updatedProfile.role && updatedProfile.role !== role) {
+          if (updatedProfile.role && updatedProfile.role !== currentRole) {
             setRole(updatedProfile.role as 'admin' | 'student');
           }
         }
@@ -249,7 +251,7 @@ function AppContent() {
     }, profile.id);
     
     return () => unsubscribe();
-  }, [profile?.id, profile, role, setRole]);
+  }, [profile?.id, profile, currentRole, setRole]);
 
   // ─── Demo login (bypasses Clerk, uses mock profile) ──────────────────────
   const handleDemoLogin = (role: 'admin' | 'student', userData?: any) => {
@@ -331,7 +333,6 @@ function AppContent() {
     }
   }, [profile]);
 
-  const { setRole } = useNotifications();
 
   // Sync role to notification context
   useEffect(() => {
@@ -439,7 +440,7 @@ function AppContent() {
     );
   }
 
-  const role: 'admin' | 'student' = profile.role === 'admin' ? 'admin' : 'student';
+  const role = currentRole;
 
   return (
     <>
