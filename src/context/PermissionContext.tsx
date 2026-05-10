@@ -46,8 +46,11 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode; userProfi
     const coreModules = ['Dashboard', 'Support'];
     if (coreModules.includes(moduleName)) return true;
 
-    if (!currentUserRole) return false;
-    return currentUserRole.modules.includes(moduleName);
+    if (!currentUserRole || !currentUserRole.modules) return false;
+    
+    // Case-insensitive check to be safe
+    const normalizedModules = currentUserRole.modules.map(m => m.toLowerCase());
+    return normalizedModules.includes(moduleName.toLowerCase());
   };
 
   return (

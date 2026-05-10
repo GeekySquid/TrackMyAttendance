@@ -66,7 +66,10 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
     { id: 'leave-requests?apply=true', label: 'Leave Requests', icon: FileText, module: 'Leave Requests' },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, module: 'Reports' },
     { id: 'certificates', label: 'My Certificates', icon: Award, awardOnly: true, module: 'Documents' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, module: 'Notifications' },
     { id: 'settings', label: 'Settings', icon: Settings, module: 'Settings' },
+    { id: 'geofencing', label: 'Geofencing', icon: MapPin, module: 'Geofencing' },
+    { id: 'subscribers', label: 'Waitlist', icon: Mail, module: 'Waitlist' },
     { id: 'support', label: 'Support', icon: HelpCircle, module: 'Support' },
   ];
 
@@ -122,6 +125,7 @@ export default function Sidebar({ isOpen, setIsOpen, role, user, onLogout }: Sid
       </AnimatePresence>
 
       <motion.aside
+        key={role}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         initial={false}

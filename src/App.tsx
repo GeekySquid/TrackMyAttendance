@@ -249,7 +249,7 @@ function AppContent() {
     }, profile.id);
     
     return () => unsubscribe();
-  }, [profile?.id]);
+  }, [profile?.id, profile, role, setRole]);
 
   // ─── Demo login (bypasses Clerk, uses mock profile) ──────────────────────
   const handleDemoLogin = (role: 'admin' | 'student', userData?: any) => {
@@ -487,6 +487,9 @@ function AppContent() {
                 <Route path="/settings" element={<SettingsPage role={profile.role} user={profile} onUpdate={setProfile} />} />
                 <Route path="/notifications" element={<NotificationsPage userId={profile?.id} />} />
                 <Route path="/support" element={<SupportPage role="student" />} />
+                <Route path="/geofencing" element={<GeofencingPage />} />
+                <Route path="/access-control" element={<AccessControlPage />} />
+                <Route path="/subscribers" element={<SubscriberManagementPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             )}
