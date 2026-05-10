@@ -231,8 +231,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             transition={{ duration: 1, delay: 0.3 }}
             className="text-base lg:text-xl text-slate-500 max-w-3xl mx-auto mb-16 font-bold leading-relaxed px-4"
           >
-            Leveraging zero-knowledge proofing and hyper-precision geofencing to 
-            establish the world's most secure institutional attendance fabric.
+            A state-of-the-art institutional management fabric. Eliminate administrative friction 
+            with real-time RBAC, hyper-precision geofencing, and automated lifecycle governance.
           </motion.p>
 
           <motion.div 
@@ -363,12 +363,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {[
-              { title: "Geofence X", icon: MapPin, desc: "Precision spatial validation using hybrid triangulation." },
-              { title: "Bio-Identity", icon: Fingerprint, icon2: Shield, desc: "Multi-layered biometric verification for high-security nodes." },
-              { title: "Auto-Govern", icon: Cpu, desc: "Autonomous session lifecycle and automated reporting engine." },
-              { title: "Neural Sync", icon: Zap, desc: "Intelligent data queuing with background resync technology." },
-              { title: "Vault Ledger", icon: Database, desc: "Cryptographically signed attendance records stored securely." },
-              { title: "Predict AI", icon: Activity, desc: "Behavioral analysis and early-warning dropout protection." }
+              { title: "Dual-Path RBAC", icon: ShieldCheck, desc: "Separate enrollment and governance protocols for Faculty and Students." },
+              { title: "Geofence X", icon: MapPin, desc: "Hybrid location validation for secure, proxy-free attendance tracking." },
+              { title: "Smart Leave", icon: FileText, desc: "Automated digital lifecycle for leave requests and institutional approvals." },
+              { title: "Live Analytics", icon: Activity, desc: "Real-time institutional health monitoring and high-density reporting." },
+              { title: "Cert Vault", icon: Database, desc: "Automated document generation and secure credential management." },
+              { title: "Growth Stream", icon: Zap, desc: "Real-time waitlist monitoring and global node communication protocol." }
             ].map((feature, i) => (
               <motion.div 
                 key={i}

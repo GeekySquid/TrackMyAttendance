@@ -5,7 +5,7 @@ import CustomDropdown from '../components/CustomDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-type User = { id: string; uid?: string; name: string; email: string; roleId: string | null };
+type User = { id: string; uid?: string; name: string; email: string; roleId: string | null; role?: string };
 type Role = { id: string; name: string; modules: string[] };
 
 const AVAILABLE_MODULES = [
@@ -34,7 +34,9 @@ export default function AccessControlPage() {
 
   useEffect(() => {
     const unsubscribe = listenToCollection('users', (data) => {
-      setUsers(data as User[]);
+      // Only show Faculty and Admins in Access Control (filter out students)
+      const staffUsers = (data as any[]).filter(u => u.role !== 'student');
+      setUsers(staffUsers as User[]);
     });
 
     // Load roles

@@ -428,7 +428,9 @@ function AppContent() {
   // onboarded is already correctly computed inside mapProfile via phone/roll_no/role check
   const isUserOnboarded = profile.onboarded;
 
-  if (profile.role === 'student' && !isUserOnboarded) {
+  // 4. Force Onboarding for Students and Faculty if not completed
+  const isMasterAdmin = ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress || '');
+  if (!isMasterAdmin && !isUserOnboarded) {
     return (
       <>
         {globalElements}
