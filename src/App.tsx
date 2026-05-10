@@ -184,6 +184,7 @@ function AppContent() {
           }
         } else {
           console.log('[App] Existing profile found:', existing.id);
+          const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
           if (photoDiffers) {
             toast.loading('Updating profile details...', { id: 'sync-status' });
             await saveUser({
