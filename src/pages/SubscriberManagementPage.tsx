@@ -143,11 +143,13 @@ const SubscriberManagementPage: React.FC = () => {
     }
   };
 
-  const filteredSubscribers = subscribers.filter(s => {
-    const matchesSearch = (s.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filter === 'all' || s.status === filter;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredSubscribers = subscribers
+    .filter(s => {
+      const matchesSearch = (s.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = filter === 'all' || s.status === filter;
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const containerVariants = {
     hidden: { opacity: 0 },
