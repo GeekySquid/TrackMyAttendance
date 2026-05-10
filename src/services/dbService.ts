@@ -350,22 +350,23 @@ export const updateUserRole = async (
 ): Promise<void> => {
   // Determine if the user should also have their base 'role' ('admin'|'student') updated.
   // This ensures App.tsx routing switches instantly.
-  let newBaseRole: 'admin' | 'student' | undefined;
+  let newBaseRole: 'admin' | 'student' = 'student'; // Default to student if roleId is null
   
   if (roleId) {
     const { data: roleData } = await supabase.from('roles').select('name').eq('id', roleId).maybeSingle();
     if (roleData) {
       const name = roleData.name.toLowerCase();
+      // If the role name implies admin privileges, promote them
       if (name.includes('admin') || name.includes('manager')) {
         newBaseRole = 'admin';
-      } else if (name.includes('student')) {
-        newBaseRole = 'student';
       }
     }
   }
 
-  const updates: any = { role_id: roleId };
-  if (newBaseRole) updates.role = newBaseRole;
+  const updates: any = { 
+    role_id: roleId,
+    role: newBaseRole 
+  };
 
   const { error } = await supabase
     .from('profiles')

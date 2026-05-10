@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { listenToCollection } from '../services/dbService';
 
-interface Role {
+export interface Role {
   id: string;
   name: string;
   modules: string[];
@@ -14,15 +14,17 @@ interface PermissionContextType {
   isLoading: boolean;
 }
 
-const PermissionContext = createContext<PermissionContextType | undefined>(undefined);
+const PermissionContext = createContext<PermissionContextType | null>(null);
 
-export const PermissionProvider: React.FC<{ children: React.ReactNode; userProfile: any }> = ({ children, userProfile }) => {
+export function PermissionProvider({ children, userProfile }: { children: React.ReactNode; userProfile: any }) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = listenToCollection('roles', (data) => {
-      setRoles(data as Role[]);
+      if (data) {
+        setRoles(data as Role[]);
+      }
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -31,39 +33,51 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode; userProfi
   const currentUserRole = useMemo(() => {
     if (!userProfile || roles.length === 0) return null;
     const targetRoleId = userProfile.roleId || userProfile.role;
-    return roles.find(r => r.id === targetRoleId) || null;
-  }, [userProfile, roles]);
+    const found = roles.find(r => r.id === targetRoleId);
+    return found || null;
+  }, [userProfile?.roleId, userProfile?.role, roles]);
 
-  const canAccess = (moduleName: string) => {
-    // Super Admin Bypass
+  const canAccess = (moduleName: string): boolean => {
+    // 1. Super Admin Bypass (Email or Role Name)
     const superAdminEmails = ['ramkrishna0x0@gmail.com', 'admin@trackmy.demo'];
-    const isSuperAdminEmail = superAdminEmails.includes(userProfile?.email || '');
-    const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || currentUserRole?.name === 'Supper Admin';
+    const userEmail = userProfile?.email || '';
+    const isSuperAdminEmail = superAdminEmails.includes(userEmail);
+    
+    const isSuperAdminRole = currentUserRole?.name === 'Super Admin' || 
+                             currentUserRole?.name === 'Supper Admin' || 
+                             currentUserRole?.id === 'admin';
     
     if (isSuperAdminEmail || isSuperAdminRole) return true;
 
-    // Core modules always accessible
+    // 2. Core Modules (Always visible)
     const coreModules = ['Dashboard', 'Support'];
     if (coreModules.includes(moduleName)) return true;
 
+    // 3. Role-based Check
     if (!currentUserRole || !currentUserRole.modules) return false;
     
-    // Case-insensitive check to be safe
     const normalizedModules = currentUserRole.modules.map(m => m.toLowerCase());
     return normalizedModules.includes(moduleName.toLowerCase());
   };
 
+  const value = useMemo(() => ({
+    roles,
+    currentUserRole,
+    canAccess,
+    isLoading
+  }), [roles, currentUserRole]);
+
   return (
-    <PermissionContext.Provider value={{ roles, currentUserRole, canAccess, isLoading }}>
+    <PermissionContext.Provider value={value}>
       {children}
     </PermissionContext.Provider>
   );
-};
+}
 
-export const usePermissions = () => {
+export function usePermissions() {
   const context = useContext(PermissionContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('usePermissions must be used within a PermissionProvider');
   }
-  return context;
-};
+  return context || { roles: [], currentUserRole: null, canAccess: () => false, isLoading: false };
+}
