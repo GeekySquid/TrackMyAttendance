@@ -522,7 +522,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Ultra Footer */}
-      <footer className="py-32 lg:py-48 px-6 border-t border-white/5 bg-[#010103] relative z-10 overflow-hidden">
+      <footer className="pt-32 pb-12 lg:pt-48 lg:pb-16 px-6 border-t border-white/5 bg-[#010103] relative z-10 overflow-hidden">
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[120%] h-[400px] bg-blue-600/5 rounded-full blur-[150px] -z-10" />
         
         <div className="max-w-7xl mx-auto">
