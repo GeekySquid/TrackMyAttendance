@@ -144,9 +144,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </motion.div>
 
           <div className="hidden lg:flex items-center gap-10">
-            {['Architecture', 'Ecosystem', 'Security'].map((item) => (
-              <a key={item} href="#" className="text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-[0.2em] relative group">
-                {item}
+            {[
+              { label: 'Architecture', href: '#architecture' },
+              { label: 'Ecosystem', href: '#ecosystem' },
+              { label: 'Security', href: '#security' }
+            ].map((item) => (
+              <a key={item.label} href={item.href} className="text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-[0.2em] relative group">
+                {item.label}
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-blue-600 transition-all group-hover:w-full" />
               </a>
             ))}
@@ -177,9 +181,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               exit={{ opacity: 0, y: -20 }}
               className="lg:hidden absolute top-20 left-0 right-0 bg-black/95 backdrop-blur-3xl border-b border-white/5 px-8 py-12 flex flex-col gap-8 shadow-2xl"
             >
-              {['Features', 'Governance', 'Security', 'Waitlist'].map(item => (
-                <a key={item} href="#" className="text-2xl font-[1000] text-white uppercase tracking-tighter" onClick={() => setMobileMenuOpen(false)}>
-                  {item}
+              {[
+                { label: 'Architecture', href: '#architecture' },
+                { label: 'Ecosystem', href: '#ecosystem' },
+                { label: 'Security', href: '#security' }
+              ].map(item => (
+                <a key={item.label} href={item.href} className="text-2xl font-[1000] text-white uppercase tracking-tighter" onClick={() => setMobileMenuOpen(false)}>
+                  {item.label}
                 </a>
               ))}
               <div className="h-px bg-white/5 w-full my-2" />
@@ -310,7 +318,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Trust & Metrics Section */}
-      <section className="py-32 lg:py-48 px-6 bg-[#010103] relative overflow-hidden">
+      <section id="security" className="py-32 lg:py-48 px-6 bg-[#010103] relative overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div variants={fadeInUp} initial="initial" whileInView="whileInView">
@@ -352,8 +360,132 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </div>
       </section>
 
+      {/* Tech Stack Section (Architecture) */}
+      <section id="architecture" className="py-40 px-6 bg-[#020205] relative overflow-hidden">
+        {/* Ambient background glows */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[180px] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-28">
+            <motion.div 
+              variants={fadeInUp}
+              initial="initial"
+              whileInView="whileInView"
+              className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/[0.03] border border-white/10 rounded-full text-[9px] font-black text-blue-500 uppercase tracking-widest mb-6"
+            >
+              Engine of Precision
+            </motion.div>
+            <motion.h2 
+              variants={fadeInUp}
+              initial="initial"
+              whileInView="whileInView"
+              className="text-5xl lg:text-9xl font-[1000] tracking-[-0.04em] text-white mb-8 uppercase leading-none"
+            >
+              TECH STACK
+            </motion.h2>
+            <motion.p 
+              variants={fadeInUp}
+              initial="initial"
+              whileInView="whileInView"
+              className="text-lg lg:text-xl text-slate-500 font-bold max-w-2xl mx-auto"
+            >
+              A highly optimized ecosystem of modern, state-of-the-art enterprise technologies working in harmony to deliver millisecond-level precision and cryptographic security.
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+            {[
+              {
+                name: "React 19 & TS",
+                category: "UI Engine",
+                desc: "High-performance typed component framework with fiber architecture and strict reactivity.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(56,189,248,0.15)] group-hover:border-sky-500/30",
+                badge: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+                icon: Cpu,
+              },
+              {
+                name: "Supabase DB",
+                category: "Backend & Sync",
+                desc: "Enterprise Postgres engine with real-time replication channels and row-level security.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(16,185,129,0.15)] group-hover:border-emerald-500/30",
+                badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                icon: Database,
+              },
+              {
+                name: "Clerk Platform",
+                category: "Identity",
+                desc: "Adaptive authentication, role-based onboarding gates, and session security.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(99,102,241,0.15)] group-hover:border-indigo-500/30",
+                badge: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+                icon: Fingerprint,
+              },
+              {
+                name: "Gemini AI Engine",
+                category: "Cognitive AI",
+                desc: "Automated analysis engines and predictive models powered by Google GenAI.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(236,72,153,0.15)] group-hover:border-pink-500/30",
+                badge: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+                icon: Sparkles,
+              },
+              {
+                name: "Geofence API",
+                category: "Spatial Location",
+                desc: "Google Maps precision integration with anti-spoofing and coordinates checking.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(239,68,68,0.15)] group-hover:border-red-500/30",
+                badge: "bg-red-500/10 text-red-400 border-red-500/20",
+                icon: MapPin,
+              },
+              {
+                name: "Tailwind CSS v4",
+                category: "Fluid Styling",
+                desc: "Next-gen CSS utility processor with hardware-accelerated transitions and fluid responsive grids.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] group-hover:border-cyan-500/30",
+                badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+                icon: Layers,
+              },
+              {
+                name: "Dexie Cache",
+                category: "Offline Storage",
+                desc: "IndexedDB database wrapper offering durable local state cache and offline-first capabilities.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(245,158,11,0.15)] group-hover:border-amber-500/30",
+                badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                icon: ShieldCheck,
+              },
+              {
+                name: "Recharts Engine",
+                category: "Reporting",
+                desc: "High-density data visualization charts, automated reports (XLSX, PDF) generation.",
+                glow: "group-hover:shadow-[0_0_50px_rgba(168,85,247,0.15)] group-hover:border-purple-500/30",
+                badge: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+                icon: BarChart3,
+              }
+            ].map((tech, i) => (
+              <motion.div 
+                key={i}
+                variants={fadeInUp}
+                initial="initial"
+                whileInView="whileInView"
+                className={`group p-8 lg:p-10 bg-white/[0.01] border border-white/5 rounded-[2.5rem] transition-all duration-500 hover:bg-white/[0.03] ${tech.glow}`}
+              >
+                <div className="flex items-start justify-between mb-8">
+                  <div className="w-14 h-14 bg-white/[0.02] border border-white/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform group-hover:border-white/20">
+                    <tech.icon className="w-6 h-6 text-white group-hover:text-blue-400 transition-colors" />
+                  </div>
+                  <span className={`px-3 py-1 border rounded-full text-[8px] font-black uppercase tracking-widest ${tech.badge}`}>
+                    {tech.category}
+                  </span>
+                </div>
+                <h3 className="text-xl font-[1000] text-white mb-3 uppercase tracking-tight group-hover:text-blue-400 transition-colors">{tech.name}</h3>
+                <p className="text-sm text-slate-500 font-bold leading-relaxed">{tech.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Grid of Capabilities */}
-      <section className="py-40 px-6 relative">
+      <section id="ecosystem" className="py-40 px-6 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-24">
             <h2 className="text-5xl lg:text-9xl font-[1000] tracking-[-0.04em] text-white mb-8 uppercase leading-none">Modules.</h2>
