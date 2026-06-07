@@ -90,14 +90,42 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     try {
       const result = await subscribeEmail(email);
       if (result.success) {
-        toast.success(result.message);
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in fade-in zoom-in-95 duration-300' : 'animate-out fade-out zoom-out-95 duration-200'
+            } max-w-sm w-full bg-slate-950/90 backdrop-blur-2xl border border-emerald-500/20 rounded-[24px] shadow-[0_20px_50px_rgba(16,185,129,0.15)] p-5 flex items-center gap-4`}
+          >
+            <div className="w-10 h-10 rounded-[14px] bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <h4 className="text-[11px] font-black text-white uppercase tracking-widest mb-0.5">Success</h4>
+              <p className="text-xs text-slate-400 font-bold leading-relaxed">{result.message}</p>
+            </div>
+          </div>
+        ), { duration: 4000 });
         setIsSubscribed(true);
         setTimeout(() => {
           setIsSubscribed(false);
           setEmail('');
         }, 3000);
       } else {
-        toast.error(result.message);
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in fade-in zoom-in-95 duration-300' : 'animate-out fade-out zoom-out-95 duration-200'
+            } max-w-sm w-full bg-slate-950/90 backdrop-blur-2xl border border-rose-500/20 rounded-[24px] shadow-[0_20px_50px_rgba(244,63,94,0.15)] p-5 flex items-center gap-4`}
+          >
+            <div className="w-10 h-10 rounded-[14px] bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+              <X className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <h4 className="text-[11px] font-black text-white uppercase tracking-widest mb-0.5">Alert</h4>
+              <p className="text-xs text-slate-400 font-bold leading-relaxed">{result.message}</p>
+            </div>
+          </div>
+        ), { duration: 4000 });
       }
     } finally {
       setIsSubscribing(false);
@@ -574,36 +602,57 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
             <div className="lg:col-span-6 grid grid-cols-2 lg:grid-cols-3 gap-12">
               <div className="space-y-8">
-                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Protocol</h4>
+                <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Architecture</h4>
                 <ul className="space-y-5">
-                  {['Capabilities', 'Security', 'Scale', 'Docs'].map(item => (
-                    <li key={item}><a href="#" className="text-[10px] font-black text-slate-600 hover:text-white transition-all uppercase tracking-widest">{item}</a></li>
+                  {[
+                    { name: 'React 19 & TS', href: '#architecture' },
+                    { name: 'Supabase DB', href: '#architecture' },
+                    { name: 'Clerk Platform', href: '#architecture' },
+                    { name: 'Gemini AI Engine', href: '#architecture' }
+                  ].map(item => (
+                    <li key={item.name}><a href={item.href} className="text-[10px] font-black text-slate-600 hover:text-white transition-all uppercase tracking-widest">{item.name}</a></li>
                   ))}
                 </ul>
               </div>
               <div className="space-y-8">
                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Ecosystem</h4>
                 <ul className="space-y-5">
-                  {['Enterprise', 'Hardware', 'Mobile', 'Privacy'].map(item => (
-                    <li key={item}><a href="#" className="text-[10px] font-black text-slate-600 hover:text-white transition-all uppercase tracking-widest">{item}</a></li>
+                  {[
+                    { name: 'Dual-Path RBAC', href: '#ecosystem' },
+                    { name: 'Geofence X', href: '#ecosystem' },
+                    { name: 'Smart Leave', href: '#ecosystem' },
+                    { name: 'Live Analytics', href: '#ecosystem' }
+                  ].map(item => (
+                    <li key={item.name}><a href={item.href} className="text-[10px] font-black text-slate-600 hover:text-white transition-all uppercase tracking-widest">{item.name}</a></li>
                   ))}
                 </ul>
               </div>
               <div className="space-y-8 col-span-2 lg:col-span-1">
                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Global</h4>
-                <div className="flex gap-4">
+                <div className="flex gap-4 mb-6">
                   {[Globe, Smartphone, Layers].map((Icon, i) => (
                     <div key={i} className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center hover:bg-blue-600 hover:border-blue-600 transition-all cursor-pointer group">
                       <Icon className="w-5 h-5 text-slate-600 group-hover:text-white" />
                     </div>
                   ))}
                 </div>
+                <ul className="space-y-5">
+                  <li>
+                    <a 
+                      href="#" 
+                      onClick={(e) => { e.preventDefault(); handleGetStarted(); }} 
+                      className="text-[10px] font-black text-blue-500 hover:text-blue-400 transition-all uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                      Launch App <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
           
           <div className="flex flex-col lg:flex-row items-center justify-between pt-16 border-t border-white/5 gap-10">
-            <p className="text-slate-700 text-[9px] font-black uppercase tracking-[0.3em]">© 2026 TMA PROTOCOL. ARCHITECTED BY RAMA KRISHNA.</p>
+            <p className="text-slate-700 text-[9px] font-black uppercase tracking-[0.3em]">© 2026 TRACKMYATTENDANCE. ARCHITECTED BY RAMA KRISHNA.</p>
             <div className="flex gap-8">
               {['Terms', 'Privacy', 'Compliance'].map(item => (
                 <a key={item} href="#" className="text-[9px] font-black text-slate-700 hover:text-white transition-colors uppercase tracking-[0.3em]">{item}</a>

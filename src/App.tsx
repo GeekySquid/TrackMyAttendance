@@ -125,12 +125,10 @@ function AppContent() {
       }
 
       setProfileLoading(true);
-      
-      const toastId = toast.loading('Synchronizing account...', { id: 'sync-status' });
 
       const syncTimeout = setTimeout(() => {
         setProfileLoading(false);
-        toast.error('Sync timed out. Retrying...', { id: 'sync-status' });
+        toast.error('Account sync timed out. Please check your connection.');
         console.warn('[App] syncProfile timed out after 10s');
       }, 10000);
 
@@ -160,7 +158,6 @@ function AppContent() {
           }
 
           if (!existing) {
-            toast.loading('Creating your profile...', { id: 'sync-status' });
             const userEmail = user.primaryEmailAddress?.emailAddress || '';
             const role = ADMIN_EMAILS.includes(userEmail) ? 'admin' : 'student';
 
@@ -181,21 +178,17 @@ function AppContent() {
             console.log('[App] Profile created, fetching fresh copy...');
             existing = await getUserById(clerkId);
             if (!existing) throw new Error('Profile created but could not be retrieved');
-            
-            toast.success('Account created and synced!', { id: 'sync-status' });
           }
         } else {
           console.log('[App] Existing profile found:', existing.id);
           const photoDiffers = user.imageUrl && existing.photoURL !== user.imageUrl;
           if (photoDiffers) {
-            toast.loading('Updating profile details...', { id: 'sync-status' });
             await saveUser({
               ...existing,
               photoURL: user.imageUrl || existing.photoURL
             });
             existing = await getUserById(clerkId);
           }
-          toast.success('Welcome back!', { id: 'sync-status' });
         }
 
         if (existing) {
@@ -377,12 +370,14 @@ function AppContent() {
   }, [handleLogout]);
 
   // ─── Loading ──────────────────────────────────────────────────────────────
-  if (profileLoading || (!isLoaded && !profile)) {
+  const isGuestLanding = (location.pathname === '/' || location.pathname === '') && !localStorage.getItem('tm_persistent_session');
+
+  if (profileLoading || (!isLoaded && !profile && !isGuestLanding)) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#020205] flex items-center justify-center text-slate-100 font-sans">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-medium text-gray-500">Loading Track<span className="text-blue-600">MY</span>Attendance...</p>
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-slate-400">Loading Track<span className="text-blue-500">MY</span>Attendance...</p>
         </div>
       </div>
     );
